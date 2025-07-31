@@ -1,0 +1,89 @@
+#' analysis_left UI Function
+#'
+#' @description A shiny Module.
+#'
+#' @param id,input,output,session Internal parameters for {shiny}.
+#' @import shinybusy
+#'
+#' @noRd
+#'
+#' @importFrom shiny NS tagList
+mod_analysis_left_ui <- function(id) {
+    ns <- NS(id)
+    ## Add a spinner
+    add_busy_spinner(spin = "fading-circle", color = "#112446")
+    tagList(
+        fileInput(ns("file_h5file"),
+                  label = "1. Upload you H5 file.",
+                  accept = ".h5"),
+        textInput(ns("file_name"),
+                  label = "2. Enter a name for your assay",
+                  value = ""),
+        radioGroupButtons(
+            inputId = ns("file_fileType"),
+            label = "3. DNA or DNA+protein ?",
+            choices = c("DNA only"="DNA",
+                        "DNA & protein"="DNA+protein"),
+            justified = TRUE
+        ),
+        h6(HTML("4. Process")),
+        actionBttn(
+            inputId = ns("file_process"),
+            label = "Load file",
+            color = "primary",
+            style = "stretch",
+            icon = icon("magnifying-glass-chart"),
+            block = TRUE
+        )
+    )
+}
+
+#' analysis_left Server Functions
+#'
+#' @noRd
+#' @importFrom gargoyle  init
+#' @importFrom optima readHdf5
+mod_analysis_left_server <- function(id, lensObject){
+    moduleServer(id, function(input, output, session){
+        ns <- session$ns
+        # --------------------------------------------------------------- #
+        # Init watcher
+        init("preprocessFile")
+        # --------------------------------------------------------------- #
+        # Uploaded file
+
+        message(whereami::whereami())
+
+        observeEvent(input$file_process,{
+            filePath <- input$file_h5file$datapath
+            sampleName <- input$file_name
+            fileType <- input$file_fileType
+            req(filePath)
+            req(sampleName)
+            req(fileType)
+            message(whereami::whereami())
+            show_modal_spinner(text = "Loading data ...")
+            lensObject$data <- tryCatch(
+                loadH5(directory = filePath,
+                       sample.name = sampleName,
+                       omic.type = fileType),
+                error = function(e){
+                    message("Error during loadH5")
+                    stop(e$message)
+                })
+            # ---------------------------- #
+            # Add cell and DNA variant info
+            lensObject$initNumberCell <- length(lensObject$data@cell.ids)
+            lensObject$initNumberDNA_variant <- length(lensObject$data@variants)
+            remove_modal_spinner()
+            message(whereami::whereami())
+            trigger("dataLoaded")
+        })
+    })
+}
+
+## To be copied in the UI
+# mod_analysis_left_ui("analysis_left_1")
+
+## To be copied in the server
+# mod_analysis_left_server("analysis_left_1", lensObject)

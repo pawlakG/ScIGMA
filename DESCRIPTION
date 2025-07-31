@@ -1,0 +1,14 @@
+Package: ScIGMA
+Title: ScIGMA – Single-cell Integrated Genomic & Multi-omics Analyzer
+Version: 0.0.0.1
+Authors@R: 
+    person("Geoffrey", "Pawlak", , "pawlak.geoffrey@gmail.com", role = c("aut", "cre"))
+Description: PKG_DESC.
+License: What license is it under?
+Imports: 
+    config,
+    golem,
+    shiny
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1

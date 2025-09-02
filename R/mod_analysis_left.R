@@ -43,15 +43,16 @@ mod_analysis_left_ui <- function(id) {
 #' @noRd
 #' @importFrom gargoyle  init
 #' @importFrom optima readHdf5
-mod_analysis_left_server <- function(id, lensObject){
+mod_analysis_left_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
         # --------------------------------------------------------------- #
         # Init watcher
         init("preprocessFile")
+        print("ScIGMA_data_begin_left")
+        print(ScIGMA_data)
         # --------------------------------------------------------------- #
         # Uploaded file
-
         message(whereami::whereami())
 
         observeEvent(input$file_process,{
@@ -63,18 +64,30 @@ mod_analysis_left_server <- function(id, lensObject){
             req(fileType)
             message(whereami::whereami())
             show_modal_spinner(text = "Loading data ...")
-            lensObject$data <- tryCatch(
-                loadH5(directory = filePath,
-                       sample.name = sampleName,
-                       omic.type = fileType),
-                error = function(e){
-                    message("Error during loadH5")
-                    stop(e$message)
-                })
-            # ---------------------------- #
-            # Add cell and DNA variant info
-            lensObject$initNumberCell <- length(lensObject$data@cell.ids)
-            lensObject$initNumberDNA_variant <- length(lensObject$data@variants)
+            if (file.exists(filePath)) {
+                if (file.info(filePath)$isdir) {
+                    ScIGMA_data$data <- tryCatch(
+                        loadH5_dir_HDF5(dir = filePath,
+                                    sample.name = sampleName,
+                                    feature_policy = "intersect",
+                                    omic.type = fileType),
+                        error = function(e){
+                            message("Error during loadH5")
+                            stop(e$message)
+                        })
+                } else {
+                    ScIGMA_data$data <- tryCatch(
+                        loadH5_HDF5(filepath = filePath,
+                                    sample.name = sampleName,
+                                    omic.type = fileType),
+                        error = function(e){
+                            message("Error during loadH5")
+                            stop(e$message)
+                        })
+                }
+            } else {
+                stop("File or folder path doesn't exists\n")
+            }
             remove_modal_spinner()
             message(whereami::whereami())
             trigger("dataLoaded")
@@ -86,4 +99,4 @@ mod_analysis_left_server <- function(id, lensObject){
 # mod_analysis_left_ui("analysis_left_1")
 
 ## To be copied in the server
-# mod_analysis_left_server("analysis_left_1", lensObject)
+# mod_analysis_left_server("analysis_left_1", ScIGMA_data)

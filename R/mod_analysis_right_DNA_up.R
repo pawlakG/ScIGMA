@@ -36,7 +36,7 @@ mod_analysis_right_DNA_up_ui <- function(id) {
 #' analysis_right_DNA_up Server Functions
 #'
 #' @noRd
-mod_analysis_right_DNA_up_server <- function(id, lensObject){
+mod_analysis_right_DNA_up_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
 
@@ -48,7 +48,7 @@ mod_analysis_right_DNA_up_server <- function(id, lensObject){
         # Afficher la table de sélection
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            datatable(lensObject$variantAnnotation,
+            datatable(ScIGMA_data$variantAnnotation,
                       selection = 'multiple',
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
@@ -62,4 +62,4 @@ mod_analysis_right_DNA_up_server <- function(id, lensObject){
 # mod_analysis_right_DNA_up_ui("analysis_right_DNA_up_1")
 
 ## To be copied in the server
-# mod_analysis_right_DNA_up_server("analysis_right_DNA_up_1", lensObject)
+# mod_analysis_right_DNA_up_server("analysis_right_DNA_up_1", ScIGMA_data)

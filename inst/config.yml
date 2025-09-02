@@ -1,0 +1,11 @@
+default:
+  paths:
+    chromosome: "chromosome"
+    position: "position"
+    ref_allele: "ref_allele"
+    alt_allele: "alt_allele"
+    gene: "annotations.gene.value"
+    variant_type: "annotations.variant_type.value"
+    gene_function: "annotations.function.value"
+    impact: "annotations.impact.value"
+    clinvar: "annotations.clinvar.value"

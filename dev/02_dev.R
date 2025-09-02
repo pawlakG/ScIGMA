@@ -17,16 +17,28 @@
 ## Amend DESCRIPTION with dependencies read from package code parsing
 ## install.packages('attachment') # if needed.
 attachment::att_amend_desc()
+golem::document_and_reload()
 
 ## Add modules ----
 ## Create a module infrastructure in R/
-golem::add_module(name = "name_of_module1", with_test = TRUE) # Name of the module
-golem::add_module(name = "name_of_module2", with_test = TRUE) # Name of the module
+golem::add_module(name = "welcome", with_test = FALSE) # Name of the module
+golem::add_module(name = "analysis_left", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_overview", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_DNA_up", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_DNA_down", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_CNV", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_Protein", with_test = TRUE) # Name of the module
+golem::add_module(name = "analysis_right_multiOmics", with_test = TRUE) # Name of the module
+
+## Add packages ----
+usethis::use_package("bslib")
+usethis::use_dev_package("gridlayout", remote = "github::rstudio/gridlayout")
 
 ## Add helper functions ----
 ## Creates fct_* and utils_*
-golem::add_fct("helpers", with_test = TRUE)
-golem::add_utils("helpers", with_test = TRUE)
+# golem::add_fct("optima_dna", with_test = TRUE)
+
+# golem::add_utils("lensR6", with_test = TRUE)
 
 ## External resources
 ## Creates .js and .css files at inst/app/www

@@ -27,44 +27,53 @@ mod_analysis_right_overview_ui <- function(id) {
 #' analysis_right_overview Server Functions
 #'
 #' @noRd
-mod_analysis_right_overview_server <- function(id, lensObject){
+mod_analysis_right_overview_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
         message(whereami::whereami())
+
+        # --------------------------------------------------------------- #
+        # Reactive state for sharing metrics between observeEvent and renderUI
+        init_metrics <- reactiveValues(
+            init_number_cell = NULL,
+            init_number_dna_variant = NULL
+        )
 
         # ---------------------------- #
         # Render Summary UI
         output$overview <- renderUI({
             watch("dataLoaded")
+            print("ScIGMA_data_right_overview")
+            print(ScIGMA_data)
             message(whereami::whereami())
             fluidRow(
                 column(3,
                        card(
                            card_header("Number of cells"),
                            card_body(
-                               p(ifelse(is.null(lensObject$data),yes = "No data loaded", no = length(lensObject$data@cell.ids)),
+                               p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$cell.ids)),
                                  style="text-align:center")
                            ))
-                       # summaryBox(title = "Number of cells", value = ifelse(is.null(lensObject$data),yes = "No data loaded", no = length(lensObject$data@cell.ids)), icon = icon("credit-card"))
+                       # summaryBox(title = "Number of cells", value = ifelse(is.null(ScIGMA_data$data),yes = "No data loaded", no = length(ScIGMA_data$data@cell.ids)), icon = icon("credit-card"))
                 ),
                 column(3,
                        card(
                            card_header("DNA variants"),
-                           p(ifelse(is.null(lensObject$data),yes = "No data loaded", no = length(lensObject$data@variants)),
+                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$variants)),
                              style="text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("number of CNVs"),
-                           p(ifelse(is.null(lensObject$data),yes = "No data loaded", no = length(lensObject$data@amps)),
+                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$amps)),
                              style="text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("Number of proteins"),
-                           p(ifelse(is.null(lensObject$data),yes = "No data loaded", no = length(lensObject$data@proteins)),
+                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$proteins)),
                              style="text-align:center")
                        )
                 )
@@ -76,7 +85,7 @@ mod_analysis_right_overview_server <- function(id, lensObject){
         output$preprocess <- renderUI({
             watch("dataLoaded")
             message(whereami::whereami())
-            if(!is.null(lensObject$data)){
+            if(!is.null(ScIGMA_data)){
                 tagList(
                     fluidRow(
                         h5("Filter DNA variants:"),
@@ -146,12 +155,20 @@ mod_analysis_right_overview_server <- function(id, lensObject){
             req(overview_preprocess_minMutCellPt)
             message(whereami::whereami())
             show_modal_spinner()
+
+
+            # ---------------------------- #
+            # Store initial cell and DNA variant info
+            init_metrics$init_number_cell <- length(ScIGMA_data$cell.ids)
+            init_metrics$init_number_dna_variant <- length(ScIGMA_data$variants)
+
+            message(whereami::whereami())
             # ---------------------------- #
             # Filter variants
-            lensObject$data <- tryCatch(
-                filterVariant(optima.obj = lensObject$data,
-                              min.cell.pt = overview_preprocess_minCellPt,
-                              min.mut.cell.pt = overview_preprocess_minMutCellPt),
+            ScIGMA_data$data <- tryCatch(
+                filter_variant_ScIGMA(obj = ScIGMA_data,
+                                      min.cell.pt = overview_preprocess_minCellPt,
+                                      min.mut.cell.pt = overview_preprocess_minMutCellPt),
                 error = function(e){
                     remove_modal_spinner()
 
@@ -163,24 +180,22 @@ mod_analysis_right_overview_server <- function(id, lensObject){
             trigger("dnaVariant_filtered")
             # ---------------------------- #
             # Annotate variants
-            print("length(lensObject$data$variants)")
-            print(length(lensObject$data$variants))
-            if (length(lensObject$data$variants) == 0){
+            print("length(ScIGMA_data$variants)")
+            print(length(ScIGMA_data$variants))
+            if (length(ScIGMA_data$variants) == 0){
                 # CONDITION TO HANDLE
             } else {
-                lensObject$variantAnnotation <- tryCatch(
-                    annotateVariant(lensObject$data$variants)
-                , error = function(e){
-                    remove_modal_spinner()
-                    message(warning("Error during variant annotation: "),
-                            warning(e$message))
-                })
+                ScIGMA_data$variant.annotation <- tryCatch(
+                    fetch_variants_batch_fields(ScIGMA_data$variants.filtered)
+                    , error = function(e){
+                        remove_modal_spinner()
+                        message(warning("Error during variant annotation: "),
+                                warning(e$message))
+                    })
                 remove_modal_spinner()
             }
             remove_modal_spinner()
         })
-
-
 
         # --------------------------------------------------------------- #
         # Render UI after DNA variant filtering
@@ -188,12 +203,14 @@ mod_analysis_right_overview_server <- function(id, lensObject){
             watch("dnaVariant_filtered")
             message(whereami::whereami())
             message(whereami::whereami())
-            if (is.null(lensObject$data)){
+            print("ScIGMA_data$data")
+            print(ScIGMA_data$data)
+            if (length(ScIGMA_data$data$variant.filter) == 0){
                 fluidRow(
                     h5("DNA variant filtering results:"),
                     div("Data not filtered yet", align ="center")
                 )
-            } else if (lensObject$data@variant.filter != "filtered") {
+            } else if (ScIGMA_data$data$variant.filter != "filtered") {
                 fluidRow(
                     h5("DNA variant filtering results:"),
                     div("Data not filtered yet", align ="center")
@@ -204,15 +221,15 @@ mod_analysis_right_overview_server <- function(id, lensObject){
                         h5("DNA variant filtering results:"),
                         column(6,
                                HTML(
-                                   paste0("Number of cells removed: ", lensObject$initNumberCell - length(lensObject$data@cell.ids), "</br>"),
-                                   paste0("Number of DNA variants removed: ", lensObject$initNumberDNA_variant - length(lensObject$data@variants))
+                                   paste0("Number of cells removed: ", init_metrics$init_number_cell - length(ScIGMA_data$cell.ids.filtered), "</br>"),
+                                   paste0("Number of DNA variants removed: ", init_metrics$init_number_dna_variant - length(ScIGMA_data$variants.filtered))
                                )
                         ),
                         column(6,
                                div(
                                    HTML(
-                                       paste0("Actual number of cells: ", length(lensObject$data@cell.ids), "</br>"),
-                                       paste0("Actual number of DNA variants : ", length(lensObject$data@variants))
+                                       paste0("Actual number of cells: ", length(ScIGMA_data$cell.ids.filtered), "</br>"),
+                                       paste0("Actual number of DNA variants : ", length(ScIGMA_data$variants.filtered))
                                    )
                                ), align = "justify")
                     )
@@ -227,4 +244,4 @@ mod_analysis_right_overview_server <- function(id, lensObject){
 # mod_analysis_right_overview_ui("analysis_right_overview_1")
 
 ## To be copied in the server
-# mod_analysis_right_overview_server("analysis_right_overview_1", lensObject)
+# mod_analysis_right_overview_server("analysis_right_overview_1", ScIGMA_data)

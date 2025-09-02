@@ -18,7 +18,7 @@ mod_analysis_right_DNA_up_ui <- function(id) {
                 "Select DNA variants",
                 DTOutput(ns("variant_selection")),
                 br(),
-                actionButton("btn_filtrer", "Filter",
+                actionButton(ns("btn_filtrer"), "Filter",
                              class = "btn-primary")
             ),
             accordion_panel(
@@ -39,23 +39,30 @@ mod_analysis_right_DNA_up_ui <- function(id) {
 mod_analysis_right_DNA_up_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
-
-
-        df_filtrage <- as.data.frame(matrix(1:25, 5, 5))
-
         # Render DNA variants dataframe
-
         # Afficher la table de sélection
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            datatable(ScIGMA_data$variantAnnotation,
+            datatable(ScIGMA_data$variant.annotation,
                       selection = 'multiple',
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
 
 
+        # Récupérer les lignes sélectionnées seulement quand l'utilisateur clique
+        observeEvent(input$btn_filtrer, {
+            sel <- input$variant_selection_rows_selected   # vecteur des index sélectionnés
+            if (length(sel) > 0) {
+                # récupérer les données correspondantes
+                selected_data <- ScIGMA_data$variant.annotation[sel, ]
+
+            }
+        })
+
     })
+
+
 }
 
 ## To be copied in the UI

@@ -739,9 +739,6 @@ filter_variant_ScIGMA <- function(
 
     filtered$protein.mtx.filtered  <- my.protein.mtx
 
-    print("filtered$protein.mtx")
-    print(dim(filtered$protein.mtx))
-
     # Summary
     removed_cells    <- length(cell.variants.keep.tf) - sum(cell.variants.keep.tf)
     removed_variants <- length(variant.keep.tf) - sum(variant.keep.tf)

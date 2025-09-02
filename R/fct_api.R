@@ -109,8 +109,7 @@ pluck_or_na <- function(x, path) {
 #' # extract_paths(records, paths) |> tidyr::unnest_wider(clinvar_value, names_sep = "_")
 extract_paths <- function(records, paths) {
     # Example of 'paths': list(col_name = "a.b.c", other = "x.y")
-    stopifnot(is.list(records), length(paths) >= 1L)
-
+    stopifnot(is.list(records))
     purrr::map(records, function(rec) {
         # Ensure list-columns by wrapping each plucked value in a list()
         vals <- purrr::imap(paths, ~ list(pluck_or_na(rec, .x)))  # guarantees list-columns
@@ -123,14 +122,12 @@ extract_paths <- function(records, paths) {
 #' @import dplyr
 #'
 fetch_variants_batch_fields <- function(
-        obj,
+        ids,
         paths,                                   # list(col_name = "a.b.c", ...)
         base_url = "https://api.missionbio.io/annotations/v1/variants",
         batch_size = 300,
         max_retries = 4
 ) {
-    ids <- format_variant(obj$data$variants)
-
     stopifnot(length(ids) >= 1L)
     ids_formated <- format_variant(ids)
 
@@ -156,7 +153,7 @@ fetch_variants_batch_fields <- function(
                    "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
             dplyr::mutate(
                 chromosome   = purrr::map_chr(chromosome, 1, .default = NA_character_),
-                position     = purrr::map_chr(position, 1, .default = NA_character_),   # si numérique : map_dbl
+                position     = purrr::map_chr(position, 1, .default = NA_character_),
                 ref_allele   = purrr::map_chr(ref_allele, 1, .default = NA_character_),
                 alt_allele   = purrr::map_chr(alt_allele, 1, .default = NA_character_),
                 gene         = purrr::map_chr(gene, 1, .default = NA_character_),

@@ -177,7 +177,6 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
                 })
 
             message(whereami::whereami())
-            trigger("dnaVariant_filtered")
             # ---------------------------- #
             # Annotate variants
             print("length(ScIGMA_data$variants)")
@@ -186,25 +185,26 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
                 # CONDITION TO HANDLE
             } else {
                 ScIGMA_data$variant.annotation <- tryCatch(
-                    fetch_variants_batch_fields(ScIGMA_data$variants.filtered)
+                    fetch_variants_batch_fields(ScIGMA_data$variants.filtered,
+                                                batch_size = 300,
+                                                paths = cfg$paths)
                     , error = function(e){
                         remove_modal_spinner()
                         message(warning("Error during variant annotation: "),
                                 warning(e$message))
                     })
                 remove_modal_spinner()
+                trigger("dnaVariant_filtered")
             }
             remove_modal_spinner()
         })
+
 
         # --------------------------------------------------------------- #
         # Render UI after DNA variant filtering
         output$dnaFilterResults <- renderUI({
             watch("dnaVariant_filtered")
             message(whereami::whereami())
-            message(whereami::whereami())
-            print("ScIGMA_data$data")
-            print(ScIGMA_data$data)
             if (length(ScIGMA_data$data$variant.filter) == 0){
                 fluidRow(
                     h5("DNA variant filtering results:"),

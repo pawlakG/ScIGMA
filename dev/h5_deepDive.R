@@ -48,7 +48,6 @@ variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths =
 
 
 
-
 # get number cell filtered per variants
 
 cols <-sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)", "")
@@ -56,3 +55,4 @@ cols <-sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)", "")
 realize(as(obj$dna.variant.filter.mask[, cols], "numeric"))
 
 nrow(obj$dna.variant.filter.mask) - realize(obj$dna.variant.filter.mask[, cols] != as.raw(0)) |> colSums()
+dna.variant.filter.mask.filtered

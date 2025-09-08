@@ -1,18 +1,9 @@
-#' obj$print()
-#' str(obj$summary())
-#'
-#' # Persist delayed computations to a single HDF5 file:
-#' obj$realize_all(dir = "store", file = "ScIGMA_store.h5",
-#'                 chunkdim = c(1024, 512), level = 6)
-#' }
-#'
 #' @importFrom R6 R6Class
 #' @importFrom DelayedArray DelayedArray realize
 #' @importFrom HDF5Array HDF5Array writeHDF5Array setHDF5DumpDir setHDF5DumpFile
 #' @keywords classes
 ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
-
     public = list(
         #' @field data Named list holding all payload fields (matrices/vectors/metadata).
         data = NULL,
@@ -31,6 +22,7 @@ ScIGMA_object <- R6::R6Class(
         #' @param dna.variant.filter.mask matrix of cell and variant filtering, extracted from
         #' sample.dna.layers.FILTER_MASK, sample.dna.col_attrs.filtered, sample.dna.row_attrs.filtered,
         #' n_passing_variants, n_passing_cells, and n_passing_variants_per_cell.
+        #' @param dna.variant.filter.mask matrix of cell and variant filtering after variant filtering
         #' @param vaf.mtx `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`).
         #' @param vaf.mtx.filtered `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`) after variant filtering.
         #' @param vaf.mtx.cells Character vector of labels associated with `vaf.mtx`.
@@ -92,16 +84,21 @@ ScIGMA_object <- R6::R6Class(
                               protein.mtx.cells = character(),
                               backing_files = list(),
                               variant.annotation = NULL) {
-
             # simple validator for HDF5-backed matrices
-            .chk <- function(x, nm){
-                if (!is.null(x) && !inherits(x, "DelayedArray")){
+            .chk <- function(x, nm) {
+                if (!is.null(x) && !inherits(x, "DelayedArray")) {
                     stop(sprintf("%s must be a DelayedArray/HDF5Array (HDF5-backed) or NULL.", nm),
-                         call. = FALSE)
+                        call. = FALSE
+                    )
                 }
             }
-            .chk(vaf.mtx, "vaf.mtx"); .chk(gt.mtx, "gt.mtx"); .chk(dp.mtx, "dp.mtx"); .chk(gq.mtx, "gq.mtx")
-            .chk(amp.mtx, "amp.mtx"); .chk(ploidy.mtx, "ploidy.mtx"); .chk(protein.mtx, "protein.mtx")
+            .chk(vaf.mtx, "vaf.mtx")
+            .chk(gt.mtx, "gt.mtx")
+            .chk(dp.mtx, "dp.mtx")
+            .chk(gq.mtx, "gq.mtx")
+            .chk(amp.mtx, "amp.mtx")
+            .chk(ploidy.mtx, "ploidy.mtx")
+            .chk(protein.mtx, "protein.mtx")
 
             # pack everything into the single `data` slot
             self$data <- list(
@@ -145,7 +142,7 @@ ScIGMA_object <- R6::R6Class(
 
         #' @description
         #' Print a compact summary of the object.
-        print = function(...){
+        print = function(...) {
             cat("ScIGMA_object (HDF5-backed) — data slot layout\n")
             cat("------------------------------------------------\n")
             cat("Metadata entries  : ", length(self$data$meta.data), "\n")
@@ -166,15 +163,18 @@ ScIGMA_object <- R6::R6Class(
         #' @param chunkdim Optional integer vector for chunking (passed to writeHDF5Array()).
         #' @param level Integer compression level (0–9). Default 6.
         #' @return `self` (invisible).
-        realize_all = function(dir, file = "ScIGMA_store.h5", chunkdim = NULL, level = 6){
+        realize_all = function(dir, file = "ScIGMA_store.h5", chunkdim = NULL, level = 6) {
             HDF5Array::setHDF5DumpDir(dir)
             HDF5Array::setHDF5DumpFile(file)
 
-            .real <- function(x, name){
-                if (is.null(x)) return(NULL)
-                if (!is.null(chunkdim)){
+            .real <- function(x, name) {
+                if (is.null(x)) {
+                    return(NULL)
+                }
+                if (!is.null(chunkdim)) {
                     return(HDF5Array::writeHDF5Array(
-                        x, filepath = file.path(dir, file), name = name,
+                        x,
+                        filepath = file.path(dir, file), name = name,
                         chunkdim = chunkdim, level = level
                     ))
                 } else {
@@ -182,13 +182,13 @@ ScIGMA_object <- R6::R6Class(
                 }
             }
 
-            self$data$vaf.mtx     <- .real(self$data$vaf.mtx,     "vaf_mtx")
-            self$data$gt.mtx      <- .real(self$data$gt.mtx,      "gt_mtx")
-            self$data$dp.mtx      <- .real(self$data$dp.mtx,      "dp_mtx")
-            self$data$gq.mtx      <- .real(self$data$gq.mtx,      "gq_mtx")
-            self$data$amp.mtx     <- .real(self$data$amp.mtx,     "amp_mtx")
-            self$data$amp.mtx.normalized <- .real(self$data$amp.mtx.normalized,     "amp_mtx")
-            self$data$ploidy.mtx  <- .real(self$data$ploidy.mtx,  "ploidy_mtx")
+            self$data$vaf.mtx <- .real(self$data$vaf.mtx, "vaf_mtx")
+            self$data$gt.mtx <- .real(self$data$gt.mtx, "gt_mtx")
+            self$data$dp.mtx <- .real(self$data$dp.mtx, "dp_mtx")
+            self$data$gq.mtx <- .real(self$data$gq.mtx, "gq_mtx")
+            self$data$amp.mtx <- .real(self$data$amp.mtx, "amp_mtx")
+            self$data$amp.mtx.normalized <- .real(self$data$amp.mtx.normalized, "amp_mtx")
+            self$data$ploidy.mtx <- .real(self$data$ploidy.mtx, "ploidy_mtx")
             self$data$protein.mtx <- .real(self$data$protein.mtx, "protein_mtx")
 
             self$data$backing_files$realized <- file.path(dir, file)
@@ -198,146 +198,215 @@ ScIGMA_object <- R6::R6Class(
 
     # ---- Backward compatible access via active bindings ----
     active = list(
-        meta.data = function(value){
-            if (missing(value)) return(self$data$meta.data)
+        meta.data = function(value) {
+            if (missing(value)) {
+                return(self$data$meta.data)
+            }
             self$data$meta.data <- value
         },
-        cell.ids = function(value){
-            if (missing(value)) return(self$data$cell.ids)
+        cell.ids = function(value) {
+            if (missing(value)) {
+                return(self$data$cell.ids)
+            }
             self$data$cell.ids <- value
         },
-        cell.labels = function(value){
-            if (missing(value)) return(self$data$cell.labels)
+        cell.labels = function(value) {
+            if (missing(value)) {
+                return(self$data$cell.labels)
+            }
             self$data$cell.labels <- value
         },
-        cell.ids.filtered = function(value){
-            if (missing(value)) return(self$data$cell.ids.filtered)
+        cell.ids.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$cell.ids.filtered)
+            }
             self$data$cell.ids.filtered <- value
         },
-        cell.labels.filtered = function(value){
-            if (missing(value)) return(self$data$cell.labels.filtered)
+        cell.labels.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$cell.labels.filtered)
+            }
             self$data$cell.labels.filtered <- value
         },
-        variants = function(value){
-            if (missing(value)) return(self$data$variants)
+        variants = function(value) {
+            if (missing(value)) {
+                return(self$data$variants)
+            }
             self$data$variants <- value
         },
-        variants.filtered = function(value){
-            if (missing(value)) return(self$data$variants.filtered)
+        variants.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$variants.filtered)
+            }
             self$data$variants.filtered <- value
         },
-        variant.filter = function(value){
-            if (missing(value)) return(self$data$variant.filter)
+        variant.filter = function(value) {
+            if (missing(value)) {
+                return(self$data$variant.filter)
+            }
             self$data$variant.filter <- value
         },
-        dna.variant.filter.mask = function(value){
-            if (missing(value)) return(self$data$dna.variant.filter.mask)
+        dna.variant.filter.mask = function(value) {
+            if (missing(value)) {
+                return(self$data$dna.variant.filter.mask)
+            }
             self$data$dna.variant.filter.mask <- value
         },
-        vaf.mtx = function(value){
-            if (missing(value)) return(self$data$vaf.mtx)
+        vaf.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$vaf.mtx)
+            }
             self$data$vaf.mtx <- value
         },
-        vaf.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$vaf.mtx.filtered)
+        vaf.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$vaf.mtx.filtered)
+            }
             self$data$vaf.mtx.filtered <- value
         },
-        vaf.mtx.cells = function(value){
-            if (missing(value)) return(self$data$vaf.mtx.cells)
+        vaf.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$vaf.mtx.cells)
+            }
             self$data$vaf.mtx.cells <- value
         },
-        gt.mtx = function(value){
-            if (missing(value)) return(self$data$gt.mtx)
+        gt.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$gt.mtx)
+            }
             self$data$gt.mtx <- value
         },
-        gt.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$gt.mtx.filtered)
+        gt.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$gt.mtx.filtered)
+            }
             self$data$gt.mtx.filtered <- value
         },
-        gt.mtx.cells = function(value){
-            if (missing(value)) return(self$data$gt.mtx.cells)
+        gt.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$gt.mtx.cells)
+            }
             self$data$gt.mtx.cells <- value
         },
-        dp.mtx = function(value){
-            if (missing(value)) return(self$data$dp.mtx)
+        dp.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$dp.mtx)
+            }
             self$data$dp.mtx <- value
         },
-        dp.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$dp.mtx.filtered)
+        dp.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$dp.mtx.filtered)
+            }
             self$data$dp.mtx.filtered <- value
         },
-        dp.mtx.cells = function(value){
-            if (missing(value)) return(self$data$dp.mtx.cells)
+        dp.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$dp.mtx.cells)
+            }
             self$data$dp.mtx.cells <- value
         },
-        gq.mtx = function(value){
-            if (missing(value)) return(self$data$gq.mtx)
+        gq.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$gq.mtx)
+            }
             self$data$gq.mtx <- value
         },
-        gq.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$gq.mtx.filtered)
+        gq.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$gq.mtx.filtered)
+            }
             self$data$gq.mtx.filtered <- value
         },
-        gq.mtx.cells = function(value){
-            if (missing(value)) return(self$data$gq.mtx.cells)
+        gq.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$gq.mtx.cells)
+            }
             self$data$gq.mtx.cells <- value
         },
-        amps = function(value){
-            if (missing(value)) return(self$data$amps)
+        amps = function(value) {
+            if (missing(value)) {
+                return(self$data$amps)
+            }
             self$data$amps <- value
         },
-        amp.normalize.method = function(value){
-            if (missing(value)) return(self$data$amp.normalize.method)
+        amp.normalize.method = function(value) {
+            if (missing(value)) {
+                return(self$data$amp.normalize.method)
+            }
             self$data$amp.normalize.method <- value
         },
-        amp.mtx = function(value){
-            if (missing(value)) return(self$data$amp.mtx)
+        amp.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$amp.mtx)
+            }
             self$data$amp.mtx <- value
         },
-        amp.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$amp.mtx.filtered)
+        amp.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$amp.mtx.filtered)
+            }
             self$data$amp.mtx.filtered <- value
         },
-        amp.mtx.normalized = function(value){
-            if (missing(value)) return(self$data$amp.mtx.normalized)
+        amp.mtx.normalized = function(value) {
+            if (missing(value)) {
+                return(self$data$amp.mtx.normalized)
+            }
             self$data$amp.mtx.normalized <- value
         },
-        amp.mtx.cells = function(value){
-            if (missing(value)) return(self$data$amp.mtx.cells)
+        amp.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$amp.mtx.cells)
+            }
             self$data$amp.mtx.cells <- value
         },
-        ploidy.mtx = function(value){
-            if (missing(value)) return(self$data$ploidy.mtx)
+        ploidy.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$ploidy.mtx)
+            }
             self$data$ploidy.mtx <- value
         },
-        proteins = function(value){
-            if (missing(value)) return(self$data$proteins)
+        proteins = function(value) {
+            if (missing(value)) {
+                return(self$data$proteins)
+            }
             self$data$proteins <- value
         },
-        protein.normalize.method = function(value){
-            if (missing(value)) return(self$data$protein.normalize.method)
+        protein.normalize.method = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.normalize.method)
+            }
             self$data$protein.normalize.method <- value
         },
-        protein.mtx = function(value){
-            if (missing(value)) return(self$data$protein.mtx)
+        protein.mtx = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.mtx)
+            }
             self$data$protein.mtx <- value
         },
-        protein.mtx.filtered = function(value){
-            if (missing(value)) return(self$data$protein.mtx.filtered)
+        protein.mtx.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.mtx.filtered)
+            }
             self$data$protein.mtx.filtered <- value
         },
-        protein.mtx.cells = function(value){
-            if (missing(value)) return(self$data$protein.mtx.cells)
+        protein.mtx.cells = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.mtx.cells)
+            }
             self$data$protein.mtx.cells <- value
         },
-        backing_files = function(value){
-            if (missing(value)) return(self$data$backing_files)
+        backing_files = function(value) {
+            if (missing(value)) {
+                return(self$data$backing_files)
+            }
             self$data$backing_files <- value
         },
-        variant.annotation = function(value){
-            if (missing(value)) return(self$data$variant.annotation)
+        variant.annotation = function(value) {
+            if (missing(value)) {
+                return(self$data$variant.annotation)
+            }
             self$data$variant.annotation <- value
         }
     )
 )
-

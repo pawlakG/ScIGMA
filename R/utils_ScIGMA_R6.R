@@ -5,7 +5,8 @@
 ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
     public = list(
-        #' @field data Named list holding all payload fields (matrices/vectors/metadata).
+        #' @field data Named list holding all payload fields
+        #' (matrices/vectors/metadata).
         data = NULL,
 
         #' @description
@@ -13,41 +14,67 @@ ScIGMA_object <- R6::R6Class(
         #'
         #' @param meta.data List of sample-level and assays metadata.
         #' @param cell.ids Character vector of cell IDs (barcodes).
-        #' @param cell.ids.filtered Character vector of cell IDs (barcodes) after variant filtering.
-        #' @param cell.labels Named character vector of human-readable cell labels.
-        #' @param cell.labels.filtered Character vector of human-readable cell labels after variant filtering.
+        #' @param cell.ids.filtered Character vector of cell IDs (barcodes)
+        #' after variant filtering.
+        #' @param cell.labels Named character vector of human-readable cell
+        #' labels.
+        #' @param cell.labels.filtered Character vector of human-readable cell
+        #' labels after variant filtering.
         #' @param variants Character vector of variant IDs.
-        #' @param variants.filtered Character vector of variant ID after variant filterings.
+        #' @param variants.filtered Character vector of variant ID after variant
+        #' filterings.
         #' @param variant.filter Character vector of filtered variant IDs.
-        #' @param dna.variant.filter.mask matrix of cell and variant filtering, extracted from
-        #' sample.dna.layers.FILTER_MASK, sample.dna.col_attrs.filtered, sample.dna.row_attrs.filtered,
+        #' @param dna.variant.filter.mask matrix of cell and variant filtering,
+        #' extracted from
+        #' sample.dna.layers.FILTER_MASK, sample.dna.col_attrs.filtered,
+        #' sample.dna.row_attrs.filtered,
         #' n_passing_variants, n_passing_cells, and n_passing_variants_per_cell.
-        #' @param dna.variant.filter.mask matrix of cell and variant filtering after variant filtering
-        #' @param vaf.mtx `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`).
-        #' @param vaf.mtx.filtered `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`) after variant filtering.
-        #' @param vaf.mtx.cells Character vector of labels associated with `vaf.mtx`.
+        #' @param dna.variant.filter.mask.filtered matrix of cell and variant
+        #' filtering after variant filtering according to user parameters
+        #' @param vaf.mtx `DelayedArray` (e.g., `HDF5Array`) for VAF data
+        #' (or `NULL`).
+        #' @param vaf.mtx.filtered `DelayedArray` (e.g., `HDF5Array`) for VAF
+        #' data (or `NULL`) after variant filtering.
+        #' @param vaf.mtx.cells Character vector of labels associated with
+        #' `vaf.mtx`.
         #' @param gt.mtx `DelayedArray` for genotype data (or `NULL`).
-        #' @param gt.mtx.filtered `DelayedArray` for genotype data (or `NULL`) after variant filtering.
-        #' @param gt.mtx.cells Character vector of labels associated with `gt.mtx`.
+        #' @param gt.mtx.filtered `DelayedArray` for genotype data (or `NULL`)
+        #' after variant filtering.
+        #' @param gt.mtx.cells Character vector of labels associated with
+        #' `gt.mtx`.
         #' @param dp.mtx `DelayedArray` for read depth (or `NULL`).
-        #' @param dp.mtx.filtered `DelayedArray` for read depth (or `NULL`) after variant filtering.
-        #' @param dp.mtx.cells Character vector of labels associated with `dp.mtx`.
+        #' @param dp.mtx.filtered `DelayedArray` for read depth (or `NULL`)
+        #' after variant filtering.
+        #' @param dp.mtx.cells Character vector of labels associated with
+        #' `dp.mtx`.
         #' @param gq.mtx `DelayedArray` for genotype quality (or `NULL`).
-        #' @param gq.mtx.filtered `DelayedArray` for genotype quality (or `NULL`) after variant filtering.
-        #' @param gq.mtx.cells Character vector of labels associated with `gq.mtx`.
+        #' @param gq.mtx.filtered `DelayedArray` for genotype quality
+        #' (or `NULL`) after variant filtering.
+        #' @param gq.mtx.cells Character vector of labels associated with
+        #' `gq.mtx`.
         #' @param amps Character vector of amplicon IDs.
-        #' @param amp.normalize.method Character scalar describing normalization used for amplicons.
+        #' @param amp.normalize.method Character scalar describing
+        #' normalization used for amplicons.
         #' @param amp.mtx `DelayedArray` for amplicon read counts (or `NULL`).
-        #' @param amp.mtx.filtered `DelayedArray` for amplicon read counts (or `NULL`) after variant filtering.
-        #' @param amp.mtx.normalized `DelayedArray` for amplicon read normalized counts (or `NULL`).
-        #' @param amp.mtx.cells Character vector of labels associated with `amp.mtx`.
-        #' @param ploidy.mtx Optional `DelayedArray` for ploidy data (or `NULL`).
+        #' @param amp.mtx.filtered `DelayedArray` for amplicon read counts
+        #' (or `NULL`) after variant filtering.
+        #' @param amp.mtx.normalized `DelayedArray` for amplicon read
+        #' normalized counts (or `NULL`).
+        #' @param amp.mtx.cells Character vector of labels associated with
+        #' `amp.mtx`.
+        #' @param ploidy.mtx Optional `DelayedArray` for ploidy data
+        #' (or `NULL`).
         #' @param proteins Character vector of protein IDs.
-        #' @param protein.normalize.method Character scalar describing protein normalization.
-        #' @param protein.mtx `DelayedArray` for protein expression/read counts (or `NULL`).
-        #' @param protein.mtx.filtered `DelayedArray` for protein expression/read counts (or `NULL`) after variant filtering.
-        #' @param protein.mtx.cells Character vector of labels associated with `protein.mtx`.
-        #' @param backing_files List for bookkeeping HDF5 files (e.g., `list(original=..., realized=...)`).
+        #' @param protein.normalize.method Character scalar describing protein
+        #' normalization.
+        #' @param protein.mtx `DelayedArray` for protein expression/read counts
+        #' (or `NULL`).
+        #' @param protein.mtx.filtered `DelayedArray` for protein
+        #' expression/read counts (or `NULL`) after variant filtering.
+        #' @param protein.mtx.cells Character vector of labels associated
+        #' with `protein.mtx`.
+        #' @param backing_files List for bookkeeping HDF5 files
+        #' (e.g., `list(original=..., realized=...)`).
         #' @param variant.annotation data.frame of annotated variants.
         initialize = function(meta.data = list(),
                               cell.ids = character(),
@@ -58,6 +85,7 @@ ScIGMA_object <- R6::R6Class(
                               variants.filtered = character(),
                               variant.filter = character(),
                               dna.variant.filter.mask = matrix(),
+                              dna.variant.filter.mask.filtered = matrix(),
                               vaf.mtx = NULL,
                               vaf.mtx.filtered = NULL,
                               vaf.mtx.cells = character(),
@@ -111,6 +139,7 @@ ScIGMA_object <- R6::R6Class(
                 variants.filtered = variants.filtered,
                 variant.filter = variant.filter,
                 dna.variant.filter.mask = dna.variant.filter.mask,
+                dna.variant.filter.mask.filtered = dna.variant.filter.mask.filtered,
                 vaf.mtx = vaf.mtx,
                 vaf.mtx.filtered = vaf.mtx.filtered,
                 vaf.mtx.cells = vaf.mtx.cells,
@@ -251,6 +280,12 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$dna.variant.filter.mask)
             }
             self$data$dna.variant.filter.mask <- value
+        },
+        dna.variant.filter.mask.filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$dna.variant.filter.mask.filtered)
+            }
+            self$data$dna.variant.filter.mask.filtered <- value
         },
         vaf.mtx = function(value) {
             if (missing(value)) {

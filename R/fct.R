@@ -733,6 +733,9 @@ filter_variant_ScIGMA <- function(
 
     filtered$protein.mtx.filtered  <- my.protein.mtx
 
+    # Modify variant.filter.mask according to filtered cells
+    filtered$dna.variant.filter.mask.filtered <- filtered$dna.variant.filter.mask[filtered$cell.ids.filtered,]
+
     # Summary
     removed_cells    <- length(cell.variants.keep.tf) - sum(cell.variants.keep.tf)
     removed_variants <- length(variant.keep.tf) - sum(variant.keep.tf)

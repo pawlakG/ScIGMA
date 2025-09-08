@@ -104,6 +104,34 @@ suppressPackageStartupMessages({
     HDF5Array(filepath, path)
 }
 
+library(rhdf5)
+
+.h5_read_metadata_group <- function(file, group_path) {
+    # Lister tout de l'HDF5
+    all <- h5ls(file, recursive = TRUE, datasetinfo = FALSE)
+
+    # Filtrer uniquement les enfants directs du groupe cible
+    ls <- subset(all, group == group_path)
+    if (nrow(ls) == 0L) stop("Group not found or empty: ", group_path)
+
+    # Ne garder que les datasets
+    ds <- subset(ls, otype == "H5I_DATASET")
+    if (nrow(ds) == 0L) stop("No datasets under: ", group_path)
+
+    # Lire chacun et retourner une liste nommée
+    out <- setNames(
+        lapply(ds$name, function(nm) {
+            val <- h5read(file, paste0(group_path, "/", nm))
+            if (length(val) == 1L) val <- as.vector(val)
+            val
+        }),
+        ds$name
+    )
+    out
+}
+
+
+
 
 #' ScIGMA_object: HDF5-backed R6 class for single-cell multi-omics
 #'
@@ -191,7 +219,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 
     options(DelayedArray.block.size = block.size)
 
-    # ---- Protein (optionnel) ----
+    # ---- Protein (optional) ----
     if (omic.type == "DNA+protein"){
         proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
         protein_mtx <- t(.h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts"))
@@ -253,6 +281,11 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 
     amp.normalize.method <- "unnormalized"
 
+    # ---- Metadata ----
+    dna_variant_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_variants/metadata")
+    dna_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_read_counts/metadata")
+    protein_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/protein_read_counts/metadata")
+
     # ---- Cell labels (logique de fallback identique au code d'origine) ----
     if (.h5_has_path(filepath, dna_read_count_samples)){
         cell.labels <- amp_ra_names
@@ -270,9 +303,17 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     # ---- Cell IDs (barcodes) ----
     cell.ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode")
 
+    # ---- Variant filter mask ----
+    variant.filter.mask <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK"))
+    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(variant.filter.mask) <- list(dna_sample_name, dna_id)
+
     # ---- Assemblage objet ----
     obj <- ScIGMA_object$new(
-        meta.data = sample.name,
+        meta.data = list("name" = sample.name,
+                         "dna_variant" = dna_variant_metadata,
+                         "dna_read_counts" = dna_read_counts_metadata,
+                         "protein_read_counts" = protein_read_counts_metadata
+                         ),
         cell.ids = cell.ids,
         cell.labels = cell.labels,
         variants = dna_id,
@@ -294,7 +335,8 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         protein.normalize.method = protein.normalize.method,
         protein.mtx = protein_mtx,
         protein.mtx.cells = protein.cells,
-        backing_files = list(original = filepath)
+        backing_files = list(original = filepath),
+        dna.variant.filter.mask = variant.filter.mask
     )
 
     obj
@@ -523,7 +565,6 @@ filter_variant <- function (ScIGMA_object, min.dp = 10, min.gq = 30, vaf.ref = 5
         min.cell.pt/100
     c.names <- ScIGMA_object@cell.ids[cell.variants.keep.tf]
     if (ScIGMA_object@proteins[1] == "non-protein") {
-        print("non-protein")
         my.protein.mtx <- ScIGMA_object@protein.mtx
     }
     else {
@@ -749,3 +790,51 @@ filter_variant_ScIGMA <- function(
 }
 
 
+# Normalize counts (amplicons x cells)
+# Step 1: Each cell is normalized by its total read count (library size)
+# Step 2: Each amplicon is normalized by its median value across cells
+normalize_amplicon_counts <- function(count_matrix,
+                                      scale_after_cell = 1,   # e.g., 1e6 for CPM, 1 for proportions
+                                      epsilon = 1e-8,         # numerical stability to avoid division by zero
+                                      use_nonzero_for_median = FALSE) {
+    # --- Checks ---
+    if (!class(count_matrix) == "DelayedMatrix") {
+        stop("count_matrix must be a DelayedMatrix (amplicons x cells).")
+    }
+    count_matrix <- as.matrix(count_matrix)
+    if (!is.numeric(count_matrix)) stop("count_matrix must be numeric.")
+    if (is.null(rownames(count_matrix))) rownames(count_matrix) <- paste0("amplicon_", seq_len(nrow(count_matrix)))
+    if (is.null(colnames(count_matrix))) colnames(count_matrix) <- paste0("cell_", seq_len(ncol(count_matrix)))
+
+
+    message("Normalizing CNV")
+
+    # --- Step 1: Cell-level normalization (library size) ---
+    library_sizes <- colSums2(count_matrix, na.rm = TRUE)
+    # avoid division by zero
+    library_sizes_safe <- library_sizes + epsilon
+    counts_cell_norm <- sweep(count_matrix, 2, library_sizes_safe, FUN = "/")
+    # optional: scale to CPM (or other units)
+    if (!is.null(scale_after_cell) && is.finite(scale_after_cell) && scale_after_cell != 1) {
+        counts_cell_norm <- counts_cell_norm * scale_after_cell
+    }
+
+    # --- Step 2: Amplicon-level normalization (median across cells) ---
+    if (isTRUE(use_nonzero_for_median)) {
+        # compute median on non-zero values if available, otherwise use overall median
+        amplicon_medians <- apply(counts_cell_norm, 1, function(x) {
+            nz <- x[x > 0 & is.finite(x)]
+            if (length(nz) > 0) stats::median(nz, na.rm = TRUE) else stats::median(x, na.rm = TRUE)
+        })
+    } else {
+        amplicon_medians <- apply(counts_cell_norm, 1, stats::median, na.rm = TRUE)
+    }
+    amplicon_medians_safe <- amplicon_medians + epsilon
+
+    normalized_matrix <- sweep(counts_cell_norm, 1, amplicon_medians_safe, FUN = "/")
+
+    # --- Output ---
+    attr(normalized_matrix, "library_sizes") <- library_sizes
+    attr(normalized_matrix, "amplicon_medians_after_cell_norm") <- amplicon_medians
+    normalized_matrix
+}

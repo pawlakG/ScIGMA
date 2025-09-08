@@ -20,14 +20,17 @@ ScIGMA_object <- R6::R6Class(
         #' @description
         #' Create a new `ScIGMA_object`.
         #'
-        #' @param meta.data Character vector of sample-level metadata.
+        #' @param meta.data List of sample-level and assays metadata.
         #' @param cell.ids Character vector of cell IDs (barcodes).
         #' @param cell.ids.filtered Character vector of cell IDs (barcodes) after variant filtering.
-        #' @param cell.labels Character vector of human-readable cell labels.
+        #' @param cell.labels Named character vector of human-readable cell labels.
         #' @param cell.labels.filtered Character vector of human-readable cell labels after variant filtering.
         #' @param variants Character vector of variant IDs.
         #' @param variants.filtered Character vector of variant ID after variant filterings.
         #' @param variant.filter Character vector of filtered variant IDs.
+        #' @param dna.variant.filter.mask matrix of cell and variant filtering, extracted from
+        #' sample.dna.layers.FILTER_MASK, sample.dna.col_attrs.filtered, sample.dna.row_attrs.filtered,
+        #' n_passing_variants, n_passing_cells, and n_passing_variants_per_cell.
         #' @param vaf.mtx `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`).
         #' @param vaf.mtx.filtered `DelayedArray` (e.g., `HDF5Array`) for VAF data (or `NULL`) after variant filtering.
         #' @param vaf.mtx.cells Character vector of labels associated with `vaf.mtx`.
@@ -54,7 +57,7 @@ ScIGMA_object <- R6::R6Class(
         #' @param protein.mtx.cells Character vector of labels associated with `protein.mtx`.
         #' @param backing_files List for bookkeeping HDF5 files (e.g., `list(original=..., realized=...)`).
         #' @param variant.annotation data.frame of annotated variants.
-        initialize = function(meta.data = character(),
+        initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),
                               cell.labels = character(),
@@ -62,6 +65,7 @@ ScIGMA_object <- R6::R6Class(
                               variants = character(),
                               variants.filtered = character(),
                               variant.filter = character(),
+                              dna.variant.filter.mask = matrix(),
                               vaf.mtx = NULL,
                               vaf.mtx.filtered = NULL,
                               vaf.mtx.cells = character(),
@@ -109,6 +113,7 @@ ScIGMA_object <- R6::R6Class(
                 variants = variants,
                 variants.filtered = variants.filtered,
                 variant.filter = variant.filter,
+                dna.variant.filter.mask = dna.variant.filter.mask,
                 vaf.mtx = vaf.mtx,
                 vaf.mtx.filtered = vaf.mtx.filtered,
                 vaf.mtx.cells = vaf.mtx.cells,
@@ -224,6 +229,10 @@ ScIGMA_object <- R6::R6Class(
         variant.filter = function(value){
             if (missing(value)) return(self$data$variant.filter)
             self$data$variant.filter <- value
+        },
+        dna.variant.filter.mask = function(value){
+            if (missing(value)) return(self$data$dna.variant.filter.mask)
+            self$data$dna.variant.filter.mask <- value
         },
         vaf.mtx = function(value){
             if (missing(value)) return(self$data$vaf.mtx)

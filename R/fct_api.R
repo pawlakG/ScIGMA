@@ -160,7 +160,8 @@ fetch_variants_batch_fields <- function(
                 variant_type = purrr::map_chr(variant_type, 1, .default = NA_character_),
                 impact = purrr::map_vec(impact,as.numeric,.default = NA_real_),
                 clinvar = purrr::map_chr(clinvar, as.character ,.default = NA_character_),
-                clinvar = data.table::fifelse(clinvar == "NA", NA, clinvar)
+                clinvar = data.table::fifelse(clinvar == "NA", NA, clinvar),
+                variant_id = paste0(gene,":",sub("^([^-]+)-([^-]+)-([^-]+)-([^-]+)$", "\\1:\\2:\\3/\\4",variant_id))
             )
     })
 }

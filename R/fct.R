@@ -1,6 +1,6 @@
 # ScIGMA — HDF5‑backed (DelayedArray/HDF5Array)
 # ----------------------------------------------------
-# Dépendances :
+# Dependencies:
 #   - BiocManager::install(c("DelayedArray", "HDF5Array", "BiocParallel", "rhdf5"))
 
 suppressPackageStartupMessages({
@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 })
 
 # ----------------------------------------------------
-# Helpers HDF5
+# HDF5 helpers
 # ----------------------------------------------------
 #' Safely read a 1-D character dataset from an HDF5 file
 #'
@@ -104,21 +104,31 @@ suppressPackageStartupMessages({
     HDF5Array(filepath, path)
 }
 
-library(rhdf5)
 
+#' Read all datasets directly under an HDF5 group
+#'
+#' Lists the contents of a given group in an HDF5 file and returns a
+#' named list of datasets found directly under that group (no recursion).
+#' Each dataset is read with `rhdf5::h5read()`. Length-1 datasets are
+#' coerced to a simple vector.
+#'
+#' @param file Character string. Path to the HDF5 file.
+#' @param group_path Character string. Absolute path to the group inside the HDF5 file.
+#' @return A named list where each element corresponds to a dataset under `group_path`.
+#' @keywords internal
 .h5_read_metadata_group <- function(file, group_path) {
-    # Lister tout de l'HDF5
+    # List all entries in the HDF5 file
     all <- h5ls(file, recursive = TRUE, datasetinfo = FALSE)
 
-    # Filtrer uniquement les enfants directs du groupe cible
+    # Keep only direct children of the target group
     ls <- subset(all, group == group_path)
     if (nrow(ls) == 0L) stop("Group not found or empty: ", group_path)
 
-    # Ne garder que les datasets
+    # Keep datasets only
     ds <- subset(ls, otype == "H5I_DATASET")
     if (nrow(ds) == 0L) stop("No datasets under: ", group_path)
 
-    # Lire chacun et retourner une liste nommée
+    # Read each dataset and return a named list
     out <- setNames(
         lapply(ds$name, function(nm) {
             val <- h5read(file, paste0(group_path, "/", nm))
@@ -202,17 +212,17 @@ library(rhdf5)
 
 
 # ----------------------------------------------------
-# Fonction d'import 100 % HDF5‑backed
+# 100% HDF5‑backed import function
 # ----------------------------------------------------
-# lit le fichier .h5 et construit un ScIGMA_object dont les matrices
-# sont des HDF5Array/DelayedArray (aucune copie pleine en RAM).
+# Reads a .h5 file and constructs a ScIGMA_object whose matrices
+# are HDF5Array/DelayedArray (no full in‑RAM copies).
 
-#' Charger un fichier H5 en HDF5‑backed ScIGMA_object
-#' @param filepath Chemin du fichier .h5
-#' @param sample.name Nom d'échantillon (stocké dans meta.data)
-#' @param omic.type "DNA+protein" ou "DNA"
-#' @param block.size Taille cible des blocs (octets) pour DelayedArray (ex. 100e6)
-#' @return Un objet ScIGMA_object (toutes matrices HDF5‑backed)
+#' Load an H5 file into an HDF5‑backed ScIGMA_object
+#' @param filepath Path to the `.h5` file.
+#' @param sample.name Sample name (stored in `meta.data`).
+#' @param omic.type Either "DNA+protein" or "DNA".
+#' @param block.size Target DelayedArray block size in bytes (e.g., `100e6`).
+#' @return A `ScIGMA_object` with all matrices HDF5‑backed.
 loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA"), block.size = 100e6){
     omic.type <- match.arg(omic.type)
     stopifnot(file.exists(filepath))
@@ -228,12 +238,14 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         } else {
             protein_samples <- "/assays/protein_read_counts/ra/sample_name"
         }
+        protein_ids <- "/assays/protein_read_counts/ra/barcode"
         pr_ra_names <- .h5read_char(filepath, protein_samples)
+
         if (length(pr_ra_names) > 0) rownames(protein_mtx) <- pr_ra_names
         if (length(proteins) > 0) colnames(protein_mtx) <- proteins
 
         protein.normalize.method <- "unnormalized"
-        protein.cells <- pr_ra_names
+        protein.cells <- setNames(pr_ra_names, nm = pr_ra_names)
     } else {
         message("DNA only: skip protein matrix")
         proteins <- "non-protein"
@@ -243,41 +255,42 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     }
 
 
-    # ---- Check is there is labels info ----
+    # ---- Check if label information exists ----
     ## dna_read_counts
     if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")){
         dna_read_count_samples <- "/assays/dna_read_counts/ra/label"
     } else {
         dna_read_count_samples <- "/assays/dna_read_counts/ra/sample_name"
     }
+    amp_sample_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode") # Sample barcode
+    amp_ca_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ca/id") # Amplicon ids
+    amp_sample_names <- setNames(amp_sample_ids, nm = .h5read_char(filepath, dna_read_count_samples))# Samples human readable names
+
     ## dna_variants
     if (.h5_has_path(filepath, "/assays/dna_variants/ra/label")){
         dna_variants_samples <- "/assays/dna_variants/ra/label"
     } else {
         dna_variants_samples <- "/assays/dna_variants/ra/sample_name"
     }
-
-    # ---- DNA variants ----
     dna_sample_name <- .h5read_char(filepath, dna_variants_samples)
+    dna_sample_ids <- .h5read_char(filepath, "/assays/dna_variants/ra/barcode")
     dna_id <- .h5read_char(filepath, "/assays/dna_variants/ca/id")
 
     vaf_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/AF"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(vaf_mtx) <- list(dna_sample_name, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(vaf_mtx) <- list(dna_sample_ids, dna_id)
 
     gt_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/NGT"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(gt_mtx) <- list(dna_sample_name, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(gt_mtx) <- list(dna_sample_ids, dna_id)
 
     dp_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/DP"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(dp_mtx) <- list(dna_sample_name, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(dp_mtx) <- list(dna_sample_ids, dna_id)
 
     gq_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/GQ"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(gq_mtx) <- list(dna_sample_name, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(gq_mtx) <- list(dna_sample_ids, dna_id)
 
     # ---- DNA read counts (amplicons) ----
     amp_mtx <- t(.h5_delayed(filepath, "/assays/dna_read_counts/layers/read_counts"))
-    amp_ra_names <- .h5read_char(filepath, dna_read_count_samples)
-    amp_ca_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ca/id")
-    if (length(amp_ra_names) > 0 || length(amp_ca_ids) > 0) dimnames(amp_mtx) <- list(amp_ra_names, amp_ca_ids)
+    if (length(amp_sample_ids) > 0 || length(amp_ca_ids) > 0) dimnames(amp_mtx) <- list(amp_sample_ids, amp_ca_ids)
 
     amp.normalize.method <- "unnormalized"
 
@@ -288,33 +301,30 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 
     # ---- Cell labels (logique de fallback identique au code d'origine) ----
     if (.h5_has_path(filepath, dna_read_count_samples)){
-        cell.labels <- amp_ra_names
-    } else if (length(dna_sample_name) == 0 ){
-        cell.labels <- dna_sample_name
+        cell.labels <-  amp_sample_names
+    } else if (.h5_has_path(dna_variants_samples)){
+        cell.labels <- setNames(dna_sample_ids, nm = dna_sample_name)
     } else if (.h5_has_path(filepath, protein_samples)){
-        cell.labels <- pr_ra_names
+        cell.labels <- protein.cells
     } else if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/barcode")){
         barcode <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode")
-        cell.labels <- rep("unassigned", length(barcode))
+        cell.labels <- setNames(barcode, nm = rep("unassigned", length(barcode)))
     } else {
         cell.labels <- character()
     }
 
-    # ---- Cell IDs (barcodes) ----
-    cell.ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode")
-
     # ---- Variant filter mask ----
     variant.filter.mask <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(variant.filter.mask) <- list(dna_sample_name, dna_id)
+    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(variant.filter.mask) <- list(dna_sample_ids, dna_id)
 
-    # ---- Assemblage objet ----
+    # ---- Object assembly ----
     obj <- ScIGMA_object$new(
         meta.data = list("name" = sample.name,
                          "dna_variant" = dna_variant_metadata,
                          "dna_read_counts" = dna_read_counts_metadata,
                          "protein_read_counts" = protein_read_counts_metadata
                          ),
-        cell.ids = cell.ids,
+        cell.ids = amp_sample_ids,
         cell.labels = cell.labels,
         variants = dna_id,
         variant.filter = "unfiltered",
@@ -329,7 +339,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         amps = amp_ca_ids,
         amp.normalize.method = amp.normalize.method,
         amp.mtx = amp_mtx,
-        amp.mtx.cells = amp_ra_names,
+        amp.mtx.cells = amp_sample_names,
         ploidy.mtx = NULL,
         proteins = proteins,
         protein.normalize.method = protein.normalize.method,
@@ -531,9 +541,11 @@ loadH5_dir_HDF5 <- function(dir,
 
 
 #' --------------------------------------------------------------- #
-#' Function to get DNA clones
+#' Identify DNA clones (legacy S4 workflow)
 #'
-#' @description Function inspired from optima R package.
+#' @description
+#' Legacy variant/cell filtering inspired by the optima R package that
+#' constructs an S4 `optima` object from fields in `ScIGMA_object`.
 #'
 filter_variant <- function (ScIGMA_object, min.dp = 10, min.gq = 30, vaf.ref = 5,
                             vaf.hom = 95, vaf.het = 35, min.cell.pt = 50, min.mut.cell.pt = 1)
@@ -593,16 +605,20 @@ filter_variant <- function (ScIGMA_object, min.dp = 10, min.gq = 30, vaf.ref = 5
 
 #' Protein matrix normalization
 #'
-#' The function normalizes protein matrix within an ScIGMA_object object using
-#' CLR method inspired from the same fonction from optima package
+#' Normalizes the protein matrix within a `ScIGMA_object` using the
+#' centered log‑ratio (CLR) transform, inspired by the analogous function
+#' in the optima package.
 #'
-#' @param ScIGMA_object optima object.
+#' @param ScIGMA_object A `ScIGMA_object` (R6).
 #' @import compositions
-#' @return An optima object with protein matrix being normalized and
-#'  protein.normalize.method label updated to "normalized".
-#' @keywords optima.obj
+#' @return The input `ScIGMA_object` with `protein.mtx` normalized and
+#'  `protein.normalize.method` set to "normalized".
+#' @keywords ScIGMA protein normalization
 #' @export
-#' @examples normalizeProtein(optima.object)
+#' @examples
+#' \dontrun{
+#' scigma <- normalizeProtein(scigma)
+#' }
 
 normalizeProtein <- function(ScIGMA_object) {
     # extract count matrix
@@ -618,15 +634,19 @@ normalizeProtein <- function(ScIGMA_object) {
 
 #' CNV normalization function
 #'
-#' The function normalizes the CNV matrix to correct for column-wise and row-wise variation and
-#' updates the ScIGMA_object object amp.normalize.method from "unnormalized" to "normalized".
-#' This function is an adaptation of the same fonction from the optima R package
+#' Normalizes the CNV/amplicon count matrix to correct for cell‑wise and
+#' amplicon‑wise effects, and updates `amp.normalize.method` from
+#' "unnormalized" to "normalized". Adapted from the optima R package.
 #'
-#' @param optima.obj optima object.
-#' @return optima object with normalized CNV and amp.normalize.method updated to "normalized".
-#' @keywords optima.obj
+#' @param ScIGMA_object A `ScIGMA_object` (R6).
+#' @return The input `ScIGMA_object` with CNV matrix normalized and
+#'   `amp.normalize.method` set to "normalized".
+#' @keywords ScIGMA CNV normalization
 #' @export
-#' @examples normalizeCNV(optima.obj)
+#' @examples
+#' \dontrun{
+#' scigma <- normalizeCNV(scigma)
+#' }
 
 normalizeCNV <- function(ScIGMA_object){
     cnv.mtx <- ScIGMA_object$amp.mtx

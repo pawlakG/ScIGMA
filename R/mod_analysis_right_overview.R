@@ -176,11 +176,20 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
                     stop(e$message)
                 })
 
+            # ---------------------------- #
+            # Normalize CNV
+            ScIGMA_data$data$amp.mtx.normalized <- tryCatch(
+                normalize_amplicon_counts(count_matrix = ScIGMA_data$data$amp.mtx),
+                error = function(e){
+                    remove_modal_spinner()
+
+                    message("Error during CNV filtering")
+                    stop(e$message)
+                })
+
             message(whereami::whereami())
             # ---------------------------- #
             # Annotate variants
-            print("length(ScIGMA_data$variants)")
-            print(length(ScIGMA_data$variants))
             if (length(ScIGMA_data$variants) == 0){
                 # CONDITION TO HANDLE
             } else {

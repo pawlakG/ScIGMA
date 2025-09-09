@@ -76,6 +76,7 @@ ScIGMA_object <- R6::R6Class(
         #' @param backing_files List for bookkeeping HDF5 files
         #' (e.g., `list(original=..., realized=...)`).
         #' @param variant.annotation data.frame of annotated variants.
+        #' @param selected.variants Selected variant during varaint selection step
         initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),
@@ -111,7 +112,8 @@ ScIGMA_object <- R6::R6Class(
                               protein.mtx.filtered = NULL,
                               protein.mtx.cells = character(),
                               backing_files = list(),
-                              variant.annotation = NULL) {
+                              variant.annotation = NULL,
+                              selected.variants = NULL) {
             # simple validator for HDF5-backed matrices
             .chk <- function(x, nm) {
                 if (!is.null(x) && !inherits(x, "DelayedArray")) {
@@ -165,7 +167,8 @@ ScIGMA_object <- R6::R6Class(
                 protein.mtx.filtered = protein.mtx.filtered,
                 protein.mtx.cells = protein.mtx.cells,
                 backing_files = backing_files,
-                variant.annotation = variant.annotation
+                variant.annotation = variant.annotation,
+                selected.variants = selected.variants
             )
         },
 
@@ -442,6 +445,12 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$variant.annotation)
             }
             self$data$variant.annotation <- value
+        },
+        selected.variantsde = function(value) {
+            if (missing(value)) {
+                return(self$data$selected.variants)
+            }
+            self$data$selected.variants <- value
         }
     )
 )

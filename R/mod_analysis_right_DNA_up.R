@@ -55,7 +55,11 @@ mod_analysis_right_DNA_up_server <- function(id, ScIGMA_data){
             sel <- input$variant_selection_rows_selected   # vecteur des index sélectionnés
             if (length(sel) > 0) {
                 # récupérer les données correspondantes
-                selected_data <- ScIGMA_data$variant.annotation[sel, ]
+                ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[sel, ]
+                # ---------------------------- #
+                # Subset gt.mtx and vaf.mtx
+                # tmp_selected_variant <-
+                # tmp_gt_mtx <- ScIGMA_data
 
             }
         })

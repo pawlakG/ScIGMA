@@ -101,7 +101,21 @@ suppressPackageStartupMessages({
     if (!.h5_has_path(filepath, path)) {
         stop(sprintf("Dataset not found: %s", path))
     }
-    HDF5Array(filepath, path)
+    tryCatch({
+        HDF5Array(filepath, path)
+    }, error = function(e) {
+        message("Error accessing dataset: ", path, "\n", conditionMessage(e), "\n",
+                "Trying another method ,\nThis may be longer ...")
+        tryCatch({
+            h5 <- rhdf5::h5read(filepath, path)
+            # Matrix transformed to a vector, we need to restore dimensions
+            tmp <- as.logical(h5)
+            dim(tmp) <- dim(h5)
+            DelayedArray(tmp)
+        }, error = function(e) {
+            stop("Failed to read dataset: ", path, "\n", conditionMessage(e))
+        })
+    })
 }
 
 
@@ -233,19 +247,21 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     if (omic.type == "DNA+protein"){
         proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
         protein_mtx <- t(.h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts"))
+
         if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")){
             protein_samples <- "/assays/protein_read_counts/ra/label"
         } else {
             protein_samples <- "/assays/protein_read_counts/ra/sample_name"
         }
-        protein_ids <- "/assays/protein_read_counts/ra/barcode"
+        protein_id_path <- "/assays/protein_read_counts/ra/barcode"
+        protein_barcodes <- .h5read_char(filepath, protein_id_path)
         pr_ra_names <- .h5read_char(filepath, protein_samples)
 
-        if (length(pr_ra_names) > 0) rownames(protein_mtx) <- pr_ra_names
+        if (length(protein_barcodes) > 0) rownames(protein_mtx) <- protein_barcodes
         if (length(proteins) > 0) colnames(protein_mtx) <- proteins
 
         protein.normalize.method <- "unnormalized"
-        protein.cells <- setNames(pr_ra_names, nm = pr_ra_names)
+        protein.cells <- setNames(pr_ra_names, nm = protein_barcodes)
     } else {
         message("DNA only: skip protein matrix")
         proteins <- "non-protein"
@@ -253,7 +269,6 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         protein_mtx <- NULL
         protein.cells <- character()
     }
-
 
     # ---- Check if label information exists ----
     ## dna_read_counts
@@ -323,7 +338,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
                          "dna_variant" = dna_variant_metadata,
                          "dna_read_counts" = dna_read_counts_metadata,
                          "protein_read_counts" = protein_read_counts_metadata
-                         ),
+        ),
         cell.ids = amp_sample_ids,
         cell.labels = cell.labels,
         variants = dna_id,

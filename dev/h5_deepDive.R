@@ -13,6 +13,7 @@ h5f <- H5Fopen(directory, flags = "H5F_ACC_RDONLY")
 h5f$assays$dna_variants$layers$NGT |> table()
 
 
+
 h5closeAll()
 
 
@@ -41,9 +42,14 @@ obj <- loadH5_dir_HDF5("../inputs/bPodvinDatasets/all/", feature_policy = "inter
 
 library(bench)
 
-obj <- filter_variant_ScIGMA(obj = obj, min.dp = 10, min.gq = 30, vaf.ref = 5, vaf.hom = 95, 
-vaf.het = 30, min.cell.pt = 50, min.mut.cell.pt = 50)
-
+obj <- filter_variant_ScIGMA(obj = obj,
+                             min.dp = 10,
+                             min.gq = 30,
+                             vaf.ref = 5,
+                             vaf.hom = 95,
+                             vaf.het = 30,
+                             min.cell.pt = 50,
+                             min.mut.cell.pt = 50)
 
 dim(obj$dna.variant.filter.mask)
 dim(obj$dna.variant.filter.mask.filtered)
@@ -52,10 +58,29 @@ variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths =
 
 # get number cell filtered per variants
 
-cols <-sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)", "")
+cols <-sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)|^:", "")
 
 apply(obj$vaf.mtx[,1:50], 2, \(x) sum(x == 0)) # Get number of unmutated cells
 
 nrow(obj$dna.variant.filter.mask.filtered) - realize(obj$dna.variant.filter.mask.filtered[, cols] != as.raw(0)) |> colSums()
 
 obj$dna.variant.filter.mask.filtered
+
+
+# variant heatmap
+## reorder rows and columns
+tmp_heamtap_matrix <- obj$gt.mtx[,cols[c(1:10)]] |> as.matrix()
+dist_matrix <- proxy::dist(tmp_heamtap_matrix, method = function(x,y) sum(x != y)) |> as.matrix()
+
+### Hamming distance
+
+
+
+
+## plot heatmap
+
+fig <- plotly::plot_ly(z = tmp_heamtap_matrix, type = "heatmap")
+
+
+
+fig

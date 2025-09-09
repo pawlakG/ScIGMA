@@ -1,4 +1,4 @@
-library(rhdf5)
+devtools::load_all()
 
 directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
 directory <- "../inputs/bPodvinDatasets/Jas_Rec/Jas_rec.dna+protein.h5"
@@ -9,12 +9,18 @@ directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
 rhdf5::h5ls(directory, all = TRUE, recursive = TRUE)
 
 h5f <- H5Fopen(directory, flags = "H5F_ACC_RDONLY")
+
+h5f$assays$dna_variants$layers$NGT |> table()
+
+
 h5closeAll()
+
 
 # --------------------------------------------------------------- #
 #
 
 obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA+protein")
+
 
 obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA")
 

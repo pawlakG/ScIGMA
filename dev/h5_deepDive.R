@@ -68,19 +68,65 @@ obj$dna.variant.filter.mask.filtered
 
 
 # variant heatmap
-## reorder rows and columns
-tmp_heamtap_matrix <- obj$gt.mtx[,cols[c(1:10)]] |> as.matrix()
-dist_matrix <- proxy::dist(tmp_heamtap_matrix, method = function(x,y) sum(x != y)) |> as.matrix()
+## Select some variants
+# selected_variants <- cols[1:3]
+selected_variants <- cols[-9]
+tmp_heamtap_matrix <- obj$gt.mtx[,selected_variants] |> as.matrix()
+ngt_matrix_selected <- obj$dna.variant.filter.mask.filtered[, selected_variants] |> as.matrix() != 0
 
+## Apply NGT_MASK matrix
+tmp_heamtap_matrix_filtered <- tmp_heamtap_matrix[intersect(rownames(tmp_heamtap_matrix),
+                                                            rownames(obj$dna.variant.filter.mask.filtered)),]
+
+
+
+tmp_heamtap_matrix_filtered[cbind(row(ngt_matrix_selected)[ngt_matrix_selected],
+                                  col(ngt_matrix_selected)[ngt_matrix_selected])] <- 3
+
+
+## Take a subset where no row has values equal to 3
+tmp_heamtap_matrix_filtered_noMissing <- tmp_heamtap_matrix_filtered[rowSums(tmp_heamtap_matrix_filtered == 3) == 0,]
+
+## Take rows with any values equal to 3
+tmp_heamtap_matrix_filtered_withMissing <- tmp_heamtap_matrix_filtered[rowSums(tmp_heamtap_matrix_filtered == 3) > 0,]
+
+## performe clustering on matrix with no value equal to 3
 ### Hamming distance
+sample_dist_matrix <- proxy::dist(tmp_heamtap_matrix_filtered_noMissing, method = function(x,y) sum(x != y)) |>
+    as.matrix()
+variant_dist_matrix <- proxy::dist(t(tmp_heamtap_matrix_filtered_noMissing), method = function(x,y) sum(x != y)) |>
+    as.matrix()
+
+### reorder rows and columns
+#### Get clusters
+hc_sample_noMissing <- hclust(as.dist(sample_dist_matrix), method = "ward.D2") |> cutree(k = sqrt(nrow(sample_dist_matrix))) |> sort()
+hc_variant_noMissing <- hclust(as.dist(variant_dist_matrix), method = "ward.D2")|> cutree(k = 6) |> sort()
+#### Reassign too small samples clusters (compared to total samples) to a "small" group
+res_table_clusters <- table(hc_sample_noMissing)
+too_small_clusters <- names(res_table_clusters)[res_table_clusters/nrow(tmp_heamtap_matrix) < 0.01]
+hc_sample_noMissing[hc_sample_noMissing %in% too_small_clusters] <- "small"
+hc_sample_noMissing <- hc_sample_noMissing |> sort() |> as.factor()
+#### Reorder
+tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(hc_sample_noMissing),names(hc_variant_noMissing)]
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 ## plot heatmap
 
-fig <- plotly::plot_ly(z = tmp_heamtap_matrix, type = "heatmap")
-
-
+# fig <- plotly::plot_ly(z = tmp_heamtap_matrix_filtered_noMissing_ordered, type = "heatmap")
+fig <- heatmaply::heatmaply(tmp_heamtap_matrix_filtered_noMissing_ordered, scale = "none",
+                            Rowv = FALSE, Colv = FALSE)
+fig <- heatmaply::heatmaply(tmp_heamtap_matrix_filtered_noMissing_ordered)
 
 fig

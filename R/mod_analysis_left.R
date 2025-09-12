@@ -42,7 +42,6 @@ mod_analysis_left_ui <- function(id) {
 #'
 #' @noRd
 #' @importFrom gargoyle  init
-#' @importFrom optima readHdf5
 mod_analysis_left_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns

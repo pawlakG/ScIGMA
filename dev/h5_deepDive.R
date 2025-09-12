@@ -89,6 +89,7 @@ tmp_heamtap_matrix_filtered_noMissing <- tmp_heamtap_matrix_filtered[rowSums(tmp
 
 ## Take rows with any values equal to 3
 tmp_heamtap_matrix_filtered_withMissing <- tmp_heamtap_matrix_filtered[rowSums(tmp_heamtap_matrix_filtered == 3) > 0,]
+tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
 
 ## performe clustering on matrix with no value equal to 3
 ### Hamming distance
@@ -109,24 +110,39 @@ hc_sample_noMissing <- hc_sample_noMissing |> sort() |> as.factor()
 #### Reorder
 tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(hc_sample_noMissing),names(hc_variant_noMissing)]
 
+## rbind with samples with missing info
+tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
+                                                      tmp_heamtap_matrix_filtered_withMissing)
 
-
-
-
-
-
-
-
-
-
-
-
+## Set labels / annotations
+heatmap_split_vector <- c(as.character(hc_sample_noMissing),
+                          rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
 
 ## plot heatmap
+library(ComplexHeatmap)
+library(colorBlindness)
+### Color palette
+dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0","1","2"))
+### Legend
+dna_variant_legend <- Legend(at = c("0","1","2"), labels = c("WT", "HET", "HOM"),
+                             title = "Genotype", legend_gp = gpar(fill = c("#E9E8EC", "#BAB7D0", "#3C2692")))
+### Annotation
+heatmap_true_levels <- levels(hc_sample_noMissing)[levels(hc_sample_noMissing)!="small"]
+annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)],"grey","#333333"),
+                                           nm = c(heatmap_true_levels, "missing","small")))
+dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
+                                        col =annotationColor,
+                                        show_annotation_name = FALSE,
+                                        show_legend = FALSE)
 
-# fig <- plotly::plot_ly(z = tmp_heamtap_matrix_filtered_noMissing_ordered, type = "heatmap")
-fig <- heatmaply::heatmaply(tmp_heamtap_matrix_filtered_noMissing_ordered, scale = "none",
-                            Rowv = FALSE, Colv = FALSE)
-fig <- heatmaply::heatmaply(tmp_heamtap_matrix_filtered_noMissing_ordered)
+### Heatmap
+dna_variant_heatmap <- Heatmap(tmp_heamtap_matrix_filtered_complete_ordered,
+                               column_names_rot = 70,
+                               row_split = heatmap_split_vector, show_column_dend = FALSE,
+                               cluster_rows = FALSE, show_row_names = FALSE,
+                               na_col = "black", col = dna_variant_colorPalette,
+                               show_heatmap_legend = FALSE, left_annotation = dna_variant_annotation)
 
-fig
+
+
+

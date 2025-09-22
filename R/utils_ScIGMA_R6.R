@@ -446,7 +446,7 @@ ScIGMA_object <- R6::R6Class(
             }
             self$data$variant.annotation <- value
         },
-        selected.variantsde = function(value) {
+        selected.variants = function(value) {
             if (missing(value)) {
                 return(self$data$selected.variants)
             }

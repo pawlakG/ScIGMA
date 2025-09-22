@@ -744,6 +744,11 @@ filter_variant_ScIGMA <- function(
     filtered$dp.mtx.filtered       <- obj$dp.mtx [keep_cells, keep_variants, drop = FALSE]
     filtered$gq.mtx.filtered       <- obj$gq.mtx [keep_cells, keep_variants, drop = FALSE]
 
+    print("keep_cells")
+    print(length(keep_cells))
+    print("obj$amp.mtx")
+    print(dim(obj$amp.mtx))
+
     filtered$amp.mtx.filtered      <- obj$amp.mtx[keep_cells, , drop = FALSE]
 
     filtered$protein.mtx.filtered  <- my.protein.mtx
@@ -808,4 +813,128 @@ normalize_amplicon_counts <- function(count_matrix,
     attr(normalized_matrix, "library_sizes") <- library_sizes
     attr(normalized_matrix, "amplicon_medians_after_cell_norm") <- amplicon_medians
     normalized_matrix
+}
+
+
+
+#' Fonction to generate the dna_variant heatmap
+#'
+#' @import ComplexHeatmap
+#' @import colorBlindness
+# generate_dna_variant_heatmap <- function(obj, selected_variants, n_cluster = 6, min_prop_cluster = 0.01){
+generate_dna_variant_heatmap <- function(obj, selected_variants_df, n_cluster = 6, min_prop_cluster = 0.01,
+                                         heatmap_include_all_samples = TRUE){
+
+    selected_variants <- sub(x = selected_variants_df$variant_id, pattern = "^([^:]+:)|^:", "")
+
+    # Get genotype matrix for selected variants
+    gt <- obj$gt.mtx[,selected_variants, drop = FALSE] |> as.matrix()
+    # Get NGT_MASK matrix for selected variants
+    msk <- obj$dna.variant.filter.mask.filtered[, selected_variants, drop = FALSE] |> as.matrix() != 0
+
+    # Align rows and columns
+    common_rows <- intersect(rownames(gt),
+                             rownames(msk))
+    common_cols <- intersect(colnames(gt),
+                             colnames(msk))
+    if (length(common_rows) == 0L || length(common_cols) == 0L) {
+        stop("No overlap (rows/columns) between gt.mtx and mask.")
+    }
+
+    # Apply NGT_MASK matrix
+    gt_filtered <- gt[common_rows,]
+
+    # Set value 3 for filtered genotypes
+    gt_filtered[cbind(row(msk)[msk],
+                      col(msk)[msk])] <- 3
+
+    # Take a subset where no row has values equal to 3 : meaning no missing info
+    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0,]
+
+    # Take rows with any values equal to 3
+    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0,]
+    tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
+
+    # perform clustering on matrix with no value equal to 3
+    ## Hamming distance
+    sample_dist_matrix <- proxy::dist(tmp_heamtap_matrix_filtered_noMissing, method = function(x,y) sum(x != y)) |>
+        as.matrix()
+    variant_dist_matrix <- proxy::dist(t(tmp_heamtap_matrix_filtered_noMissing), method = function(x,y) sum(x != y)) |>
+        as.matrix()
+
+    ## reorder rows and columns
+    ### Get clusters
+    hc_sample_noMissing <- hclust(as.dist(sample_dist_matrix), method = "ward.D2") |> cutree(k = sqrt(nrow(sample_dist_matrix))) |> sort()
+    hc_variant_noMissing <- hclust(as.dist(variant_dist_matrix), method = "ward.D2")|> cutree(k = n_cluster) |> sort()
+    ### Reassign too small samples clusters (compared to total samples) to a "small" group
+    res_table_clusters <- table(hc_sample_noMissing)
+    too_small_clusters <- names(res_table_clusters)[res_table_clusters/nrow(gt) < min_prop_cluster]
+    hc_sample_noMissing[hc_sample_noMissing %in% too_small_clusters] <- "small"
+    hc_sample_noMissing <- hc_sample_noMissing |> sort() |> as.factor()
+    ### Reorder
+    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(hc_sample_noMissing),names(hc_variant_noMissing)]
+
+    # rbind with samples with missing info if heatmap_include_all_samples is TRUE
+    if (heatmap_include_all_samples){
+        tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
+                                                              tmp_heamtap_matrix_filtered_withMissing)
+        # Set labels / annotations
+        heatmap_split_vector <- c(as.character(hc_sample_noMissing),
+                                  rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
+    } else {
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_noMissing_ordered
+        heatmap_split_vector <- as.character(hc_sample_noMissing)
+        # Remove "small" cluster
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[heatmap_split_vector != "small",]
+        heatmap_split_vector <- heatmap_split_vector[heatmap_split_vector != "small"]
+    }
+
+
+    # plot heatmap
+    ## Color palette
+    dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0","1","2"))
+    ### Legend
+    ## Annotation
+    heatmap_true_levels <- levels(hc_sample_noMissing)[levels(hc_sample_noMissing)!="small"]
+    annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)],"grey","#333333"),
+                                               nm = c(heatmap_true_levels, "missing","small")))
+    dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
+                                            col =annotationColor,
+                                            show_annotation_name = FALSE,
+                                            show_legend = FALSE)
+
+    # ---------------------------- #
+    # Verify colnames before plotting
+    idx_colnames <- sapply(colnames(tmp_heamtap_matrix_filtered_complete_ordered), function(x) {
+        which(grepl(x, selected_variants_df$variant_id))
+
+    }, simplify = FALSE, USE.NAMES = FALSE) |> unlist()
+
+    new_colnames <- selected_variants_df$variant_id[idx_colnames]
+
+    ## Heatmap
+    print("colnames tmp_heamtap_matrix_filtered_complete_ordered")
+    print(colnames(tmp_heamtap_matrix_filtered_complete_ordered))
+
+    Heatmap(tmp_heamtap_matrix_filtered_complete_ordered,
+            column_names_rot = 45,
+            row_split = heatmap_split_vector,
+            show_column_dend = FALSE,
+            column_split = selected_variants,
+            column_title = NULL,
+            column_labels = new_colnames,
+            cluster_rows = FALSE,
+            show_row_names = FALSE,
+            na_col = "black",
+            col = dna_variant_colorPalette,
+            show_heatmap_legend = TRUE,
+            left_annotation = dna_variant_annotation,
+            heatmap_legend_param = list(
+                title = "Genotype",
+                at = c("0","1","2"),
+                labels = c("WT","HET","HOM"),
+                grid_height = grid::unit(4, "cm")
+            ))
+
+
 }

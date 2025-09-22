@@ -56,35 +56,7 @@ app_ui <- function(request) {
                                           mod_analysis_right_overview_ui("analysis_right_overview_1")
                                 ),
                                 nav_panel(title = "DNA",
-                                          # mod_analysis_right_DNA_ui("analysis_right_DNA_1"),
-
-                                          mod_analysis_right_DNA_up_ui("analysis_right_DNA_up_1"),
-                                          grid_container(
-                                              layout = c(
-                                                  # "analysis_right_DNA_up",
-                                                  "analysis_right_DNA_down"
-                                              ),
-                                              row_sizes = c(
-                                                  # "1fr",
-                                                  "1fr"
-                                              ),
-                                              col_sizes = c(
-                                                  "1fr"
-                                              ),
-                                              gap_size = "10px",
-                                              # grid_card(
-                                                  # area = "analysis_right_DNA_up",
-                                                  # full_screen = TRUE,
-                                                  # card_header("Clone determination parameters"),
-                                                  # mod_analysis_right_DNA_up_ui("analysis_right_DNA_up_1")
-                                              # ),
-                                              grid_card(
-                                                  area = "analysis_right_DNA_down",
-                                                  full_screen = TRUE,
-                                                  card_header("DNA analysis results"),
-                                                  mod_analysis_right_DNA_down_ui("analysis_right_DNA_down_1")
-                                              )
-                                          )
+                                          mod_analysis_right_DNA_ui("analysis_right_DNA_1"),
                                 ),
                                 nav_panel(title = "CNV",
                                           mod_analysis_right_CNV_ui("analysis_right_CNV_1")),

@@ -30,7 +30,7 @@ app_server <- function(input, output, session) {
     mod_analysis_left_server("analysis_left_1", ScIGMA_data)
     # ---------------------------- #
     # Analysis right up
-    mod_analysis_right_DNA_up_server("analysis_right_DNA_up_1", ScIGMA_data)
+    mod_analysis_right_DNA_server("analysis_right_DNA_1", ScIGMA_data)
 
 }
 

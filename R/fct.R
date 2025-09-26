@@ -570,12 +570,12 @@ loadH5_dir_HDF5 <- function(dir,
 
 normalizeProtein <- function(ScIGMA_object) {
     # extract count matrix
-    inputMatrix <- ScIGMA_object$protein.mtx
+    inputMatrix <- ScIGMA_object$protein.mtx.filtered |> as.matrix()
     # apply normalization CLR method
     ret <- (compositions::clr(inputMatrix + 1))
 
-    ScIGMA_object$protein.mtx <- as.matrix(ret)
-    ScIGMA_object$protein.normalize.method <- "normalized"
+    ScIGMA_object$protein.mtx.filtered.normalized <- as.matrix(ret)
+    ScIGMA_object$protein.normalize.method <- "CLR normalized"
     return(ScIGMA_object)
 }
 
@@ -938,3 +938,69 @@ generate_dna_variant_heatmap <- function(obj, selected_variants_df, n_cluster = 
 
 
 }
+
+
+
+#' Fonction to generate the dna_variant heatmap
+#'
+#' @import ComplexHeatmap
+#' @import colorBlindness
+# generate_dna_variant_heatmap <- function(obj, selected_variants, n_cluster = 6, min_prop_cluster = 0.01){
+get_no_missing_dna_variant <- function(obj, selected_variants_df, n_cluster = 6, min_prop_cluster = 0.01 ){
+
+    selected_variants <- sub(x = selected_variants_df$variant_id, pattern = "^([^:]+:)|^:", "")
+
+    # Get genotype matrix for selected variants
+    gt <- obj$gt.mtx[,selected_variants, drop = FALSE] |> as.matrix()
+    # Get NGT_MASK matrix for selected variants
+    msk <- obj$dna.variant.filter.mask.filtered[, selected_variants, drop = FALSE] |> as.matrix() != 0
+
+    # Align rows and columns
+    common_rows <- intersect(rownames(gt),
+                             rownames(msk))
+    common_cols <- intersect(colnames(gt),
+                             colnames(msk))
+    if (length(common_rows) == 0L || length(common_cols) == 0L) {
+        stop("No overlap (rows/columns) between gt.mtx and mask.")
+    }
+
+    # Apply NGT_MASK matrix
+    gt_filtered <- gt[common_rows,]
+
+    # Set value 3 for filtered genotypes
+    gt_filtered[cbind(row(msk)[msk],
+                      col(msk)[msk])] <- 3
+
+    # Take a subset where no row has values equal to 3 : meaning no missing info
+    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0,]
+
+    # Take rows with any values equal to 3
+    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0,]
+    tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
+
+    # perform clustering on matrix with no value equal to 3
+    ## Hamming distance
+    sample_dist_matrix <- proxy::dist(tmp_heamtap_matrix_filtered_noMissing, method = function(x,y) sum(x != y)) |>
+        as.matrix()
+    variant_dist_matrix <- proxy::dist(t(tmp_heamtap_matrix_filtered_noMissing), method = function(x,y) sum(x != y)) |>
+        as.matrix()
+
+    ## reorder rows and columns
+    ### Get clusters
+    hc_sample_noMissing <- hclust(as.dist(sample_dist_matrix), method = "ward.D2") |> cutree(k = sqrt(nrow(sample_dist_matrix))) |> sort()
+    hc_variant_noMissing <- hclust(as.dist(variant_dist_matrix), method = "ward.D2")|> cutree(k = n_cluster) |> sort()
+    ### Reassign too small samples clusters (compared to total samples) to a "small" group
+    res_table_clusters <- table(hc_sample_noMissing)
+    too_small_clusters <- names(res_table_clusters)[res_table_clusters/nrow(gt) < min_prop_cluster]
+    hc_sample_noMissing[hc_sample_noMissing %in% too_small_clusters] <- "small"
+    ## Remove "small variants"
+    hc_sample_noMissing <- hc_sample_noMissing[hc_sample_noMissing != "small"]
+    hc_sample_noMissing <- hc_sample_noMissing |> sort() |> as.factor()
+    ### Reorder
+    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(hc_sample_noMissing),names(hc_variant_noMissing)]
+
+    tmp_heamtap_matrix_filtered_noMissing_ordered
+
+}
+
+

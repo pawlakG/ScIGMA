@@ -71,6 +71,8 @@ ScIGMA_object <- R6::R6Class(
         #' (or `NULL`).
         #' @param protein.mtx.filtered `DelayedArray` for protein
         #' expression/read counts (or `NULL`) after variant filtering.
+        #' @param protein.mtx.filtered.normalized `DelayedArray` for protein
+        #' expression/read counts (or `NULL`) after variant filtering and normalization
         #' @param protein.mtx.cells Character vector of labels associated
         #' with `protein.mtx`.
         #' @param backing_files List for bookkeeping HDF5 files
@@ -110,6 +112,7 @@ ScIGMA_object <- R6::R6Class(
                               protein.normalize.method = character(),
                               protein.mtx = NULL,
                               protein.mtx.filtered = NULL,
+                              protein.mtx.filtered.normalized = NULL,
                               protein.mtx.cells = character(),
                               backing_files = list(),
                               variant.annotation = NULL,
@@ -165,6 +168,7 @@ ScIGMA_object <- R6::R6Class(
                 protein.normalize.method = protein.normalize.method,
                 protein.mtx = protein.mtx,
                 protein.mtx.filtered = protein.mtx.filtered,
+                protein.mtx.filtered.normalized = protein.mtx.filtered.normalized,
                 protein.mtx.cells = protein.mtx.cells,
                 backing_files = backing_files,
                 variant.annotation = variant.annotation,
@@ -428,6 +432,13 @@ ScIGMA_object <- R6::R6Class(
             }
             self$data$protein.mtx.filtered <- value
         },
+        protein.mtx.filtered.normalized = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.mtx.filtered.normalized)
+            }
+            self$data$protein.mtx.filtered.normalized <- value
+        },
+
         protein.mtx.cells = function(value) {
             if (missing(value)) {
                 return(self$data$protein.mtx.cells)

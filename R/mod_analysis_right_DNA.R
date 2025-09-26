@@ -34,17 +34,13 @@ mod_analysis_right_DNA_ui <- function(id) {
                                      class = "btn-primary")
                     )
                 )
-
             ),
-
 
             fluidRow(
                 plotOutput(ns("heatmap"), height = "1200px")
             )
         )
     )
-
-
 
 }
 

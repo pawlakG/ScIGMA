@@ -12,7 +12,7 @@ h5f <- H5Fopen(directory, flags = "H5F_ACC_RDONLY")
 
 h5f$assays$dna_variants$layers$NGT |> table()
 
-
+h5f$assays$dna_read_counts$ca
 
 h5closeAll()
 
@@ -56,6 +56,9 @@ dim(obj$dna.variant.filter.mask.filtered)
 
 variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths = paths)
 
+
+# all_variants <- fetch_variants_batch_fields(obj$variants, paths = paths)
+
 # get number cell filtered per variants
 
 cols <- sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)|^:", "")
@@ -75,3 +78,71 @@ selected_variants <- cols[1:3]
 
 # test <- generate_dna_variant_heatmap(obj = obj, selected_variants = selected_variants, n_cluster = 3)
 test <- generate_dna_variant_heatmap(obj = obj, selected_variants_df = variants_annotated[1:5,], n_cluster = 3)
+
+
+
+# --------------------------------------------------------------- #
+# CNV
+## Compute ploidy
+
+### After filtering
+dna_variant_no_missing <- get_no_missing_dna_variant(obj, selected_variants_df = variants_annotated[1:2,])
+sum(rowSums2(dna_variant_no_missing) == 0)
+
+
+
+
+# --------------------------------------------------------------- #
+# Protein analysis
+library(ggplot2)
+library(ggridges)
+library(tidyr)
+# ---------------------------- #
+# Normalization (CLR)
+obj <- normalizeProtein(obj)
+obj$protein.normalize.method
+dim(obj$protein.mtx.filtered.normalized)
+View(obj$protein.mtx.filteed.normalized)
+# ---------------------------- #
+# Ridge plot
+protein_plot <- obj$protein.mtx.filtered.normalized |> as_tibble() |> pivot_longer(everything()) |>
+    ggplot(aes(x=value, y=name, fill = name)) +
+    geom_density_ridges() +
+    theme_ridges() +
+    theme(legend.position = "none")
+protein_plot |> plotly::ggplotly()
+
+# ---------------------------- #
+# barplot of relative percentage of counts
+protein_rel_counts <- colSums(obj$protein.mtx.filtered) / sum(obj$protein.mtx.filtered |> colSums())
+
+protein_rel_counts_tb <- tibble( protein = names(protein_rel_counts), percent = protein_rel_counts)
+
+protein_rel_percent_barplot <- protein_rel_counts_tb |> ggplot(aes(x=reorder(protein, -percent), y=percent, fill=protein)) +
+    geom_bar(stat="identity") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    ylab("Relative percentage of counts") +
+    xlab("Protein") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+
+protein_rel_percent_barplot |> plotly::ggplotly()
+
+# ---------------------------- #
+# Scatter plot of two proteins
+protein_scatter <- obj$protein.mtx.filtered.normalized |> as_tibble() |>
+    ggplot(aes(x=`CD19`, y=`CD45`)) +
+    geom_point(alpha=0.5) +
+    theme_minimal() +
+    xlab("CD19 normalized counts") +
+    ylab("CD45 normalized counts")
+
+
+
+obj$protein.mtx.filtered.normalized |> as_tibble() |>
+    ggplot(aes(x=`CD19`, y=`CD45`)) +
+    geom_point(alpha=0.5) +
+    theme_minimal() +
+    xlab("CD19 normalized counts") +
+    ylab("CD45 normalized counts")
+

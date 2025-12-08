@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom DT DTOutput datatable renderDT
-mod_analysis_right_DNA_ui <- function(id) {
+mod_analysis_DNA_ui <- function(id) {
     ns <- NS(id)
     tagList(
         accordion(
@@ -49,7 +49,7 @@ mod_analysis_right_DNA_ui <- function(id) {
 #' @noRd
 #'
 #' @import InteractiveComplexHeatmap
-mod_analysis_right_DNA_server <- function(id, ScIGMA_data){
+mod_analysis_DNA_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
         # Render DNA variants dataframe
@@ -96,7 +96,7 @@ mod_analysis_right_DNA_server <- function(id, ScIGMA_data){
 }
 
 ## To be copied in the UI
-# mod_analysis_right_DNA_ui("analysis_right_DNA_1")
+# mod_analysis_DNA_ui("analysis_right_DNA_1")
 
 ## To be copied in the server
-# mod_analysis_right_DNA_server("analysis_right_DNA_1", ScIGMA_data)
+# mod_analysis_DNA_server("analysis_right_DNA_1", ScIGMA_data)

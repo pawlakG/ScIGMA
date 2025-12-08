@@ -13,6 +13,7 @@ Imports:
     config,
     data.table,
     DelayedArray,
+    DelayedMatrixStats,
     dplyr,
     DT,
     gargoyle,

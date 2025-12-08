@@ -5,6 +5,7 @@ directory <- "../inputs/bPodvinDatasets/Jas_Rec/Jas_rec.dna+protein.h5"
 directory <- "../inputs/tapestriDatasets/2_PBMC_Mix_KG-1_Spike_In/Sample_Data_Set_2_PBMC_Mix_KG-1_Spike_In.labeled.dna+protein.h5"
 directory <- "../inputs/tapestriDatasets/KG-1-Raji-50-50-Myeloid/KG-1-Raji-50-50-Myeloid.dna.h5"
 directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
+directory <- "../inputs/bPodvinDatasets/dew_diag.h5"
 
 rhdf5::h5ls(directory, all = TRUE, recursive = TRUE)
 
@@ -13,6 +14,11 @@ h5f <- H5Fopen(directory, flags = "H5F_ACC_RDONLY")
 h5f$assays$dna_variants$layers$NGT |> table()
 
 h5f$assays$dna_read_counts$ca
+
+dim(h5f$assays$protein_read_counts$layers$read_counts)
+
+h5f$assays$protein_read_counts$ra$sample_name
+
 
 h5closeAll()
 
@@ -95,54 +101,79 @@ sum(rowSums2(dna_variant_no_missing) == 0)
 # --------------------------------------------------------------- #
 # Protein analysis
 library(ggplot2)
+library(ggprism)
 library(ggridges)
 library(tidyr)
+library(ADTnorm)
+library(tibble)
+# --------------------------------------------------------------- #
+# Test ADTnorm
+
+tmp_ptn_mtx <- as.matrix(obj$protein.mtx) # 1313 10
+tmp_cell_mtx <- data.frame(cell_barcode = obj$cell.ids, sample = "4CL_AML")
+
+test_ADT <- ADTnorm(cell_x_adt = tmp_ptn_mtx, cell_x_feature = tmp_cell_mtx, save_outpath = "test_adt/")
+test_ADT_tmp <- as.data.frame(test_ADT) |> rownames_to_column("cell")
+test_ADT_long <- test_ADT_tmp |> pivot_longer(names_to = "marker", values_to = "value", cols = -cell)
+
+ggplot(test_ADT_long, aes(x = value, y = marker)) + geom_density_ridges()
+
+plot(test_ADT[,13], test_ADT[,6])
+
 # ---------------------------- #
 # Normalization (CLR)
 obj <- normalizeProtein(obj)
-obj$protein.normalize.method
-dim(obj$protein.mtx.filtered.normalized)
-View(obj$protein.mtx.filteed.normalized)
 # ---------------------------- #
-# Ridge plot
-protein_plot <- obj$protein.mtx.filtered.normalized |> as_tibble() |> pivot_longer(everything()) |>
-    ggplot(aes(x=value, y=name, fill = name)) +
-    geom_density_ridges() +
-    theme_ridges() +
-    theme(legend.position = "none")
-protein_plot |> plotly::ggplotly()
+# Barplot
+
+plot_protein_barplot(obj)
 
 # ---------------------------- #
-# barplot of relative percentage of counts
-protein_rel_counts <- colSums(obj$protein.mtx.filtered) / sum(obj$protein.mtx.filtered |> colSums())
+# Biplot
+marker_1 <- "CD33"
+marker_2 <- "CD45"
 
-protein_rel_counts_tb <- tibble( protein = names(protein_rel_counts), percent = protein_rel_counts)
+tmp_ptn_df <- obj$protein.mtx.filtered.normalized[,c(marker_1, marker_2)]
+# |> as.data.frame()
 
-protein_rel_percent_barplot <- protein_rel_counts_tb |> ggplot(aes(x=reorder(protein, -percent), y=percent, fill=protein)) +
-    geom_bar(stat="identity") +
-    theme_minimal() +
-    theme(legend.position = "none") +
-    ylab("Relative percentage of counts") +
-    xlab("Protein") +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+tmp_ptn_df_norm <- apply(tmp_ptn_df, 2, scale) |> as.data.frame()
 
-protein_rel_percent_barplot |> plotly::ggplotly()
+tmp_ptn_df_norm |>
+    ggplot(aes_string(x = marker_1, y = marker_2)) +
+    geom_point() + theme_prism()
 
-# ---------------------------- #
-# Scatter plot of two proteins
-protein_scatter <- obj$protein.mtx.filtered.normalized |> as_tibble() |>
-    ggplot(aes(x=`CD19`, y=`CD45`)) +
-    geom_point(alpha=0.5) +
-    theme_minimal() +
-    xlab("CD19 normalized counts") +
-    ylab("CD45 normalized counts")
+plot(tmp_ptn_df[,1], tmp_ptn_df[,2])
+plot(tmp_ptn_df_norm)
 
 
+# --------------------------------------------------------------- #
+# Test repreoduction of NSP algorithm
+# counts : matrice (cells x proteins) de lectures brutes
+tmp_mat <- obj$protein.mtx |> as.matrix()
+res <- nsp_transform(
+    counts_mat           = tmp_mat,
+    jitter               = 2,        # doc NSP
+    scale                = NULL,       # auto-scale si nécessaire
+    sample_size          = 1000,       # ANSP-like si très gros n
+    random_state         = 42,
+    p_low                = 0.1,
+    p_high               = 0.9,
+    max_zero_read_cells  = 0.01
+)
 
-obj$protein.mtx.filtered.normalized |> as_tibble() |>
-    ggplot(aes(x=`CD19`, y=`CD45`)) +
-    geom_point(alpha=0.5) +
-    theme_minimal() +
-    xlab("CD19 normalized counts") +
-    ylab("CD45 normalized counts")
+nsp_counts <- res$normalized
+str(res$models[[1]])  # coefficients fond/signal de la 1re protéine
+res$scaling_factor
 
+
+marker_1 <- "CD19"
+marker_2 <- "CD45"
+
+tmp_df <- res$normalized[,c(marker_1, marker_2)]
+
+tmp_df_norm <- apply(tmp_df, 2, log2)  |> as.data.frame()
+# tmp_df_norm <- tmp_df
+
+tmp_df_norm |>
+    ggplot(aes_string(x = marker_1, y = marker_2)) +
+    geom_point() + theme_prism()

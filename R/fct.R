@@ -1004,3 +1004,289 @@ get_no_missing_dna_variant <- function(obj, selected_variants_df, n_cluster = 6,
 }
 
 
+# --------------------------------------------------------------- #
+#' Render ridge plot with ggplot2 and plotly
+#'
+#' @import ggplot2
+#' @import ggridges
+#' @import plotly
+#' @import tidyr
+render_protein_ridge_plot <- function(obj){
+    print("render_protein_ridge_plot called")
+    print("dim obj$protein.mtx.filtered.normalized")
+    print(dim(obj$protein.mtx.filtered.normalized))
+    print(head(obj$protein.mtx.filtered.normalized))
+    tmp_data <- obj$protein.mtx.filtered.normalized |>
+        as_tibble() |>
+        pivot_longer(everything())
+    tmp_plot <- tmp_data |>
+        ggplot(aes(x=value, y=name, fill = name)) +
+        geom_density_ridges() +
+        theme_ridges() +
+        theme(legend.position = "none")
+    print("render plotlied plot")
+    # print("tmp_plot")
+    # print(tmp_plot)
+    print(tmp_plot) |> plotly::ggplotly()
+}
+
+#' Génère un barplot de la proportion de protéines
+#'
+#' @import MatrixGenerics
+#'
+#' @param obj Un objet contenant la matrice protéique (obj$protein.mtx)
+#' @param title Titre optionnel du graphique
+#'
+#' @return Un objet ggplot représentant la distribution relative des protéines
+#' @export
+#'
+#' @examples
+#' plot_protein_barplot(obj)
+plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
+
+    print("obj$protein.mtx")
+    print(dim(obj$protein.mtx))
+    print(head(obj$protein.mtx, 2))
+    print(class(obj$protein.mtx))
+
+    # Vérifications basiques
+    if (is.null(obj$protein.mtx)) {
+        stop("Object do not have a protein matrix (obj$protein.mtx).")
+    }
+
+    # Calcul des pourcentages
+    protein_barplot_df <- data.frame(
+        protein = colnames(obj$protein.mtx),
+        percent = round(colSums2(obj$protein.mtx) / sum(obj$protein.mtx), 5) * 100
+    )
+
+    # Génération du plot
+    protein_barplot <- protein_barplot_df |>
+        ggplot(aes(x = protein, y = percent)) +
+        geom_bar(stat = "identity", fill = "steelblue") +
+        xlab("Antibody") +
+        ylab("Percentage") +
+        ggtitle(title) +
+        theme_minimal() +
+        theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+            plot.title = element_text(hjust = 0.5)
+        )
+
+    print(protein_barplot) |> plotly::ggplotly()
+}
+
+
+# nsp_transform.R --------------------------------------------------------------
+# Ré-implémentation R "NSP.transform()" d'après la doc officielle Mosaic
+# Référence : https://missionbio.github.io/mosaic/pages/missionbio.demultiplex.protein.nsp.NSP.html
+# Hypothèses clé (doc) :
+#  - Le background et le signal sont linéairement dépendants du total de lectures par cellule
+#  - On ajuste 2 modèles linéaires (fond & signal), puis on corrige : (x - y_bg_hat) / (y_sig_hat - y_bg_hat)
+#  - Jitter gaussien (sd=jitter) centré 0 ; option scale pour oversequencing ; sous-échantillonnage (sample_size)
+#
+# Conventions :
+#  - 'counts_mat' = matrice (cells x proteins) de lectures brutes (>=0)
+#  - Noms snake_case, explicites, sans conflits avec fonctions natives
+#  - Retourne une liste ; $normalized = matrice normalisée ; $models = coefficients fond/signal ; $scaling_factor
+
+#----------------------------#
+# Utilitaires internes
+#----------------------------#
+
+#' Estimation d'un facteur d'échelle global pour runs "oversequencés"
+#' Heuristique : la doc NSP évoque 'scaling_factor(reads, jitter)' et une contrainte
+#'   max_zero_read_cells : fraction max de cellules avec 0 reads après scaling.
+#' Ici, on propose une stratégie robuste & simple, cohérente avec la doc.
+estimate_scaling_factor <- function(total_reads,
+                                    max_zero_read_cells = 0.05) {
+    # total_reads : vecteur (longueur = nb cellules)
+    # max_zero_read_cells : seuil (0–1) accepté de cellules à 0 après scaling
+    #
+    # 1) Si déjà peu de zéros, on n'impose pas de scaling.
+    zero_frac <- mean(total_reads == 0)
+    if (!is.finite(zero_frac) || zero_frac > max_zero_read_cells) {
+        return(1.0)
+    }
+    # 2) Vise à réduire une longue traîne en utilisant un ratio médiane/p95
+    #    (si p95 >> médiane, on rabaisse l'échelle)
+    if (all(total_reads == 0)) return(1.0)
+    tr_pos <- total_reads[total_reads > 0]
+    if (length(tr_pos) < 10) return(1.0)
+
+    med <- stats::median(tr_pos)
+    p95 <- stats::quantile(total_reads, 0.95, names = FALSE)
+    if (!is.finite(med) || !is.finite(p95) || p95 <= 0) return(1.0)
+
+    # 3) Proposition : scale = med / p95 (<= 1 si p95 > med)
+    proposal <- as.numeric(med / p95)
+    proposal <- max(min(proposal, 1.0), 0.0)
+
+    # 4) Vérifie que le scaling ne crée pas trop de zéros
+    trial <- floor(total_reads * proposal)
+    if (mean(trial == 0) <= max_zero_read_cells) {
+        return(proposal)
+    } else {
+        return(1.0)
+    }
+}
+
+#' Sélectionne indices "background" (bas) et "signal" (haut) pour un vecteur y
+select_bg_sig_indices <- function(y, p_low = 0.10, p_high = 0.90,
+                                  min_points = 20L) {
+    # y : intensités d'une protéine sur un sous-ensemble de cellules
+    # p_low/p_high : quantiles pour définir fond/signal
+    # min_points : garde-fou si quantiles donnent trop peu de points
+    q_low  <- stats::quantile(y, p_low,  names = FALSE, type = 7)
+    q_high <- stats::quantile(y, p_high, names = FALSE, type = 7)
+
+    bg_idx <- which(y <= q_low)
+    sg_idx <- which(y >= q_high)
+
+    # garde-fou : si trop peu de points, on prend extrêmes
+    if (length(bg_idx) < min_points) {
+        bg_idx <- order(y, decreasing = FALSE)[seq_len(min(min_points, length(y)))]
+    }
+    if (length(sg_idx) < min_points) {
+        sg_idx <- order(y, decreasing = TRUE)[seq_len(min(min_points, length(y)))]
+    }
+    list(bg_idx = bg_idx, sg_idx = sg_idx, q_low = q_low, q_high = q_high)
+}
+
+#----------------------------#
+# Fonction principale NSP
+#----------------------------#
+
+#' nsp_transform
+#' Normalisation "Noise-corrected and Scaled Protein counts" (NSP) reconstituée
+#'
+#' @param counts_mat matrice (cells x proteins) de lectures brutes (>=0)
+#' @param jitter sd du bruit gaussien ajouté avant modélisation (doc NSP)
+#' @param scale facteur d'échelle global (<=1) ; si NULL -> estimation auto (doc NSP)
+#' @param sample_size nb de cellules max pour ajuster les modèles (Inf = toutes)
+#' @param random_state graine pseudo-aléatoire pour reproductibilité
+#' @param p_low quantile bas pour "background" (par défaut 0.10 comme compromis robuste)
+#' @param p_high quantile haut pour "signal" (par défaut 0.90)
+#' @param max_zero_read_cells fraction max autorisée de cellules 0 après scaling auto (doc NSP)
+#' @return list(normalized, models, scaling_factor)
+#' @references Doc officielle NSP : missionbio.github.io/mosaic/pages/missionbio.demultiplex.protein.nsp.NSP.html
+nsp_transform <- function(counts_mat,
+                          jitter = 0.5,
+                          scale = NULL,
+                          sample_size = Inf,
+                          random_state = NULL,
+                          p_low = 0.10,
+                          p_high = 0.90,
+                          max_zero_read_cells = 0.05) {
+    # Vérifs d'entrée
+    if (!(is.matrix(counts_mat) || is.data.frame(counts_mat))) {
+        stop("counts_mat doit être une matrice/data.frame (cells x proteins).")
+    }
+    counts_mat <- as.matrix(counts_mat)
+    if (any(counts_mat < 0, na.rm = TRUE)) {
+        stop("counts_mat doit contenir des valeurs >= 0.")
+    }
+
+    # Dimensions
+    n_cells    <- nrow(counts_mat)  # nb de cellules
+    n_proteins <- ncol(counts_mat)  # nb de protéines
+
+    # Graine aléatoire (pour jitter & sampling)
+    if (!is.null(random_state)) set.seed(as.integer(random_state))
+
+    # Copie float
+    x <- matrix(as.numeric(counts_mat), nrow = n_cells, ncol = n_proteins,
+                dimnames = dimnames(counts_mat))
+
+    # (1) Jitter gaussien centré 0 (doc NSP)
+    if (isTRUE(jitter > 0)) {
+        x <- x + matrix(stats::rnorm(n_cells * n_proteins, mean = 0, sd = jitter),
+                        nrow = n_cells, ncol = n_proteins)
+        x[x < 0] <- 0  # tronque à 0 (lectures ne peuvent pas être négatives)
+    }
+
+    # (2) Total reads par cellule (covariable principale des modèles)
+    total_reads <- rowSums(x, na.rm = TRUE)
+
+    # (3) Scaling global optionnel (doc NSP: scaling_factor pour oversequencing)
+    if (is.null(scale)) {
+        scale <- estimate_scaling_factor(total_reads, max_zero_read_cells = max_zero_read_cells)
+    } else {
+        # garde-fou : on force [0,1]
+        scale <- max(min(as.numeric(scale), 1.0), 0.0)
+    }
+    if (!isTRUE(all.equal(scale, 1.0))) {
+        # Applique l'échelle et recalcule total_reads
+        x <- floor(x * scale)
+        total_reads <- rowSums(x, na.rm = TRUE)
+    }
+
+    # (4) Sous-échantillonnage pour l'ajustement des modèles (doc NSP: sample_size)
+    if (is.finite(sample_size) && sample_size < n_cells) {
+        idx_fit <- sample.int(n_cells, size = sample_size)
+    } else {
+        idx_fit <- seq_len(n_cells)
+    }
+    t_fit <- total_reads[idx_fit]  # total reads des cellules utilisées pour fit
+
+    # (5) Ajustement fond/signal par protéine + correction
+    normalized <- matrix(NA_real_, nrow = n_cells, ncol = n_proteins,
+                         dimnames = dimnames(counts_mat))
+    model_list <- vector("list", n_proteins)
+    names(model_list) <- colnames(counts_mat)
+
+    eps <- 1e-6  # pour éviter division par ~0
+
+    for (j in seq_len(n_proteins)) {
+        # y = lectures (avec jitter/scale) pour la protéine j
+        y       <- x[, j]
+        y_fit   <- y[idx_fit]
+
+        # 5a) Sélection des indices "background" (bas) et "signal" (haut) sur l'échantillon
+        sel <- select_bg_sig_indices(y_fit, p_low = p_low, p_high = p_high, min_points = 20L)
+        bg_idx_fit <- sel$bg_idx
+        sg_idx_fit <- sel$sg_idx
+
+        # 5b) Ajustements linéaires : y_bg ~ total_reads ; y_sig ~ total_reads (doc NSP)
+        bg_lm <- stats::lm(y_fit[bg_idx_fit] ~ t_fit[bg_idx_fit])
+        sg_lm <- stats::lm(y_fit[sg_idx_fit] ~ t_fit[sg_idx_fit])
+
+        # 5c) Prédictions pour T de TOUTES les cellules
+        y_bg_hat <- as.numeric(stats::coef(bg_lm)[1] + stats::coef(bg_lm)[2] * total_reads)
+        y_sg_hat <- as.numeric(stats::coef(sg_lm)[1] + stats::coef(sg_lm)[2] * total_reads)
+
+        # 5d) Garde-fous numériques (fond >= 0, signal >= fond + eps)
+        y_bg_hat <- pmax(0, y_bg_hat)
+        y_sg_hat <- pmax(y_bg_hat + eps, y_sg_hat)
+
+        # 5e) Transformation NSP : (y − y_bg_hat) / (y_sg_hat − y_bg_hat), tronquée à >= 0
+        num <- y - y_bg_hat
+        den <- y_sg_hat - y_bg_hat
+        val <- ifelse(den > eps, num / den, 0)
+        val[val < 0] <- 0
+
+        # 5f) Écrit la colonne normalisée
+        normalized[, j] <- val
+
+        # 5g) Stocke les modèles pour audit/reproductibilité
+        model_list[[j]] <- list(
+            protein      = colnames(counts_mat)[j],
+            bg_coef      = stats::coef(bg_lm),
+            sg_coef      = stats::coef(sg_lm),
+            q_low        = sel$q_low,
+            q_high       = sel$q_high,
+            sample_size  = length(idx_fit),
+            jitter       = jitter,
+            scale        = scale
+        )
+    }
+
+    # (6) Retour : matrice normalisée + méta
+    list(
+        normalized      = normalized,
+        models          = model_list,
+        scaling_factor  = scale
+    )
+}
+
+

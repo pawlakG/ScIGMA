@@ -32,6 +32,7 @@ golem::add_module(name = "analysis_right_multiOmics", with_test = TRUE) # Name o
 
 ## Add packages ----
 usethis::use_package("bslib")
+usethis::use_package("DelayedMatrixStats")
 usethis::use_dev_package("gridlayout", remote = "github::rstudio/gridlayout")
 
 ## Add helper functions ----

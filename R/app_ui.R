@@ -1,3 +1,5 @@
+font_size_global <- "12px"
+
 #' The application User-Interface
 #'
 #' @param request Internal parameter for `{shiny}`.
@@ -17,6 +19,15 @@ app_ui <- function(request) {
         page_navbar(
             fluid = TRUE,
             theme = bs_theme(bootswatch = "lux"),
+
+            tags$head(
+                tags$style(HTML(sprintf("
+      body, .container, .well, .navbar, .form-control,
+      h1, h2, h3, h4, h5, h6, p, label, .btn {
+        font-size: %s !important;
+      }
+    ", font_size_global)))
+            ),
             # theme = bs_theme(bootswatch = "simplex"),
             # title = HTML("<h2><align=center>LENS portal</h2>"),
             title = HTML("ScIGMA portal"),
@@ -30,40 +41,44 @@ app_ui <- function(request) {
             nav_panel(
                 title = HTML("Analysis"),
                 grid_container(
+                    # layout = c(
+                    #     "analysis_left analysis_right"
+                    # ),
                     layout = c(
-                        "analysis_left analysis_right"
+                        "analysis"
                     ),
                     row_sizes = c(
                         "1fr"
                     ),
-                    col_sizes = c(
-                        "0.40fr",
-                        "1.60fr"
-                    ),
-                    gap_size = "10px",
+                    # col_sizes = c(
+                    #     "0.40fr",
+                    #     "1.60fr"
+                    # ),
+                    # gap_size = "10px",
+                    # grid_card(
+                    #     area = "analysis_left",
+                    #     full_screen = FALSE,
+                    #     card_header(HTML("Start here:")),
+                    #     mod_analysis_left_ui("analysis_left_1")
+                    # )
+                    # ,
                     grid_card(
-                        area = "analysis_left",
-                        full_screen = FALSE,
-                        card_header(HTML("Start here:")),
-                        mod_analysis_left_ui("analysis_left_1")
-                    )
-                    ,
-                    grid_card(
-                        area = "analysis_right",
+                        # area = "analysis_right",
+                        area = "analysis",
                         card_body(
                             tabsetPanel(
                                 nav_panel(title = "Overview.Preprocess",
-                                          mod_analysis_right_overview_ui("analysis_right_overview_1")
+                                          mod_analysis_overview_ui("analysis_overview_1")
                                 ),
                                 nav_panel(title = "DNA",
-                                          mod_analysis_right_DNA_ui("analysis_right_DNA_1"),
+                                          mod_analysis_DNA_ui("analysis_DNA_1"),
                                 ),
                                 nav_panel(title = "CNV",
-                                          mod_analysis_right_CNV_ui("analysis_right_CNV_1")),
+                                          mod_analysis_CNV_ui("analysis_CNV_1")),
                                 nav_panel(title = "Protein",
-                                          mod_analysis_right_Protein_ui("analysis_right_Protein_1")),
+                                          mod_analysis_Protein_ui("analysis_Protein_1")),
                                 nav_panel(title = "Multi-omics",
-                                          mod_analysis_right_multiOmics_ui("analysis_right_multiOmics_1"))
+                                          mod_analysis_multiOmics_ui("analysis_multiOmics_1"))
                             )
                         )
                     )

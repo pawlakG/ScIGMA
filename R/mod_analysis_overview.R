@@ -7,19 +7,60 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-mod_analysis_right_overview_ui <- function(id) {
+mod_analysis_overview_ui <- function(id) {
     ns <- NS(id)
     ## Add a spinner
     add_busy_spinner(spin = "fading-circle", color = "#112446")
     tagList(
-        br(),
-        card(card_header("Summary"),
-             uiOutput(ns("overview"))
+
+        fluidRow(
+            column(3,
+                   card(
+                       fileInput(ns("file_h5file"),
+                                 label = "1. Upload you H5 file.",
+                                 accept = ".h5")
+                   )
+            ),
+            column(3,
+                   card(
+                       textInput(ns("file_name"),
+                                 label = "2. Enter a name for your assay",
+                                 value = "")
+                   )
+            ),
+            column(3,
+                   card(
+                       radioGroupButtons(
+                           inputId = ns("file_fileType"),
+                           label = "3. DNA or DNA+protein ?",
+                           choices = c("DNA only"="DNA",
+                                       "DNA & protein"="DNA+protein"),
+                           justified = TRUE
+                       )
+                   )
+            ),
+            column(3,
+                   h6(HTML("4. Process")),
+                   actionBttn(
+                       inputId = ns("file_process"),
+                       label = "Load file",
+                       color = "primary",
+                       style = "stretch",
+                       icon = icon("magnifying-glass-chart"),
+                       block = TRUE
+                   )
+            )
         ),
-        card(
-            card_header("Preprocess"),
-            uiOutput(ns("preprocess")),
-            uiOutput(ns("dnaFilterResults"))
+        fluidRow(
+            br(),
+            card(card_header("Summary"),
+                 uiOutput(ns("overview"))
+            ),
+            card(
+                card_header("Preprocess"),
+                uiOutput(ns("preprocess")),
+                uiOutput(ns("dnaFilterResults"))
+            )
         )
     )
 }
@@ -27,7 +68,7 @@ mod_analysis_right_overview_ui <- function(id) {
 #' analysis_right_overview Server Functions
 #'
 #' @noRd
-mod_analysis_right_overview_server <- function(id, ScIGMA_data){
+mod_analysis_overview_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
         message(whereami::whereami())
@@ -40,11 +81,49 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
         )
 
         # ---------------------------- #
+        # Load data
+        observeEvent(input$file_process,{
+            filePath <- input$file_h5file$datapath
+            sampleName <- input$file_name
+            fileType <- input$file_fileType
+            req(filePath)
+            req(sampleName)
+            req(fileType)
+            message(whereami::whereami())
+            show_modal_spinner(text = "Loading data ...")
+            if (file.exists(filePath)) {
+                if (file.info(filePath)$isdir) {
+                    ScIGMA_data$data <- tryCatch(
+                        loadH5_dir_HDF5(dir = filePath,
+                                        sample.name = sampleName,
+                                        feature_policy = "intersect",
+                                        omic.type = fileType),
+                        error = function(e){
+                            message("Error during loadH5")
+                            stop(e$message)
+                        })
+                } else {
+                    ScIGMA_data$data <- tryCatch(
+                        loadH5_HDF5(filepath = filePath,
+                                    sample.name = sampleName,
+                                    omic.type = fileType),
+                        error = function(e){
+                            message("Error during loadH5")
+                            stop(e$message)
+                        })
+                }
+            } else {
+                stop("File or folder path doesn't exists\n")
+            }
+            remove_modal_spinner()
+            message(whereami::whereami())
+            trigger("dataLoaded")
+        })
+
+        # ---------------------------- #
         # Render Summary UI
         output$overview <- renderUI({
             watch("dataLoaded")
-            print("ScIGMA_data_right_overview")
-            print(ScIGMA_data)
             message(whereami::whereami())
             fluidRow(
                 column(3,
@@ -200,7 +279,7 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
                     , error = function(e){
                         remove_modal_spinner()
                         message(warning("Error during variant annotation: "),
-                                warning(e$message))
+                                stop(e$message))
                     })
                 remove_modal_spinner()
                 trigger("dnaVariant_filtered")
@@ -250,7 +329,7 @@ mod_analysis_right_overview_server <- function(id, ScIGMA_data){
 }
 
 ## To be copied in the UI
-# mod_analysis_right_overview_ui("analysis_right_overview_1")
+# mod_analysis_overview_ui("analysis_right_overview_1")
 
 ## To be copied in the server
-# mod_analysis_right_overview_server("analysis_right_overview_1", ScIGMA_data)
+# mod_analysis_overview_server("analysis_right_overview_1", ScIGMA_data)

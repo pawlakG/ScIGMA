@@ -24,13 +24,14 @@ app_server <- function(input, output, session) {
     # Analysis
     # ---------------------------- #
     # Overview
-    mod_analysis_right_overview_server("analysis_right_overview_1", ScIGMA_data)
-    # ---------------------------- #
-    # Analysis Left part
-    mod_analysis_left_server("analysis_left_1", ScIGMA_data)
+    mod_analysis_overview_server("analysis_overview_1", ScIGMA_data)
     # ---------------------------- #
     # Analysis right up
-    mod_analysis_right_DNA_server("analysis_right_DNA_1", ScIGMA_data)
+    mod_analysis_DNA_server("analysis_DNA_1", ScIGMA_data)
+
+    # --------------------------------------------------------------- #
+    # Protein
+    mod_analysis_Protein_server("analysis_Protein_1", ScIGMA_data)
 
 }
 

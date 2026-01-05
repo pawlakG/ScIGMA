@@ -54,8 +54,8 @@ obj <- filter_variant_ScIGMA(obj = obj,
                              vaf.ref = 5,
                              vaf.hom = 95,
                              vaf.het = 30,
-                             min.cell.pt = 50,
-                             min.mut.cell.pt = 50)
+                             min.cell.pt = 10,
+                             min.mut.cell.pt = 10)
 
 dim(obj$dna.variant.filter.mask)
 dim(obj$dna.variant.filter.mask.filtered)
@@ -69,31 +69,62 @@ variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths =
 
 cols <- sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)|^:", "")
 
-apply(obj$vaf.mtx[,1:50], 2, \(x) sum(x == 0)) # Get number of unmutated cells
-
-nrow(obj$dna.variant.filter.mask.filtered) - realize(obj$dna.variant.filter.mask.filtered[, cols] != as.raw(0)) |> colSums()
-
-obj$dna.variant.filter.mask.filtered
-
-
 # variant heatmap
 ## Select some variants
-selected_variants <- cols[1:3]
+selected_variants <- cols[1:4]
 # selected_variants <- cols[-9]
 
 
-# test <- generate_dna_variant_heatmap(obj = obj, selected_variants = selected_variants, n_cluster = 3)
-test <- generate_dna_variant_heatmap(obj = obj, selected_variants_df = variants_annotated[1:5,], n_cluster = 3)
-
-
+dna_variant_clones <- generate_dna_variant_heatmap(obj = obj, selected_variants_df = variants_annotated[1:4,])
 
 # --------------------------------------------------------------- #
-# CNV
-## Compute ploidy
+# Compute ploidy
 
-### After filtering
-dna_variant_no_missing <- get_no_missing_dna_variant(obj, selected_variants_df = variants_annotated[1:2,])
-sum(rowSums2(dna_variant_no_missing) == 0)
+library(tibble)
+
+## Filter
+## Amplicon completeness
+amp_completeness <- 10
+## Amplicon read depth
+amp_readDepth <- 10
+## Mean cell read depth
+amp_meanCellRead <- 10
+# clone group set a reference
+diploid_ref <- "1"
+
+filtered_data <- filter_cnv_profile(obj,
+                                    dna_variant_clones$clones,
+                                    amp_completeness = amp_completeness,
+                                    amp_readDepth = amp_readDepth,
+                                    amp_meanCellRead = amp_meanCellRead)
+
+ploidy_data <- process_cnv_to_clonal_profile(filtered_data,
+                                             dna_variant_clones$clones,
+                                             diploid_ref = diploid_ref,
+                                             exclude_clone = "small")
+
+obj$ploidy.mtx <- ploidy_data
+
+render_annotation_table(obj = obj, ploidy_data = obj$ploidy.mtx)$symbol |> unique() |> sort()
+
+
+cnv_heatmap <- plot_cnv_heatmap(obj = obj, ploidy_data = obj$ploidy.mtx)
+
+cnv_heatmap <- plot_cnv_heatmap(obj = obj, ploidy_data = obj$ploidy.mtx, display_gene = TRUE)
+
+
+
+## Annotate amplicons
+test <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg38")
+
+
+
+dumb_df <- data.frame(chrom = "1", start_pos = 438149280, end_pos = 438149280)
+annotate_genomic_regions(region_data = dumb_df, build = "hg19")
+
+# Example usage for a specific locus on hg19 (e.g., BRAF region)
+# braf_hg19 <- get_hgnc_from_coordinates("7", 140433813, 140624564, "hg19")
+
 
 
 

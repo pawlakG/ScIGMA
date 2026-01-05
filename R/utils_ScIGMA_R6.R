@@ -79,6 +79,7 @@ ScIGMA_object <- R6::R6Class(
         #' (e.g., `list(original=..., realized=...)`).
         #' @param variant.annotation data.frame of annotated variants.
         #' @param selected.variants Selected variant during varaint selection step
+        #' @param dna.clones DNA clones found after variant filtering
         initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),
@@ -116,7 +117,13 @@ ScIGMA_object <- R6::R6Class(
                               protein.mtx.cells = character(),
                               backing_files = list(),
                               variant.annotation = NULL,
-                              selected.variants = NULL) {
+                              selected.variants = NULL,
+                              dna.clones = NULL,
+                              dna_id_table = data.frame(),
+                              cnv_id_table = data.frame(),
+                              dna_cell_table = data.frame(),
+                              cnv_dp_filtered = NULL,
+                              cnv_metadata = list()) {
             # simple validator for HDF5-backed matrices
             .chk <- function(x, nm) {
                 if (!is.null(x) && !inherits(x, "DelayedArray")) {
@@ -172,7 +179,13 @@ ScIGMA_object <- R6::R6Class(
                 protein.mtx.cells = protein.mtx.cells,
                 backing_files = backing_files,
                 variant.annotation = variant.annotation,
-                selected.variants = selected.variants
+                selected.variants = selected.variants,
+                dna.clones = dna.clones,
+                dna_id_table = dna_id_table,
+                cnv_id_table = cnv_id_table,
+                dna_cell_table = dna_cell_table,
+                cnv_dp_filtered = cnv_dp_filtered,
+                cnv_metadata = cnv_metadata
             )
         },
 
@@ -462,6 +475,42 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$selected.variants)
             }
             self$data$selected.variants <- value
+        },
+        dna.clones = function(value) {
+            if (missing(value)) {
+                return(self$data$dna.clones)
+            }
+            self$data$dna.clones <- value
+        },
+        dna_id_table = function(value) {
+            if (missing(value)) {
+                return(self$data$dna_id_table)
+            }
+            self$data$dna_id_table <- value
+        },
+        cnv_id_table = function(value) {
+            if (missing(value)) {
+                return(self$data$cnv_id_table)
+            }
+            self$data$cnv_id_table <- value
+        },
+        dna_cell_table = function(value) {
+            if (missing(value)) {
+                return(self$data$dna_cell_table)
+            }
+            self$data$dna_cell_table <- value
+        },
+        cnv_dp_filtered = function(value) {
+            if (missing(value)) {
+                return(self$data$cnv_dp_filtered)
+            }
+            self$data$cnv_dp_filtered <- value
+        },
+        cnv_metadata = function(value) {
+            if (missing(value)) {
+                return(self$data$cnv_metadata)
+            }
+            self$data$cnv_metadata <- value
         }
     )
 )

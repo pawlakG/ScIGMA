@@ -14,33 +14,26 @@ mod_analysis_overview_ui <- function(id) {
     tagList(
 
         fluidRow(
-            column(3,
+            column(4,
                    card(
                        fileInput(ns("file_h5file"),
                                  label = "1. Upload you H5 file.",
                                  accept = ".h5")
                    )
             ),
-            column(3,
-                   card(
-                       textInput(ns("file_name"),
-                                 label = "2. Enter a name for your assay",
-                                 value = "")
-                   )
-            ),
-            column(3,
+            column(4,
                    card(
                        radioGroupButtons(
                            inputId = ns("file_fileType"),
-                           label = "3. DNA or DNA+protein ?",
+                           label = "2. DNA or DNA+protein ?",
                            choices = c("DNA only"="DNA",
                                        "DNA & protein"="DNA+protein"),
                            justified = TRUE
                        )
                    )
             ),
-            column(3,
-                   h6(HTML("4. Process")),
+            column(4,
+                   h6(HTML("3. Process")),
                    actionBttn(
                        inputId = ns("file_process"),
                        label = "Load file",
@@ -68,6 +61,7 @@ mod_analysis_overview_ui <- function(id) {
 #' analysis_right_overview Server Functions
 #'
 #' @noRd
+#' @import tools
 mod_analysis_overview_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
@@ -84,11 +78,10 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         # Load data
         observeEvent(input$file_process,{
             filePath <- input$file_h5file$datapath
-            sampleName <- input$file_name
             fileType <- input$file_fileType
             req(filePath)
-            req(sampleName)
             req(fileType)
+            sampleName <- file_path_sans_ext(input$file_h5file$name)
             message(whereami::whereami())
             show_modal_spinner(text = "Loading data ...")
             if (file.exists(filePath)) {
@@ -257,14 +250,14 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             # ---------------------------- #
             # Normalize CNV
-            ScIGMA_data$data$amp.mtx.normalized <- tryCatch(
-                normalize_amplicon_counts(count_matrix = ScIGMA_data$data$amp.mtx),
-                error = function(e){
-                    remove_modal_spinner()
-
-                    message("Error during CNV filtering")
-                    stop(e$message)
-                })
+            # ScIGMA_data$data$amp.mtx.normalized <- tryCatch(
+            #     normalize_amplicon_counts(count_matrix = ScIGMA_data$data$amp.mtx),
+            #     error = function(e){
+            #         remove_modal_spinner()
+            #
+            #         message("Error during CNV filtering")
+            #         stop(e$message)
+            #     })
 
             message(whereami::whereami())
             # ---------------------------- #

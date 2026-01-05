@@ -1,0 +1,466 @@
+
+#' --------------------------------------------------------------- #
+#' Filter variants and cells in a ScIGMA_object (R6)
+#'
+#' @description
+#' This function applies quality-based filtering on variants and cells stored
+#' in a `ScIGMA_object` (R6). Filtering is performed based on minimum depth (DP),
+#' genotype quality (GQ), and VAF/GT consistency. Variants are retained only if
+#' they are sufficiently covered across cells and observed in a minimum fraction
+#' of mutated cells. Cells are retained only if they contain a sufficient number
+#' of evaluable variants. The function returns a **filtered clone** of the input
+#' object, leaving the original object unchanged.
+#'
+#' @param obj A `ScIGMA_object` (R6) with the following fields:
+#'   - `meta.data`
+#'   - `cell.ids`, `cell.labels`
+#'   - `variants`, `variant.filter`
+#'   - `vaf.mtx`, `gt.mtx`, `dp.mtx`, `gq.mtx`
+#'   - `amps`, `amp.normalize.method`, `amp.mtx`
+#'   - `proteins`, `protein.normalize.method`, `protein.mtx`
+#'
+#' @param min.dp Integer. Minimum sequencing depth (DP) per cell/variant to be considered.
+#'   Default: `10`.
+#' @param min.gq Integer. Minimum genotype quality (GQ) threshold.
+#'   Default: `30`.
+#' @param vaf.ref Numeric. Maximum tolerated VAF for reference genotypes (GT = 0).
+#'   Default: `5`.
+#' @param vaf.hom Numeric. Minimum expected VAF for homozygous alternate genotypes (GT = 2).
+#'   Default: `95`.
+#' @param vaf.het Numeric. Minimum expected VAF for heterozygous genotypes (GT = 1).
+#'   Default: `35`.
+#' @param min.cell.pt Numeric. Minimum percentage of cells required to cover a variant.
+#'   Default: `50`.
+#' @param min.mut.cell.pt Numeric. Minimum percentage of cells required to be mutated
+#'   (GT = 1 or 2) for a variant to be retained.
+#'   Default: `1`.
+#'
+#' @return A new `ScIGMA_object` (clone) containing only the filtered variants and cells.
+#'   The original object is not modified.
+#'
+#' @examples
+#' \dontrun{
+#' filtered_obj <- filter_variant_ScIGMA(my_scigma_obj,
+#'                                       min.dp = 15,
+#'                                       min.gq = 40,
+#'                                       vaf.ref = 3,
+#'                                       vaf.hom = 90,
+#'                                       vaf.het = 30,
+#'                                       min.cell.pt = 60,
+#'                                       min.mut.cell.pt = 5)
+#' }
+#'
+#' @seealso
+#' - `DelayedMatrixStats` for efficient matrix operations when using DelayedArray objects.
+#' - The original `filter_variant` function from the optima package for conceptual inspiration.
+#'
+#' @export
+filter_variant_ScIGMA <- function(
+        obj,
+        min.dp = 10, min.gq = 30,
+        vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
+        min.cell.pt = 50, min.mut.cell.pt = 1
+){
+    # Setup multiprocessing
+    bp <- if (.Platform$OS.type == "windows") SnowParam(workers = parallel::detectCores()-1)
+    else MulticoreParam(workers = parallel::detectCores()-1)
+
+
+    message("Filtering variant")
+    stopifnot(methods::is(obj, "R6"))
+    # Shortcuts
+    vaf.mtx <- obj$vaf.mtx
+    gt.mtx  <- obj$gt.mtx
+    dp.mtx  <- obj$dp.mtx
+    gq.mtx  <- obj$gq.mtx
+
+
+    # 1) Quality masks / VAF vs GT consistency
+    dp.tf      <- dp.mtx < min.dp
+    gq.tf      <- gq.mtx < min.gq
+    vaf.ref.tf <- (vaf.mtx > vaf.ref) & (gt.mtx == 0)
+    vaf.hom.tf <- (vaf.mtx < vaf.hom) & (gt.mtx == 2)
+    vaf.het.tf <- (vaf.mtx < vaf.het) & (gt.mtx == 1)
+
+    keep <- !(dp.tf | gq.tf | vaf.ref.tf | vaf.hom.tf | vaf.het.tf)
+
+    # 2) Mark unreliable genotypes as 3 (unknown), VAF set to -1
+    gt.mtx[!keep] <- 3L
+    vaf.mtx[gt.mtx == 3L] <- -1
+
+    num.cells    <- nrow(gt.mtx)
+    num.variants <- ncol(gt.mtx)
+
+    # 3) Variant filtering criteria
+    gt.mtx_realized <- DelayedArray::realize(gt.mtx)
+    cell.cover.per.variant <- colSums2(gt.mtx_realized != 3L, BPPARAM = bp)
+    mut.cells.per.variant  <- colSums2((gt.mtx_realized == 1L) | (gt.mtx_realized == 2L), BPPARAM = bp)
+
+    cell.num.keep.tf <- cell.cover.per.variant > num.cells * (min.cell.pt/100)
+    mut.cell.num.keep.tf <- mut.cells.per.variant > num.cells * (min.mut.cell.pt/100)
+    variant.keep.tf <- cell.num.keep.tf & mut.cell.num.keep.tf
+
+    # 4) Cell filtering criteria
+    cell.variants.keep.tf <- rowSums2(gt.mtx_realized != 3L, BPPARAM = bp) > num.variants * (min.cell.pt/100)
+    # 5) Subsetting
+    keep_cells    <- which(cell.variants.keep.tf)
+    keep_variants <- which(variant.keep.tf)
+
+    # 6) Protein handling
+    # proteins_are_none <- (length(obj$proteins) == 1L && identical(obj$proteins[1], "non-protein"))
+    # if (proteins_are_none) {
+    #     my.protein.mtx <- obj$protein.mtx
+    # }
+    if (length(obj$proteins) == 1) {
+        my.protein.mtx <- obj$protein.mtx
+    } else {
+        my.protein.mtx <- obj$protein.mtx[keep_cells, , drop = FALSE]
+    }
+    # 7) Build a filtered clone
+    filtered <- obj$clone(deep = TRUE)
+    filtered$variant.filter <- "filtered"
+
+    filtered$cell.ids.filtered     <- obj$cell.ids[keep_cells]
+    filtered$cell.labels.filtered  <- obj$cell.labels[keep_cells]
+
+    filtered$variants.filtered     <- obj$variants[variant.keep.tf]
+
+    filtered$vaf.mtx.filtered      <- obj$vaf.mtx[keep_cells, keep_variants, drop = FALSE]
+    filtered$gt.mtx.filtered       <- obj$gt.mtx [keep_cells, keep_variants, drop = FALSE]
+    filtered$dp.mtx.filtered       <- obj$dp.mtx [keep_cells, keep_variants, drop = FALSE]
+    filtered$gq.mtx.filtered       <- obj$gq.mtx [keep_cells, keep_variants, drop = FALSE]
+
+    filtered$amp.mtx.filtered      <- obj$amp.mtx[keep_cells, , drop = FALSE]
+
+    filtered$protein.mtx.filtered  <- my.protein.mtx
+
+    # Modify variant.filter.mask according to filtered cells
+    filtered$dna.variant.filter.mask.filtered <- filtered$dna.variant.filter.mask[filtered$cell.ids.filtered,]
+
+    # Summary
+    removed_cells    <- length(cell.variants.keep.tf) - sum(cell.variants.keep.tf)
+    removed_variants <- length(variant.keep.tf) - sum(variant.keep.tf)
+    message("Number of cells removed: ", removed_cells)
+    message("Number of variants removed: ", removed_variants)
+
+    invisible(filtered)
+}
+
+
+# Normalize counts (amplicons x cells)
+# Step 1: Each cell is normalized by its total read count (library size)
+# Step 2: Each amplicon is normalized by its median value across cells
+normalize_amplicon_counts <- function(count_matrix,
+                                      scale_after_cell = 1,   # e.g., 1e6 for CPM, 1 for proportions
+                                      epsilon = 1e-8,         # numerical stability to avoid division by zero
+                                      use_nonzero_for_median = FALSE) {
+    # --- Checks ---
+    if (!class(count_matrix) == "DelayedMatrix") {
+        stop("count_matrix must be a DelayedMatrix (amplicons x cells).")
+    }
+    count_matrix <- as.matrix(count_matrix)
+    if (!is.numeric(count_matrix)) stop("count_matrix must be numeric.")
+    if (is.null(rownames(count_matrix))) rownames(count_matrix) <- paste0("amplicon_", seq_len(nrow(count_matrix)))
+    if (is.null(colnames(count_matrix))) colnames(count_matrix) <- paste0("cell_", seq_len(ncol(count_matrix)))
+
+
+    message("Normalizing CNV")
+
+    # --- Step 1: Cell-level normalization (library size) ---
+    library_sizes <- colSums2(count_matrix, na.rm = TRUE)
+    # avoid division by zero
+    library_sizes_safe <- library_sizes + epsilon
+    counts_cell_norm <- sweep(count_matrix, 2, library_sizes_safe, FUN = "/")
+    # optional: scale to CPM (or other units)
+    if (!is.null(scale_after_cell) && is.finite(scale_after_cell) && scale_after_cell != 1) {
+        counts_cell_norm <- counts_cell_norm * scale_after_cell
+    }
+
+    # --- Step 2: Amplicon-level normalization (median across cells) ---
+    if (isTRUE(use_nonzero_for_median)) {
+        # compute median on non-zero values if available, otherwise use overall median
+        amplicon_medians <- apply(counts_cell_norm, 1, function(x) {
+            nz <- x[x > 0 & is.finite(x)]
+            if (length(nz) > 0) stats::median(nz, na.rm = TRUE) else stats::median(x, na.rm = TRUE)
+        })
+    } else {
+        amplicon_medians <- apply(counts_cell_norm, 1, stats::median, na.rm = TRUE)
+    }
+    amplicon_medians_safe <- amplicon_medians + epsilon
+
+    normalized_matrix <- sweep(counts_cell_norm, 1, amplicon_medians_safe, FUN = "/")
+
+    # --- Output ---
+    attr(normalized_matrix, "library_sizes") <- library_sizes
+    attr(normalized_matrix, "amplicon_medians_after_cell_norm") <- amplicon_medians
+    normalized_matrix
+}
+
+
+generate_clonal_labels <- function(ngt_matrix,
+                                   target_variants_df,
+                                   ignore_missing = FALSE) {
+
+    # 1. Préparation des données et du Mapping
+    # ngt_matrix <- obj$gt.mtx |> as.matrix()
+
+    # Extraction des noms complets (Source de vérité pour l'affichage)
+    full_variant_ids <- target_variants_df$variant_id
+
+    # Extraction des noms courts (Pour matcher les colonnes de la matrice)
+    # Note: Assurez-vous que ce regex correspond bien aux colnames de votre ngt_matrix
+    short_variant_ids <- sub(x = full_variant_ids, pattern = "^([^:]+:)|^:", "")
+
+    # CRUCIAL : Création du dictionnaire de mapping (Nom Court -> Nom Long)
+    variant_map <- setNames(full_variant_ids, short_variant_ids)
+
+    # 2. Vérification d'intégrité
+    # On vérifie si les noms courts existent dans la matrice
+    missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
+    if (length(missing_variants) > 0) {
+        stop(paste("Erreur critique : Variants manquants dans la matrice :",
+                   paste(missing_variants, collapse = ", ")))
+    }
+
+    # 3. Fonction locale de décodage
+    decode_genotype <- function(x) {
+        case_when(
+            x == 0 ~ "WT",
+            x == 1 ~ "HET",
+            x == 2 ~ "HOM",
+            x == 3 | is.na(x) ~ "MISS",
+            TRUE ~ "ERR"
+        )
+    }
+
+    # 4. Traitement vectorisé
+    processed_cells <- as_tibble(ngt_matrix, rownames = "cell_barcode") %>%
+        select(cell_barcode, all_of(short_variant_ids)) %>%
+
+        # Étape A : Décodage (0 -> WT)
+        mutate(across(all_of(short_variant_ids), decode_genotype)) %>%
+
+        # Étape B : Préfixage avec le NOM COMPLET via le mapping
+        # MODIFICATION ICI : Au lieu de cur_column() seul, on l'utilise comme clé dans variant_map
+        mutate(across(all_of(short_variant_ids),
+                      ~ paste0(variant_map[cur_column()], ":", .))) %>%
+
+        # Étape C : Fusion pour signature
+        unite(col = "signature_string", all_of(short_variant_ids), sep = " & ", remove = FALSE)
+
+    # 5. Filtrage Missing (Optionnel)
+    if (ignore_missing) {
+        processed_cells <- processed_cells %>%
+            mutate(is_valid = !str_detect(signature_string, ":MISS"))
+    } else {
+        processed_cells <- processed_cells %>% mutate(is_valid = TRUE)
+    }
+
+    # Debug print (utile pour vérifier)
+    # print(head(processed_cells))
+
+    # 6. Construction de la Lookup Table (Définitions)
+    cluster_definitions <- processed_cells %>%
+        filter(is_valid) %>%
+        distinct(signature_string) %>%
+        arrange(signature_string) %>%
+        # mutate(clonal_cluster_id = paste0("cluster_", row_number())) %>%
+        mutate(clonal_cluster_id =row_number()) %>%
+        select(clonal_cluster_id, genotype_signature = signature_string)
+
+    # 7. Jointure finale
+    final_metadata <- processed_cells %>%
+        left_join(cluster_definitions, by = c("signature_string" = "genotype_signature")) %>%
+        select(cell_barcode, clonal_cluster_id)
+
+    final_metadata$clonal_cluster_id[is.na(final_metadata$clonal_cluster_id)] <- "unassigned"
+
+    return(list(
+        cell_metadata = final_metadata,
+        cluster_definitions = cluster_definitions
+    ))
+}
+
+
+#' Generate Heatmap of DNA Variant Genotypes
+#'
+#' This function processes genotype data for a set of selected DNA variants,
+#' performs clonal clustering on samples without missing genotype information,
+#' and generates a complex heatmap visualizing the genotypes across all samples,
+#' organized by the inferred clonal clusters.
+#'
+#' @param obj A list or S4 object (e.g., a SingleCellExperiment or similar custom object)
+#'   containing the necessary genotype information. It must contain:
+#'   \itemize{
+#'     \item `$gt.mtx`: A matrix of genotypes (e.g., 0, 1, 2 for WT, HET, HOM)
+#'       where rows are samples (cells) and columns are variant IDs.
+#'     \item `$dna.variant.filter.mask.filtered`: A boolean/integer matrix (same dimensions as `$gt.mtx`)
+#'       indicating which genotypes should be considered as masked/filtered (e.g., unreliable).
+#'   }
+#' @param selected_variants_df A data frame containing information about the variants
+#'   to be included in the heatmap. It must have a column named `variant_id`
+#'   containing the full variant identifiers.
+#' @param min_prop_cluster A numeric value (default: 0.01). The minimum proportion
+#'   of total samples required for a cluster to be considered a major cluster.
+#'   Clusters smaller than this proportion are grouped into a single "small" cluster.
+#' @param heatmap_include_all_samples A logical value (default: TRUE). If TRUE,
+#'   samples with missing/filtered variant data are included in the heatmap
+#'   under a separate "missing" split. If FALSE, only samples with complete,
+#'   unfiltered genotype data for the selected variants are included, and the
+#'   "small" cluster is also excluded from the final heatmap.
+#'
+#' @return A list with two elements:
+#'   \itemize{
+#'     \item `heatmap`: A `Heatmap` object generated by the `ComplexHeatmap` package.
+#'     \item `clones`: A factor vector of clonal cluster assignments for the
+#'       samples that had complete genotype information (used for clustering).
+#'   }
+#' @importFrom magrittr "%>%"
+#' @importFrom forcats fct_c fct_infreq
+#' @importFrom ComplexHeatmap Heatmap rowAnnotation
+#' @importFrom colorBlindness paletteMartin
+#' @importFrom stringr str_detect
+#' @export
+#'
+#' @examples
+#' # The example below is illustrative and will not run without the necessary
+#' # input objects and the `generate_clonal_labels` function.
+#' #
+#' # obj <- list(
+#' #   gt.mtx = matrix(sample(0:2, 100*5, replace = TRUE), nrow = 100,
+#' #                   dimnames = list(paste0("Sample", 1:100), paste0("V", 1:5))),
+#' #   dna.variant.filter.mask.filtered = matrix(sample(0:1, 100*5, replace = TRUE, prob=c(0.9, 0.1)), nrow = 100,
+#' #                   dimnames = list(paste0("Sample", 1:100), paste0("V", 1:5)))
+#' # )
+#' # selected_variants_df <- data.frame(variant_id = paste0("ChrX:", paste0("V", 1:5)))
+#' #
+#' # # Assuming 'generate_clonal_labels' is defined elsewhere:
+#' # # heatmap_result <- generate_dna_variant_heatmap(obj, selected_variants_df)
+#' # # draw(heatmap_result$heatmap)
+generate_dna_variant_heatmap <- function(obj,
+                                         selected_variants_df,
+                                         min_prop_cluster = 0.01,
+                                         heatmap_include_all_samples = TRUE){
+
+    selected_variants <- sub(x = selected_variants_df$variant_id, pattern = "^([^:]+:)|^:", "")
+
+    # Get genotype matrix for selected variants
+    gt <- obj$gt.mtx[,selected_variants, drop = FALSE] |> as.matrix()
+    # Get NGT_MASK matrix for selected variants
+    msk <- obj$dna.variant.filter.mask.filtered[, selected_variants, drop = FALSE] |> as.matrix() != 0
+
+    # Align rows and columns
+    common_rows <- intersect(rownames(gt),
+                             rownames(msk))
+    common_cols <- intersect(colnames(gt),
+                             colnames(msk))
+    if (length(common_rows) == 0L || length(common_cols) == 0L) {
+        stop("No overlap (rows/columns) between gt.mtx and mask.")
+    }
+
+    # Apply NGT_MASK matrix
+    # gt_filtered <- gt[common_rows,]
+    gt_filtered <- gt[common_rows,common_cols]
+
+    # Set value 3 for filtered genotypes
+    gt_filtered[cbind(row(msk)[msk],
+                      col(msk)[msk])] <- 3
+
+    # Take a subset where no row has values equal to 3 : meaning no missing info
+    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0,]
+
+    # Take rows with any values equal to 3
+    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0,]
+    tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
+
+
+    ## generate clonal labels
+    # Note: 'generate_clonal_labels' must be available in the environment or imported
+    results_clustering <- generate_clonal_labels(ngt_matrix = tmp_heamtap_matrix_filtered_noMissing,
+                                                 target_variants_df = selected_variants_df,
+                                                 ignore_missing = TRUE)
+
+    clustered_samples <- setNames(results_clustering$cell_metadata$clonal_cluster_id,
+                                  nm = results_clustering$cell_metadata$cell_barcode)
+
+
+
+    ### Reassign too small samples clusters (compared to total samples) to a "small" group
+    res_table_clusters <- table(clustered_samples)
+    too_small_clusters <- names(res_table_clusters)[res_table_clusters/nrow(gt) < min_prop_cluster]
+    clustered_samples[clustered_samples %in% too_small_clusters] <- "small"
+    small_cluster <- clustered_samples[clustered_samples == "small"] |> as.factor()
+    nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |> sort() |> as.factor()
+    nonSmall_cluster <- fct_infreq(nonSmall_cluster)
+    levels(nonSmall_cluster) <- as.character(1:length(levels(nonSmall_cluster)))
+    # clustered_samples <- clustered_samples |> sort() |> as.factor()
+    clustered_samples <- fct_c(nonSmall_cluster, small_cluster)
+    names(clustered_samples) <- c(names(nonSmall_cluster), names(small_cluster))
+
+    clustered_samples <- fct_infreq(clustered_samples) # Change levels name according to frequency
+
+    ### Reorder
+    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(clustered_samples),]
+
+    # rbind with samples with missing info if heatmap_include_all_samples is TRUE
+    if (heatmap_include_all_samples){
+        tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
+                                                              tmp_heamtap_matrix_filtered_withMissing)
+        # Set labels / annotations
+        heatmap_split_vector <- c(as.character(clustered_samples),
+                                  rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
+    } else {
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_noMissing_ordered
+        heatmap_split_vector <- as.character(clustered_samples)
+        # Remove "small" cluster
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[heatmap_split_vector != "small",]
+        heatmap_split_vector <- heatmap_split_vector[heatmap_split_vector != "small"]
+    }
+
+
+    # plot heatmap
+    ## Color palette
+    dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0","1","2"))
+    ### Legend
+    ## Annotation
+    heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples)!="small"]
+    annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)],"grey","#333333"),
+                                               nm = c(heatmap_true_levels, "missing","small")))
+    dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
+                                            col =annotationColor,
+                                            show_annotation_name = FALSE,
+                                            show_legend = FALSE)
+
+    # ---------------------------- #
+    # Verify colnames before plotting
+    idx_colnames <- sapply(colnames(tmp_heamtap_matrix_filtered_complete_ordered), function(x) {
+        which(grepl(x, selected_variants_df$variant_id))
+
+    }, simplify = FALSE, USE.NAMES = FALSE) |> unlist()
+
+    new_colnames <- selected_variants_df$variant_id[idx_colnames]
+    new_colnames <- sub(":", "    \n", new_colnames)
+    ## Heatmap
+    #
+    heatmap <- Heatmap(tmp_heamtap_matrix_filtered_complete_ordered,
+                       column_names_rot = 75,
+                       row_split = heatmap_split_vector,
+                       show_column_dend = FALSE,
+                       column_split = selected_variants,
+                       column_title = NULL,
+                       column_labels = new_colnames,
+                       cluster_rows = FALSE,
+                       show_row_names = FALSE,
+                       na_col = "black",
+                       col = dna_variant_colorPalette,
+                       show_heatmap_legend = TRUE,
+                       left_annotation = dna_variant_annotation,
+                       heatmap_legend_param = list(
+                           title = "Genotype",
+                           at = c("0","1","2"),
+                           labels = c("WT","HET","HOM"),
+                           grid_height = grid::unit(4, "cm")
+                       ))
+    return(list("heatmap" = heatmap,
+                "clones" = clustered_samples))
+}

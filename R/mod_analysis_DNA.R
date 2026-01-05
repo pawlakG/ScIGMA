@@ -35,9 +35,12 @@ mod_analysis_DNA_ui <- function(id) {
                     )
                 )
             ),
-
+            br(),
             fluidRow(
-                plotOutput(ns("heatmap"), height = "1200px")
+                div(
+                    plotOutput(ns("heatmap"),
+                               height = "600px", width = "700px"),
+                    align = "center")
             )
         )
     )
@@ -48,7 +51,9 @@ mod_analysis_DNA_ui <- function(id) {
 #'
 #' @noRd
 #'
+#'
 #' @import InteractiveComplexHeatmap
+#' @importFrom ComplexHeatmap draw
 mod_analysis_DNA_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
@@ -61,38 +66,31 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
-
-
         # Récupérer les lignes sélectionnées seulement quand l'utilisateur clique
         observeEvent(input$btn_filtrer, {
-            sel <- input$variant_selection_rows_selected   # vecteur des index sélectionnéss
+            sel <- input$variant_selection_rows_selected
             heatmap_include_all_samples <- input$heatmap_include_all_samples
-            print("heatmap_include_all_samples")
-            print(heatmap_include_all_samples)
             if (length(sel) > 0) {
                 # récupérer les données correspondantes
-                print("test1")
                 ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[sel, ]
-
                 tmp_selected_variant <- sub(x = ScIGMA_data$variants.filtered$variant_id, pattern = "^([^:]+:)|^:", "")
-
                 # make heatmap
-                ht <- generate_dna_variant_heatmap(obj = ScIGMA_data,
-                                                   selected_variants_df = ScIGMA_data$variants.filtered,
-                                                   n_cluster = 3,
-                                                   heatmap_include_all_samples = heatmap_include_all_samples)
+                ht_res <- generate_dna_variant_heatmap(obj = ScIGMA_data,
+                                                       selected_variants_df = ScIGMA_data$variants.filtered,
+                                                       heatmap_include_all_samples = heatmap_include_all_samples)
+                ht <- ht_res$heatmap
                 ht <- draw(ht)
-
+                # Set dna.clones
+                ScIGMA_data$dna.clones <- ht_res$clones
+                # Trigger event
+                trigger("dnaVariant_selected")
+                # render heatmap
                 output$heatmap <- renderPlot({
                     ht
                 })
-
             }
         })
-
     })
-
-
 }
 
 ## To be copied in the UI

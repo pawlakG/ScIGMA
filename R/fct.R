@@ -68,10 +68,6 @@ normalizeProtein <- function(ScIGMA_object) {
 #' @import plotly
 #' @import tidyr
 render_protein_ridge_plot <- function(obj){
-    print("render_protein_ridge_plot called")
-    print("dim obj$protein.mtx.filtered.normalized")
-    print(dim(obj$protein.mtx.filtered.normalized))
-    print(head(obj$protein.mtx.filtered.normalized))
     tmp_data <- obj$protein.mtx.filtered.normalized |>
         as_tibble() |>
         pivot_longer(everything())
@@ -195,3 +191,92 @@ select_bg_sig_indices <- function(y, p_low = 0.10, p_high = 0.90,
     list(bg_idx = bg_idx, sg_idx = sg_idx, q_low = q_low, q_high = q_high)
 }
 
+
+#' Normalize Protein Data using Linear Regression (with Jitter & Scaling)
+#'
+#' @description
+#' Corrects protein expression by regressing out the effect of library size.
+#' It includes options for jittering (to handle discrete zero-inflation) and
+#' scaling (to compress the dynamic range or standardize variance).
+#'
+#' @param raw_matrix Numeric matrix (Cells x Proteins).
+#' @param use_log Logical. If TRUE (recommended), performs regression on log(x+1).
+#' @param add_mean Logical. If TRUE, adds the original mean back to residuals
+#' to preserve the biological baseline.
+#' @param jitter Numeric. The standard deviation of Gaussian noise added to raw counts.
+#' @param scale Numeric or NULL. The factor by which the corrected counts are divided.
+#' If NULL, the algorithm estimates it using the global standard deviation of the
+#' corrected data (robust estimation of distribution spread).
+#'
+#' @return A numeric matrix of normalized (and optionally scaled) values.
+#' @export
+normalize_linear_regression <- function(raw_matrix,
+                                        use_log = TRUE,
+                                        add_mean = TRUE,
+                                        jitter = 0,
+                                        scale = 1) {
+
+    # 1. Validation & Setup
+    if (!is.matrix(raw_matrix)) raw_matrix <- as.matrix(raw_matrix)
+
+    # 2. Apply Jitter (Noise Injection)
+    if (jitter > 0) {
+        n_elements <- length(raw_matrix)
+        noise <- rnorm(n = n_elements, mean = 0, sd = jitter)
+        raw_matrix <- raw_matrix + matrix(noise, nrow = nrow(raw_matrix), ncol = ncol(raw_matrix))
+        raw_matrix[raw_matrix < 0] <- 0 # Clip negatives
+    }
+
+    # 3. Calculate Library Size (Technical Covariate)
+    library_size <- rowSums(raw_matrix)
+
+    # 4. Transform for Regression
+    if (use_log) {
+        work_mat <- log1p(raw_matrix)
+        work_lib_size <- log1p(library_size)
+    } else {
+        work_mat <- raw_matrix
+        work_lib_size <- library_size
+    }
+
+    # 5. Regression Loop (Regress Out Depth)
+    norm_mat <- apply(work_mat, 2, function(protein_counts) {
+        # Check for zero variance to avoid lm failure
+        if (var(protein_counts) == 0) return(protein_counts)
+
+        fit <- lm(protein_counts ~ work_lib_size)
+        resid <- residuals(fit)
+
+        if (add_mean) {
+            return(resid + mean(protein_counts, na.rm = TRUE))
+        } else {
+            return(resid)
+        }
+    })
+
+    # Restore dimensions/names lost during apply
+    rownames(norm_mat) <- rownames(raw_matrix)
+    colnames(norm_mat) <- colnames(raw_matrix)
+
+    # 6. Apply Scaling (Dynamic Range Compression)
+    # "The amount by which the read counts are scaled down."
+    final_scale <- scale
+
+    if (is.null(final_scale)) {
+        # Estimation Strategy:
+        # If no scale is provided, we use the global Standard Deviation of the
+        # corrected matrix. This standardizes the data unit (similar to Z-score scaling
+        # but maintaining the relative mean differences if add_mean=TRUE).
+        message("Estimating scale factor from data distribution...")
+        final_scale <- sd(norm_mat, na.rm = TRUE)
+        message(sprintf("Estimated Scale Factor: %.4f", final_scale))
+    }
+
+    # Prevent division by zero
+    if (final_scale == 0) final_scale <- 1
+
+    # Apply scaling
+    norm_mat <- norm_mat / final_scale
+
+    return(norm_mat)
+}

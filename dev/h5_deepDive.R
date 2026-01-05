@@ -57,6 +57,15 @@ obj <- filter_variant_ScIGMA(obj = obj,
                              min.cell.pt = 10,
                              min.mut.cell.pt = 10)
 
+obj$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(obj$protein.mtx), jitter = 0.5)
+
+
+plot(obj$protein.mtx.filtered.normalized [,"CD19"],
+     obj$protein.mtx.filtered.normalized [,"CD45"])
+
+render_protein_ridge_plot(obj)
+
+
 dim(obj$dna.variant.filter.mask)
 dim(obj$dna.variant.filter.mask.filtered)
 

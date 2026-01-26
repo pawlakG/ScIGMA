@@ -34,7 +34,7 @@ mod_analysis_Protein_ui <- function(id) {
                         3,
                         grid_card(
                             area = "sidebar",
-                            h3("Contrôles"),
+                            h3("Controls"),
                             # Sélection des marqueurs (rempli côté serveur via R6)
                             selectInput(ns("xvar"), "Axe X", choices = NULL),
                             selectInput(ns("yvar"), "Axe Y", choices = NULL),
@@ -42,8 +42,8 @@ mod_analysis_Protein_ui <- function(id) {
                             checkboxInput(ns("logy"), "Log Y", FALSE),
                             hr(),
                             h4("Gating"),
-                            textInput(ns("subset_name"), "Nom du gate", placeholder = "ex: Clone A"),
-                            actionButton(ns("mk_subset"), "Créer sous-échantillon ↘︎", class = "btn-primary"),
+                            textInput(ns("subset_name"), "Gate name", placeholder = "ex: Clone A"),
+                            actionButton(ns("mk_subset"), "Create sub-sample", class = "btn-primary"),
                             verbatimTextOutput(ns("selection_info"))
                         )
                     ),
@@ -53,8 +53,6 @@ mod_analysis_Protein_ui <- function(id) {
                         grid_card(
                             area = "main",
                             uiOutput(ns("biplot_container"))
-                            # Utilisation d'un UI container pour gérer la hauteur dynamiquement si besoin,
-                            # ou directement plotlyOutput ici.
                         )
                     ),
                     # ---- 3. Arborescence (Tree) ----
@@ -62,11 +60,56 @@ mod_analysis_Protein_ui <- function(id) {
                         3,
                         grid_card(
                             area = "subsets",
-                            h3("Sous-échantillons"),
+                            h3("Sub-samples"),
                             uiOutput(ns("subsets_ui")),
                             hr(),
-                            actionButton(ns("reset_root"), "Retour Racine", class = "btn-warning")
+                            actionButton(ns("save_to_r6"), "Save for further analysis",
+                                         class = "btn-success",
+                                         style = "margin-bottom: 10px; width: 100%;"),
+                            actionButton(ns("reset_root"), "Reset root", class = "btn-warning")
                         )
+                    )
+                )
+            ),
+            nav_panel(
+                "2D clustering",
+                fluidRow(
+                    # Colonne de Contrôle
+                    column(3,
+                           tagList(
+                               grid_card(
+                                   area = "sidebar",
+                                   h3("UMAP parameters"),
+
+                                   # Paramètres de la fonction standalone
+                                   numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
+                                   numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
+
+                                   hr(),
+                                   actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
+                                   helpText("The calculation may take a few seconds.")
+                               ),
+                               br(),
+                               h3("UMAP projection"),
+                               selectInput(ns("protein_umap_markers"),
+                                           label = "Markers",
+                                           choices = "None",
+                                           selected = "None")
+                           )
+                    ),
+
+                    # Colonne de Visualisation
+                    column(9,
+                           grid_card(
+                               area = "main",
+                               h3("2D Projection"),
+
+                               # shinycssloaders::withSpinner(
+                                   plotlyOutput(ns("umap_plot"), height = "600px"),
+                                   type = 6, # Un style de loader (cercle qui tourne)
+                                   color = "#007bff"
+                               # )
+                           )
                     )
                 )
             )
@@ -94,8 +137,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         )
 
         # Initialize Inputs & Root Gate from R6 Object
-        observe({
+        observeEvent({
             watch("dnaVariant_filtered")
+        },{
+
             req(ScIGMA_data$protein.mtx)
 
             # Populate SelectInputs for Markers
@@ -113,6 +158,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     depth = 0
                 )
             }
+            updateSelectInput(
+                session = session,      # Indispensable dans un module
+                inputId = "protein_umap_markers",       # Pas besoin de ns() ici, c'est géré par session
+                choices = c("None", colnames(ScIGMA_data$protein.mtx)),
+                selected = "None" # Optionnel : définir la sélection par défaut
+            )
         })
 
         # --- 2. Bi-plot Rendering (Optimized) ---
@@ -246,14 +297,124 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # Render ridge plot for all proteins
         output$protein_ridge <- renderPlotly({
             watch("dnaVariant_filtered")
-            ScIGMA_data <- normalizeProtein(ScIGMA_data)
             render_protein_ridge_plot(obj = ScIGMA_data)
         })
+
+        # --- 6. PERSISTENCE LOGIC (R6 Bridge) ---
+
+        observeEvent(input$save_to_r6, {
+            req(ScIGMA_data)
+
+            # Vérifier qu'il y a quelque chose à sauver
+            if (length(r_state$subsets) <= 1) { # <= 1 car "root" existe toujours
+                showNotification("Aucune sous-population créée à enregistrer.", type = "warning")
+                return()
+            }
+
+            # Appel de la méthode R6 définie à l'étape 1
+            # # On passe les indices bruts et les métadonnées
+            # ScIGMA_data$save_gating_tree(
+            #     gates_list = r_state$subsets,
+            #     meta_list = r_state$subset_meta
+            # )
+            obj$protein.gating_tree <- list("gates_list" = r_state$subsets,
+                                            "meta_list" = r_state$subset_meta)
+
+            showNotification(
+                paste("Success !", length(r_state$subsets), "populations saved."),
+                type = "message"
+            )
+        })
+
+        # --- 5. UMAP Calculation ---
+
+        # Trigger global via bouton (recommandé pour éviter les calculs intempestifs)
+        observeEvent(input$run_umap_btn, {
+            gargoyle::trigger("launch_umap")
+        })
+
+        # Bloc de calcul réactif
+        observe({
+            # On écoute explicitement le trigger ET les paramètres
+            watch("launch_umap")
+
+            # Récupération isolée des paramètres pour ne pas relancer le calcul
+            # si l'utilisateur change juste le chiffre sans cliquer
+            n_neighbors <- isolate(input$n_neighbors)
+            min_dist <- isolate(input$min_dist)
+
+            req(ScIGMA_data$protein.mtx)
+
+            message("Computing UMAP...")
+
+            # Sélection des données
+            data_to_use <- if (!is.null(ScIGMA_data$protein.mtx.filtered.normalized)) {
+                ScIGMA_data$protein.mtx.filtered.normalized
+            } else {
+                ScIGMA_data$protein.mtx
+            }
+
+            # Calcul UMAP
+            umap_coords <- run_umap_protein(
+                expression_matrix = data_to_use,
+                n_neighbors = n_neighbors,
+                min_dist = min_dist,
+                n_components = 2,
+                metric = "cosine"
+            )
+
+            # Stockage dans l'objet R6
+            ScIGMA_data$protein.umap <- umap_coords
+
+            gargoyle::trigger("umap_computed")
+            message("Calcul UMAP terminé.")
+
+        }) %>%
+            bindEvent(input$run_umap_btn) # Force l'exécution UNIQUEMENT sur clic
+
+        observeEvent({watch("umap_computed")
+            input$protein_umap_markers},{
+                umap_marker_choice <- input$protein_umap_markers
+                # F. Création du Plotly
+                # On fusionne avec les métadonnées pour la coloration (facultatif)
+                plot_df <- as.data.frame(ScIGMA_data$protein.umap)
+
+                protein_markers_df <- if(!is.null(ScIGMA_data$protein.mtx.filtered.normalized)){
+                    ScIGMA_data$protein.mtx.filtered.normalized
+                } else {
+                    ScIGMA_data$protein.mtx
+                }
+                # Exemple : on ajoute la couleur d'un marqueur si sélectionné ailleurs, sinon gris
+                plot_df <- cbind(plot_df, protein_markers_df[rownames(plot_df),])
+                print("plot_df")
+                print(head(plot_df))
+
+                if (umap_marker_choice != "None"){
+                    # umap_marker_col <- umap_marker_choice
+                    plot_df$color <- as.vector(protein_markers_df[rownames(plot_df), umap_marker_choice])
+                } else {
+                    plot_df$color <- I("grey")
+                }
+
+                # 2. Rendering
+                output$umap_plot <- renderPlotly({plot_ly(data = plot_df,
+                                                          x = ~UMAP_1,
+                                                          y = ~UMAP_2,
+                                                          type = 'scatter',
+                                                          mode = 'markers',
+                                                          color = ~color,
+                                                          marker = list(size = 4,  opacity = 0.7)) %>%
+                        layout(xaxis = list(title = "UMAP 1"),
+                               yaxis = list(title = "UMAP 2")) %>%
+                        toWebGL() # Toujours optimiser pour le single-cell
+                })
+            },ignoreInit = TRUE)
+
 
         # Render Barplot for all proteins
         output$protein_bar <- renderPlotly({
             watch("dnaVariant_filtered")
-            ScIGMA_data <- normalizeProtein(ScIGMA_data)
+            # ScIGMA_data <- normalizeProtein(ScIGMA_data)
             plot_protein_barplot(obj = ScIGMA_data)
         })
     })

@@ -123,7 +123,9 @@ ScIGMA_object <- R6::R6Class(
                               cnv_id_table = data.frame(),
                               dna_cell_table = data.frame(),
                               cnv_dp_filtered = NULL,
-                              cnv_metadata = list()) {
+                              cnv_metadata = list(),
+                              protein.gating_tree = list(),
+                              protein.umap = NULL) {
             # simple validator for HDF5-backed matrices
             .chk <- function(x, nm) {
                 if (!is.null(x) && !inherits(x, "DelayedArray")) {
@@ -185,7 +187,9 @@ ScIGMA_object <- R6::R6Class(
                 cnv_id_table = cnv_id_table,
                 dna_cell_table = dna_cell_table,
                 cnv_dp_filtered = cnv_dp_filtered,
-                cnv_metadata = cnv_metadata
+                cnv_metadata = cnv_metadata,
+                protein.gating_tree = protein.gating_tree,
+                protein.umap = protein.umap
             )
         },
 
@@ -511,6 +515,19 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$cnv_metadata)
             }
             self$data$cnv_metadata <- value
+        },
+        protein.gating_tree = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.gating_tree)
+            }
+            self$data$protein.gating_tree <- value
+        },
+        protein.umap = function(value) {
+            if (missing(value)) {
+                return(self$data$protein.umap)
+            }
+            self$data$protein.umap <- value
         }
+
     )
 )

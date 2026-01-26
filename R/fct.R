@@ -280,3 +280,100 @@ normalize_linear_regression <- function(raw_matrix,
 
     return(norm_mat)
 }
+
+
+#' Run UMAP on Protein Expression Data
+#'
+#' @description
+#' Performs Uniform Manifold Approximation and Projection (UMAP) on an expression matrix.
+#' Optimized for single-cell protein data using the 'uwot' implementation (C++).
+#' It is strongly recommended to use normalized data (e.g., CLR or NSP/Arcsinh) as input.
+#'
+#' @param expression_matrix Numeric matrix or data.frame (Cells x Features).
+#' Rows should represent cells and columns should represent protein markers.
+#' @param n_neighbors Integer. The size of the local neighborhood (default: 30).
+#' Larger values (30-50) preserve more global structure (trajectories), while smaller
+#' values (5-15) focus on local clusters.
+#' @param min_dist Numeric. The effective minimum distance between embedded points (default: 0.3).
+#' Controls how tightly points are packed.
+#' @param n_components Integer. The dimension of the space to embed into (default: 2).
+#' @param metric Character. The distance metric to use (default: "cosine").
+#' "cosine" is often superior to "euclidean" for high-dimensional cytometry data.
+#' @param seed Integer. Random seed for reproducibility.
+#' @param n_threads Integer or NULL. Number of threads for parallel processing.
+#' If NULL, uses all available cores minus one.
+#'
+#' @return A matrix of UMAP coordinates (Cells x n_components) with row names
+#' matching the input matrix. Column names are "UMAP_1", "UMAP_2", etc.
+#'
+#' @export
+#'
+#' @examples
+#' # 1. Normalize data first (Crucial!)
+#' norm_mat <- normalize_protein_nsp(raw_counts, scale = 5)
+#'
+#' # 2. Run UMAP
+#' umap_coords <- run_umap_protein(norm_mat, n_neighbors = 30, min_dist = 0.3)
+#'
+#' # 3. Merge with data for plotting
+#' plot_data <- cbind(as.data.frame(umap_coords), as.data.frame(norm_mat))
+#'
+run_umap_protein <- function(expression_matrix,
+                             n_neighbors = 30,
+                             min_dist = 0.3,
+                             n_components = 2,
+                             metric = "cosine",
+                             seed = 42,
+                             n_threads = NULL) {
+
+    # 1. Dependency Check
+    if (!requireNamespace("uwot", quietly = TRUE)) {
+        stop("Error: Package 'uwot' is required. Please install it with install.packages('uwot').")
+    }
+
+    # 2. Input Validation
+    if (!is.matrix(expression_matrix) && !is.data.frame(expression_matrix)) {
+        stop("Error: 'expression_matrix' must be a matrix or data.frame.")
+    }
+
+    mat <- as.matrix(expression_matrix)
+
+    if (!is.numeric(mat)) {
+        stop("Error: Input matrix must contain numeric values.")
+    }
+
+    # Scientific sanity check: Raw counts?
+    # If max value > 100, it's likely raw counts. UMAP on raw counts is essentially
+    # a "Library Size Map". We issue a warning.
+    if (max(mat, na.rm = TRUE) > 100) {
+        warning("Warning: Input values seem high (>100). Are you running UMAP on RAW counts?
+             It is strongly recommended to use normalized data (CLR or NSP/Arcsinh)
+             to avoid clustering based purely on sequencing depth.")
+    }
+
+    message(sprintf("Running UMAP on %d cells and %d features...", nrow(mat), ncol(mat)))
+
+    # 3. Setup Parallelism
+    if (is.null(n_threads)) {
+        # Conservative default: All cores - 1
+        n_threads <- max(1, parallel::detectCores() - 1)
+    }
+
+    # 4. Execution (uwot)
+    set.seed(seed)
+    umap_result <- uwot::umap(
+        X = mat,
+        n_neighbors = n_neighbors,
+        min_dist = min_dist,
+        n_components = n_components,
+        metric = metric,
+        n_threads = n_threads,
+        ret_model = FALSE # We only want coordinates here
+    )
+
+    # 5. Formatting Output
+    colnames(umap_result) <- paste0("UMAP_", seq_len(n_components))
+    rownames(umap_result) <- rownames(mat)
+
+    return(umap_result)
+}

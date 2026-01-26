@@ -59,6 +59,9 @@ obj <- filter_variant_ScIGMA(obj = obj,
 
 obj$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(obj$protein.mtx), jitter = 0.5)
 
+umap_protein <- run_umap_protein(expression_matrix = obj$protein.mtx.filtered.normalized, n_neighbors = 30, min_dist = 0.1)
+plot(umap_protein)
+
 
 plot(obj$protein.mtx.filtered.normalized [,"CD19"],
      obj$protein.mtx.filtered.normalized [,"CD45"])
@@ -66,11 +69,8 @@ plot(obj$protein.mtx.filtered.normalized [,"CD19"],
 render_protein_ridge_plot(obj)
 
 
-dim(obj$dna.variant.filter.mask)
-dim(obj$dna.variant.filter.mask.filtered)
 
 variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths = paths)
-
 
 # all_variants <- fetch_variants_batch_fields(obj$variants, paths = paths)
 
@@ -131,89 +131,77 @@ test <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg38")
 dumb_df <- data.frame(chrom = "1", start_pos = 438149280, end_pos = 438149280)
 annotate_genomic_regions(region_data = dumb_df, build = "hg19")
 
-# Example usage for a specific locus on hg19 (e.g., BRAF region)
-# braf_hg19 <- get_hgnc_from_coordinates("7", 140433813, 140624564, "hg19")
 
 
+# --------------------------------------------------------------- #
+# Lineplot
 
+display_gene = TRUE
+
+mat_data <- t(ploidy_data)
+
+# --- 1. Reorder according to chromosomal position ---
+# Note: We can now drop 'dplyr::' because of the @importFrom above
+tmp_var_table <- obj$cnv_id_table |>
+    filter(dna_id %in% colnames(mat_data)) |>
+    arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+    mutate(chr_lit = paste0("chr", chrom))
+
+mat_data <- mat_data[, tmp_var_table$dna_id]
+
+tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
+# ---------------------------- #
+# If used want gene names add a column with gene annotation
+# tmp_annotation <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg19")
+# tmp_var_table <- merge(tmp_var_table, tmp_annotation[,"dna_id","hgnc_symbol"])
+
+tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table,
+                                          build = obj$cnv_metadata$genome_version)
+split_vec <- factor(tmp_split_vec$symbol,
+                    levels = unique(tmp_split_vec$symbol))
+
+
+# --- 2. Color Definition ---
+col_fun <- colorRamp2(
+    breaks = c(
+        quantile(mat_data, c(0, 0.25)),
+        2,
+        quantile(mat_data, c(0.75, 1))
+    ),
+    colors = c("black", "#4575B4", "#F0F0F0", "#D73027", "#67001F")
+)
+
+group_colors <- setNames(
+    viridis(nrow(mat_data)),
+    nm = rownames(mat_data)
+)
+
+clone_selected <- "1"
+
+mat_data_restricted <-as.matrix(mat_data[clone_selected,])|>t()
+rownames(mat_data_restricted) <- rownames(mat_data)[rownames(mat_data) == clone_selected]
+# --- 3. Left Annotation ---
+left_ann <- rowAnnotation(
+    df = data.frame(Group = rownames(mat_data_restricted)),
+    col = list(Group = group_colors),
+    show_legend = FALSE,
+    simple_anno_size = unit(1, "cm"),
+    show_annotation_name = FALSE
+)
+
+gene_annotation = data.frame('Gene' = tmp_split_vec$symbol,
+                             'Chromosome' = tmp_split_vec$chrom,
+                             'Probe' = tmp_split_vec$dna_id,
+                             'Chrom_pos' = factor(tmp_split_vec$chr_lit,
+                                                  levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))),
+                             'Chrom_start' = tmp_split_vec$start_pos)
+
+
+plot_cnv_genome(cnv_matrix = mat_data, sub_indices = "2",
+                gene_annotation = gene_annotation, lineplot_type = "genes+amplicons")
 
 
 # --------------------------------------------------------------- #
 # Protein analysis
-library(ggplot2)
-library(ggprism)
-library(ggridges)
-library(tidyr)
-library(ADTnorm)
-library(tibble)
-# --------------------------------------------------------------- #
-# Test ADTnorm
 
-tmp_ptn_mtx <- as.matrix(obj$protein.mtx) # 1313 10
-tmp_cell_mtx <- data.frame(cell_barcode = obj$cell.ids, sample = "4CL_AML")
-
-test_ADT <- ADTnorm(cell_x_adt = tmp_ptn_mtx, cell_x_feature = tmp_cell_mtx, save_outpath = "test_adt/")
-test_ADT_tmp <- as.data.frame(test_ADT) |> rownames_to_column("cell")
-test_ADT_long <- test_ADT_tmp |> pivot_longer(names_to = "marker", values_to = "value", cols = -cell)
-
-ggplot(test_ADT_long, aes(x = value, y = marker)) + geom_density_ridges()
-
-plot(test_ADT[,13], test_ADT[,6])
-
-# ---------------------------- #
-# Normalization (CLR)
-obj <- normalizeProtein(obj)
-# ---------------------------- #
-# Barplot
-
-plot_protein_barplot(obj)
-
-# ---------------------------- #
-# Biplot
-marker_1 <- "CD33"
-marker_2 <- "CD45"
-
-tmp_ptn_df <- obj$protein.mtx.filtered.normalized[,c(marker_1, marker_2)]
-# |> as.data.frame()
-
-tmp_ptn_df_norm <- apply(tmp_ptn_df, 2, scale) |> as.data.frame()
-
-tmp_ptn_df_norm |>
-    ggplot(aes_string(x = marker_1, y = marker_2)) +
-    geom_point() + theme_prism()
-
-plot(tmp_ptn_df[,1], tmp_ptn_df[,2])
-plot(tmp_ptn_df_norm)
-
-
-# --------------------------------------------------------------- #
-# Test repreoduction of NSP algorithm
-# counts : matrice (cells x proteins) de lectures brutes
-tmp_mat <- obj$protein.mtx |> as.matrix()
-res <- nsp_transform(
-    counts_mat           = tmp_mat,
-    jitter               = 2,        # doc NSP
-    scale                = NULL,       # auto-scale si nécessaire
-    sample_size          = 1000,       # ANSP-like si très gros n
-    random_state         = 42,
-    p_low                = 0.1,
-    p_high               = 0.9,
-    max_zero_read_cells  = 0.01
-)
-
-nsp_counts <- res$normalized
-str(res$models[[1]])  # coefficients fond/signal de la 1re protéine
-res$scaling_factor
-
-
-marker_1 <- "CD19"
-marker_2 <- "CD45"
-
-tmp_df <- res$normalized[,c(marker_1, marker_2)]
-
-tmp_df_norm <- apply(tmp_df, 2, log2)  |> as.data.frame()
-# tmp_df_norm <- tmp_df
-
-tmp_df_norm |>
-    ggplot(aes_string(x = marker_1, y = marker_2)) +
-    geom_point() + theme_prism()

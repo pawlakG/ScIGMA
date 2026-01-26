@@ -19,10 +19,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
         # Dynamic UI rendering
-
-        print("ScIGMA_data$dna.clones")
-        print(ScIGMA_data$dna.clones)
-
         output$cnv_processing <- renderUI({
             watch("dnaVariant_selected")
             if(is.null(ScIGMA_data$dna.clones)){
@@ -49,7 +45,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                     ),
                     uiOutput(ns("cnv_plot_parameters")),
                     uiOutput(ns("cnv_plot_additionalParameters")),
-                    plotOutput(ns("cnv_plot"))
+                    # plotOutput(ns("cnv_plot"))
+                    uiOutput(ns("dynamic_plot_container"))
                 )
             }
         })
@@ -84,7 +81,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                             column(4,pickerInput(
                                 inputId = ns("cnv_xAxis"),
                                 label = "X-axis",
-                                choices = sort_genomic_chromosomes(obj$cnv_id_table$chrom),
+                                choices = sort_genomic_chromosomes(ScIGMA_data$cnv_id_table$chrom),
                                 multiple = TRUE,
                                 options = pickerOptions(container = "body"),
                                 width = "100%"
@@ -132,8 +129,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                                 )),
                                 column(6,pickerInput(
                                     inputId = ns("cnv_lineplot_cluster"),
-                                    label = h2("Plot"),
-                                    choices = levels(ScIGMA_data$dna.clones),
+                                    label = h2("Clone"),
+                                    choices = levels(ScIGMA_data$dna.clones)[levels(ScIGMA_data$dna.clones) != "small"],
                                     options = pickerOptions(container = "body"),
                                     width = "100%",
                                     selected = levels(ScIGMA_data$dna.clones)[levels(ScIGMA_data$dna.clones) != "small"][1]
@@ -171,7 +168,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                          ScIGMA_data$cnv_dp_filtered <- filtered_data
                          message("Filtering done")
                          trigger("CNV_filtered")
-                         print("test1")
                      })
 
         # Observe event for ploidy computation
@@ -199,62 +195,104 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
             watch("CNV_ui_cnv_plot_additionalParameters_rendered")
             list(input$cnv_plotType,
                  input$cnv_heatmap_type,
-                 input$cnv_xAxis)},
-            {
-                print("cnv plot inputs")
-                print(input$cnv_plotType)
-                print(input$cnv_heatmap_type)
-                print(input$cnv_xAxis)
-                req(input$cnv_plotType,
-                    input$cnv_heatmap_type
-                    # input$cnv_xAxis
-                    )
+                 input$cnv_xAxis,
+                 input$cnv_lineplot_type,
+                 input$cnv_lineplot_cluster)
+        },
+        {
+            req(input$cnv_plotType,
+                input$cnv_heatmap_type
+                # input$cnv_xAxis
+            )
 
-                cnv_plotType <- input$cnv_plotType
-                cnv_heatmap_type <- input$cnv_heatmap_type
-                cnv_xAxis <- input$cnv_xAxis
-                message("Changing plot")
-                print("cnv_plotType")
-                print(cnv_plotType)
-                print("cnv_heatmap_type")
-                print(cnv_heatmap_type)
+            cnv_plotType <- input$cnv_plotType
+            cnv_heatmap_type <- input$cnv_heatmap_type
+            cnv_xAxis <- input$cnv_xAxis
 
-                if (cnv_heatmap_type == "Position"){
-                    show_genes <- FALSE
-                    updatePickerInput(
-                        session = session,
-                        inputId = "cnv_xAxis",
-                        choices = sort_genomic_chromosomes(obj$cnv_id_table$chrom),
-                        selected = NULL # Reset selection to avoid carry-over from previous state
-                    )
-                } else {
-                    show_genes <- TRUE
-                    tmp_choices <- render_annotation_table(obj = ScIGMA_data,
-                                                           ploidy_data = ScIGMA_data$ploidy.mtx)$symbol |>
-                        unique() |>
-                        sort()
-                    updatePickerInput(
-                        session = session,
-                        inputId = "cnv_xAxis",
-                        choices = tmp_choices,
-                        selected = NULL # Reset selection to avoid carry-over from previous state
-                    )
-                }
+            if (cnv_heatmap_type == "Position"){
+                show_genes <- FALSE
+                updatePickerInput(
+                    session = session,
+                    inputId = "cnv_xAxis",
+                    choices = sort_genomic_chromosomes(ScIGMA_data$cnv_id_table$chrom),
+                    selected = NULL # Reset selection to avoid carry-over from previous state
+                )
+            } else {
+                show_genes <- TRUE
+                tmp_choices <- render_annotation_table(obj = ScIGMA_data,
+                                                       ploidy_data = ScIGMA_data$ploidy.mtx)$symbol |>
+                    unique() |>
+                    sort()
+                updatePickerInput(
+                    session = session,
+                    inputId = "cnv_xAxis",
+                    choices = tmp_choices,
+                    selected = NULL # Reset selection to avoid carry-over from previous state
+                )
+            }
 
-                if (cnv_plotType == "Heatmap") {
-                    tmp_ht <- plot_cnv_heatmap(obj = ScIGMA_data,
-                                               ploidy_data = ScIGMA_data$ploidy.mtx,
-                                               display_gene = show_genes)
-                    print(tmp_ht)
-                    output$cnv_plot <- renderPlot(tmp_ht)
-                } else {
-                    message("KESTUFOU")
-                }
-                # Heatmap
+            if (cnv_plotType == "Heatmap") {
+                output$dynamic_plot_container <- renderUI({plotOutput(ns("static_plot"))})
 
-
+                tmp_ht <- plot_cnv_heatmap(obj = ScIGMA_data,
+                                           ploidy_data = ScIGMA_data$ploidy.mtx,
+                                           display_gene = show_genes)
+                output$static_plot <- renderPlot(tmp_ht)
+            } else {
                 # Lineplot
-            })
+                output$dynamic_plot_container <- renderUI({plotlyOutput(ns("interactive_plot"), height = "600px")})
+                ## Get inputs
+                print("cnv_lineplot_type")
+                print(input$cnv_lineplot_type)
+                print("cnv_lineplot_cluster")
+                print(input$cnv_lineplot_cluster)
+                req(input$cnv_lineplot_type)
+                req(input$cnv_lineplot_cluster)
+                cnv_lineplot_type <- input$cnv_lineplot_type
+                cnv_lineplot_cluster <- input$cnv_lineplot_cluster
+                ## compute
+
+                mat_data <- t(ScIGMA_data$ploidy.mtx)
+
+                # --- 1. Reorder according to chromosomal position ---
+                # Note: We can now drop 'dplyr::' because of the @importFrom above
+                tmp_var_table <- ScIGMA_data$cnv_id_table |>
+                    filter(dna_id %in% colnames(mat_data)) |>
+                    arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+                    mutate(chr_lit = paste0("chr", chrom))
+
+                mat_data <- mat_data[, tmp_var_table$dna_id]
+
+                tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+                sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
+                # ---------------------------- #
+                # If used want gene names add a column with gene annotation
+                # tmp_annotation <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg19")
+                # tmp_var_table <- merge(tmp_var_table, tmp_annotation[,"dna_id","hgnc_symbol"])
+
+                tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table,
+                                                          build = ScIGMA_data$cnv_metadata$genome_version)
+
+                gene_annotation = data.frame('Gene' = tmp_split_vec$symbol,
+                                             'Chromosome' = tmp_split_vec$chrom,
+                                             'Probe' = tmp_split_vec$dna_id,
+                                             'Chrom_pos' = factor(tmp_split_vec$chr_lit,
+                                                                  levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))),
+                                             'Chrom_start' = tmp_split_vec$start_pos)
+
+                print("cnv_lineplot_cluster before plot_cnv_genome")
+                print(cnv_lineplot_cluster)
+                print("cnv_lineplot_type before plot_cnv_genome")
+                print(cnv_lineplot_type)
+
+                tmp_plot <-  plot_cnv_genome(cnv_matrix = mat_data,
+                                             sub_indices = cnv_lineplot_cluster,
+                                             gene_annotation = gene_annotation,
+                                             lineplot_type = cnv_lineplot_type)
+
+                output$interactive_plot <- renderPlotly(tmp_plot)
+            }
+        })
     })
 }
 

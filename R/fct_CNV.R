@@ -518,7 +518,6 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
                                                   build = obj$cnv_metadata$genome_version)
         split_vec <- factor(tmp_split_vec$symbol,
                             levels = unique(tmp_split_vec$symbol))
-        print(split_vec)
     } else {
         split_vec <- factor(tmp_split_table$chr_lit, levels = sorted_gen_levels)
     }
@@ -647,4 +646,227 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
 
     return(result_df)
+}
+
+
+#' Plot Genomic CNV Profile (Ploidy) - Bold & Larger Labels
+#' @export
+plot_cnv_genome <- function(cnv_matrix,
+                            gene_annotation = NULL,
+                            sub_indices = NULL,
+                            title = "Genomic Ploidy Profile",
+                            max_points = 500,
+                            lineplot_type = "Genes+amplicons") {
+
+    # --- 1. Data Preparation ---
+    if (!is.null(sub_indices)) {
+        mat_sub <- cnv_matrix[sub_indices, , drop = FALSE]
+    } else {
+        mat_sub <- cnv_matrix
+    }
+
+    probes <- colnames(mat_sub)
+    probe_means <- colMeans(mat_sub, na.rm = TRUE)
+    # Base metadata
+    plot_meta <- data.frame(
+        Probe = probes,
+        Mean_Ploidy = probe_means,
+        stringsAsFactors = FALSE
+    )
+    # --- 2. Handling Order & X-Axis Logic ---
+
+    # Valeurs par défaut
+    plot_meta$x_index <- 1:nrow(plot_meta)
+    x_tick_text <- paste0("<b>", probes, "</b>") # GRAS par défaut
+    x_tick_vals <- plot_meta$x_index
+    separators <- list()
+    angle_val <- -90
+
+    if (!is.null(gene_annotation)) {
+
+        # A. Jointure
+        plot_meta <- suppressMessages(
+            dplyr::left_join(plot_meta, gene_annotation, by = "Probe")
+        )
+
+        # B. Tri Génomique
+        plot_meta <- plot_meta %>%
+            dplyr::mutate(
+                chr_sort = suppressWarnings(as.numeric(Chromosome)),
+                chr_sort = ifelse(Chromosome == "X", 98, chr_sort),
+                chr_sort = ifelse(Chromosome == "Y", 99, chr_sort)
+            ) %>%
+            dplyr::arrange(chr_sort, Chrom_start)
+
+        # C. Branchement Conditionnel
+        if (lineplot_type == "Genes+amplicons") {
+            # MODE STACKED (Gènes)
+            angle_val <- -45
+
+            plot_meta$group_label <- ifelse(is.na(plot_meta$Gene), plot_meta$Probe, plot_meta$Gene)
+            unique_groups <- unique(plot_meta$group_label)
+
+            plot_meta$x_index <- as.numeric(factor(plot_meta$group_label, levels = unique_groups))
+            x_tick_vals <- 1:length(unique_groups)
+
+            # Application du GRAS sur les labels des gènes
+            x_tick_text <- paste0("<b>", unique_groups, "</b>")
+
+            sep_pos <- seq(1.5, length(unique_groups) - 0.5, 1)
+
+            # Recalcul des moyennes par gène
+            tp_mean <- plot_meta |> dplyr::group_by(Gene) |> dplyr::summarize(Mean_Ploidy = mean(Mean_Ploidy, na.rm=TRUE))
+            tp_mean_vec <- setNames(tp_mean$Mean_Ploidy, nm = tp_mean$Gene)
+            plot_meta$Mean_Ploidy <- tp_mean_vec[plot_meta$Gene]
+
+        } else {
+            # MODE SPREAD (Positions)
+            angle_val <- -45
+
+            plot_meta$x_index <- 1:nrow(plot_meta)
+            plot_meta$group_label <- plot_meta$Chrom_pos
+
+            rle_res <- rle(as.character(plot_meta$group_label))
+            end_indices <- cumsum(rle_res$lengths)
+            sep_pos <- head(end_indices, -1) + 0.5
+            start_indices <- c(1, head(end_indices, -1) + 1)
+            x_tick_vals <- (start_indices + end_indices) / 2
+
+            # Application du GRAS sur les labels des chromosomes
+            x_tick_text <- paste0("<b>", rle_res$values, "</b>")
+        }
+
+        # D. Ré-ordonner
+        ordered_probes <- plot_meta$Probe
+        ordered_probes <- ordered_probes[ordered_probes %in% colnames(mat_sub)]
+        mat_sub <- mat_sub[, ordered_probes, drop = FALSE]
+        plot_meta <- plot_meta[match(ordered_probes, plot_meta$Probe), ]
+
+        # E. Séparateurs
+        separators <- lapply(sep_pos, function(p) {
+            list(
+                type = "line",
+                x0 = p, x1 = p,
+                y0 = 0, y1 = 1, yref = "paper",
+                line = list(color = "#cccccc", width = 1, dash = "dot")
+            )
+        })
+    }
+
+    # --- 3. Prepare Scatter Data ---
+
+    n_cells <- nrow(mat_sub)
+    if (n_cells > max_points) {
+        set.seed(42)
+        mat_viz <- mat_sub[sample(n_cells, max_points), , drop = FALSE]
+    } else {
+        mat_viz <- mat_sub
+    }
+
+    probe_to_x <- setNames(plot_meta$x_index, plot_meta$Probe)
+    x_indices_vector <- probe_to_x[colnames(mat_viz)]
+
+    df_scatter <- data.frame(
+        Probe = rep(colnames(mat_viz), each = nrow(mat_viz)),
+        x_idx = rep(x_indices_vector, each = nrow(mat_viz)),
+        Ploidy = as.vector(mat_viz)
+    )
+
+    # --- 4. Plotting ---
+
+    p <- plotly::plot_ly() %>%
+        plotly::layout(
+            # Titre plus gros (20)
+            title = list(text = paste0("<b>", title, "</b>"), font = list(size = 20)),
+            template = "plotly_white",
+            font = list(family = "Arial, sans-serif", size = 12),
+            xaxis = list(
+                title = "",
+                tickmode = "array",
+                tickvals = x_tick_vals,
+                ticktext = x_tick_text, # Contient les tags <b>
+                tickangle = angle_val,
+                ticks = "outside",
+                tickfont = list(size = 13), # Taille augmentée pour l'axe X (Gènes)
+                automargin = TRUE,
+                zeroline = FALSE,
+                showgrid = FALSE
+            ),
+            yaxis = list(
+                # Titre axe Y : GRAS + TAILLE 18
+                title = list(text = "<b>Ploidy</b>", font = list(size = 18)),
+                range = c(0, 5),
+                zeroline = TRUE,
+                zerolinewidth = 1,
+                gridcolor = "#eeeeee",
+                tickfont = list(size = 14) # Taille augmentée pour les chiffres Y
+            ),
+            legend = list(
+                orientation = "h",
+                xanchor = "center", x = 0.5, y = -0.2
+            ),
+            shapes = c(
+                list(
+                    list(
+                        type = "rect",
+                        fillcolor = "rgba(200, 200, 200, 0.25)",
+                        line = list(width = 0),
+                        xref = "paper", x0 = 0, x1 = 1,
+                        y0 = 1.5, y1 = 2.5
+                    )
+                ),
+                separators
+            ),
+            margin = list(b = 100)
+        )
+
+    # Add Cells (Blue)
+    p <- p %>% plotly::add_trace(
+        data = df_scatter,
+        x = ~x_idx,
+        y = ~Ploidy,
+        type = "scatter",
+        mode = "markers",
+        marker = list(
+            color = "#4a86e8",
+            size = 6,
+            opacity = 0.7,
+            line = list(width = 0.5, color = "white")
+        ),
+        name = "Cells",
+        hoverinfo = "text",
+        text = ~paste("<b>Probe:</b>", Probe, "<br><b>Ploidy:</b>", round(Ploidy, 2))
+    )
+
+    # Add Means (Red)
+    p <- p %>% plotly::add_trace(
+        x = plot_meta$x_index,
+        y = plot_meta$Mean_Ploidy,
+        type = "scatter",
+        mode = "markers",
+        marker = list(
+            color = "#cc0000",
+            size = 10,
+            symbol = "circle",
+            line = list(width = 1, color = "black")
+        ),
+        name = "Mean",
+        hoverinfo = "text",
+        text = ~paste("<b>Probe:</b>", plot_meta$Probe,
+                      "<br><b>Gene:</b>", if("Gene" %in% names(plot_meta)) plot_meta$Gene else "N/A",
+                      "<br><b>Mean:</b>", round(plot_meta$Mean_Ploidy, 2))
+    ) %>%
+        plotly::toWebGL() %>%
+        plotly::config(
+            displaylogo = FALSE,
+            toImageButtonOptions = list(
+                format = "svg",
+                filename = "genomic_ploidy_profile",
+                height = 600,
+                width = 1000,
+                scale = 2
+            )
+        )
+
+    return(p)
 }

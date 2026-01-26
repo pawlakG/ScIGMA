@@ -274,8 +274,11 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                         message(warning("Error during variant annotation: "),
                                 stop(e$message))
                     })
+                # ScIGMA_data <- normalizeProtein(ScIGMA_data)
+                ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
                 remove_modal_spinner()
                 trigger("dnaVariant_filtered")
+                trigger("launch_umap")
             }
             remove_modal_spinner()
         })

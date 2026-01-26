@@ -29,7 +29,9 @@ app_server <- function(input, output, session) {
          "CNV_filtered",
          "CNV_ploidy_computed",
          "CNV_ui_cnv_plot_parameters_rendered",
-         "CNV_ui_cnv_plot_additionalParameters_rendered")
+         "CNV_ui_cnv_plot_additionalParameters_rendered",
+         "launch_umap",
+         "umap_computed")
     # --------------------------------------------------------------- #
     # Analysis
     # ---------------------------- #

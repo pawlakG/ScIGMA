@@ -49,5 +49,9 @@ app_server <- function(input, output, session) {
     # CNV
     mod_analysis_CNV_server("analysis_CNV_1", ScIGMA_data)
 
+    # --------------------------------------------------------------- #
+    # MultiOmics
+    mod_analysis_multiOmics_server("analysis_multiOmics_1", ScIGMA_data)
+
 }
 

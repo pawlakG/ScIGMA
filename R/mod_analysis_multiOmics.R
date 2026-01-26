@@ -10,6 +10,7 @@
 mod_analysis_multiOmics_ui <- function(id) {
   ns <- NS(id)
   tagList(
+      plotlyOutput(ns("multiOmics_umap"), height = "600px")
 
   )
 }

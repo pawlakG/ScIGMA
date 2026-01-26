@@ -72,7 +72,7 @@ mod_analysis_Protein_ui <- function(id) {
                 )
             ),
             nav_panel(
-                "2D clustering",
+                "2D markers expression",
                 fluidRow(
                     # Colonne de Contrôle
                     column(3,
@@ -105,13 +105,17 @@ mod_analysis_Protein_ui <- function(id) {
                                h3("2D Projection"),
 
                                # shinycssloaders::withSpinner(
-                                   plotlyOutput(ns("umap_plot"), height = "600px"),
-                                   type = 6, # Un style de loader (cercle qui tourne)
-                                   color = "#007bff"
+                                   plotlyOutput(ns("umap_plot"), height = "600px")
+                                   # type = 6, # Un style de loader (cercle qui tourne)
+                                   # color = "#007bff"
                                # )
                            )
                     )
                 )
+            ),
+            nav_panel(
+                "2D clustering",
+                fluidRow()
             )
         )
     )
@@ -317,7 +321,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             #     gates_list = r_state$subsets,
             #     meta_list = r_state$subset_meta
             # )
-            obj$protein.gating_tree <- list("gates_list" = r_state$subsets,
+            ScIGMA_data$protein.gating_tree <- list("gates_list" = r_state$subsets,
                                             "meta_list" = r_state$subset_meta)
 
             showNotification(
@@ -334,7 +338,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         })
 
         # Bloc de calcul réactif
-        observe({
+        observeEvent({
             # On écoute explicitement le trigger ET les paramètres
             watch("launch_umap")
 

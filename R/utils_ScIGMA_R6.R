@@ -80,6 +80,7 @@ ScIGMA_object <- R6::R6Class(
         #' @param variant.annotation data.frame of annotated variants.
         #' @param selected.variants Selected variant during varaint selection step
         #' @param dna.clones DNA clones found after variant filtering
+        #' @param protein.gating_tree
         initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),

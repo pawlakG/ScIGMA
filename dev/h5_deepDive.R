@@ -59,6 +59,8 @@ obj <- filter_variant_ScIGMA(obj = obj,
 
 obj$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(obj$protein.mtx), jitter = 0.5)
 
+
+
 umap_protein <- run_umap_protein(expression_matrix = obj$protein.mtx.filtered.normalized, n_neighbors = 30, min_dist = 0.1)
 plot(umap_protein)
 

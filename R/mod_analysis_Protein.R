@@ -105,9 +105,9 @@ mod_analysis_Protein_ui <- function(id) {
                                h3("2D Projection"),
 
                                # shinycssloaders::withSpinner(
-                                   plotlyOutput(ns("umap_plot"), height = "600px")
-                                   # type = 6, # Un style de loader (cercle qui tourne)
-                                   # color = "#007bff"
+                               plotlyOutput(ns("umap_plot"), height = "600px")
+                               # type = 6, # Un style de loader (cercle qui tourne)
+                               # color = "#007bff"
                                # )
                            )
                     )
@@ -115,6 +115,30 @@ mod_analysis_Protein_ui <- function(id) {
             ),
             nav_panel(
                 "2D clustering",
+                fluidRow(
+                    # Colonne de Contrôle
+                    column(3,
+                           tagList(
+                               grid_card(
+                                   area = "sidebar",
+                                   h3("Clustering parameters"),
+
+                                   # Paramètres de la fonction standalone
+                                   numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
+                                   hr(),
+                                   actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                               )
+                           )
+                    ),
+                    # Colonne de Visualisation
+                    column(9,
+                           grid_card(
+                               area = "main",
+                               h3("2D Projection"),
+                               plotlyOutput(ns("umap_clustering_plot"), height = "600px")
+                           )
+                    )
+                ),
                 fluidRow()
             )
         )
@@ -185,8 +209,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             # 2. Fetch data from R6 (Reference access)
             # We assume ScIGMA_data$protein.mtx is the matrix.
-            raw_x <- ScIGMA_data$protein.mtx[current_indices, input$xvar]
-            raw_y <- ScIGMA_data$protein.mtx[current_indices, input$yvar]
+            # raw_x <- ScIGMA_data$protein.mtx[current_indices, input$xvar]
+            # raw_y <- ScIGMA_data$protein.mtx[current_indices, input$yvar]
+            raw_x <- t(ScIGMA_data$seurat_object@assays$RNA$data)[current_indices, input$xvar]
+            raw_y <- t(ScIGMA_data$seurat_object@assays$RNA$data)[current_indices, input$yvar]
 
             plot_df <- data.frame(
                 x = raw_x,
@@ -207,12 +233,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 type = "scatter",
                 mode = "markers",
                 source = ns("gating_plot"),
-                marker = list(size = 3, opacity = 0.6, color = "#2c3e50")
+                marker = list(size = 5, opacity = 1, color = "#2c3e50")
             ) %>%
                 layout(
                     title = paste("Gate:", r_state$subset_meta[[r_state$current_view]]$name),
-                    xaxis = list(title = input$xvar),
-                    yaxis = list(title = input$yvar),
+                    xaxis = list(title = input$xvar,
+                                 range = list(0, max(plot_df$x)+1)),
+                    yaxis = list(title = input$yvar,
+                                 range = list(0, max(plot_df$y)+1)),
                     dragmode = "lasso"
                 ) %>%
                 toWebGL() %>%
@@ -322,7 +350,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             #     meta_list = r_state$subset_meta
             # )
             ScIGMA_data$protein.gating_tree <- list("gates_list" = r_state$subsets,
-                                            "meta_list" = r_state$subset_meta)
+                                                    "meta_list" = r_state$subset_meta)
 
             showNotification(
                 paste("Success !", length(r_state$subsets), "populations saved."),
@@ -338,7 +366,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         })
 
         # Bloc de calcul réactif
-        observeEvent({
+        observe({
             # On écoute explicitement le trigger ET les paramètres
             watch("launch_umap")
 
@@ -352,23 +380,29 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             message("Computing UMAP...")
 
             # Sélection des données
-            data_to_use <- if (!is.null(ScIGMA_data$protein.mtx.filtered.normalized)) {
-                ScIGMA_data$protein.mtx.filtered.normalized
-            } else {
-                ScIGMA_data$protein.mtx
-            }
+            # data_to_use <- if (!is.null(ScIGMA_data$protein.mtx.filtered.normalized)) {
+            #     ScIGMA_data$protein.mtx.filtered.normalized
+            # } else {
+            #     ScIGMA_data$protein.mtx
+            # }
 
-            # Calcul UMAP
-            umap_coords <- run_umap_protein(
-                expression_matrix = data_to_use,
-                n_neighbors = n_neighbors,
-                min_dist = min_dist,
-                n_components = 2,
-                metric = "cosine"
-            )
+            # Compute UMAP
+            ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
+                                                 dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
+                                                 min.dist = min_dist,
+                                                 n.neighbors = n_neighbors)
+
+
+            # umap_coords <- run_umap_protein(
+            #     expression_matrix = data_to_use,
+            #     n_neighbors = n_neighbors,
+            #     min_dist = min_dist,
+            #     n_components = 2,
+            #     metric = "cosine"
+            # )
 
             # Stockage dans l'objet R6
-            ScIGMA_data$protein.umap <- umap_coords
+            # ScIGMA_data$protein.umap <- umap_coords
 
             gargoyle::trigger("umap_computed")
             message("Calcul UMAP terminé.")
@@ -381,7 +415,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 umap_marker_choice <- input$protein_umap_markers
                 # F. Création du Plotly
                 # On fusionne avec les métadonnées pour la coloration (facultatif)
-                plot_df <- as.data.frame(ScIGMA_data$protein.umap)
+                # plot_df <- as.data.frame(ScIGMA_data$protein.umap)
+                plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                    as.data.frame()
 
                 protein_markers_df <- if(!is.null(ScIGMA_data$protein.mtx.filtered.normalized)){
                     ScIGMA_data$protein.mtx.filtered.normalized
@@ -402,12 +438,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 # 2. Rendering
                 output$umap_plot <- renderPlotly({plot_ly(data = plot_df,
-                                                          x = ~UMAP_1,
-                                                          y = ~UMAP_2,
+                                                          x = ~umap_1,
+                                                          y = ~umap_2,
                                                           type = 'scatter',
                                                           mode = 'markers',
                                                           color = ~color,
-                                                          marker = list(size = 4,  opacity = 0.7)) %>%
+                                                          marker = list(size = 6,  opacity = 1)) %>%
                         layout(xaxis = list(title = "UMAP 1"),
                                yaxis = list(title = "UMAP 2")) %>%
                         toWebGL() # Toujours optimiser pour le single-cell
@@ -421,6 +457,41 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # ScIGMA_data <- normalizeProtein(ScIGMA_data)
             plot_protein_barplot(obj = ScIGMA_data)
         })
+
+        # render UMAP with clustering
+        observeEvent({watch("umap_computed")
+            input$find_clusters_btn},{
+                clustering_resolution <- input$umap_clust_resolution
+                # Compute umap
+                if (is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                    message("UMAP is missing, computing default UMAP") # TODO: display notification
+
+                    ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
+                                                         dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
+                                                         min.dist = 0.15,
+                                                         n.neighbors = 30,
+                                                         future.seed=TRUE)
+                }
+                # 1. Clustering
+                ScIGMA_data$seurat_object <- FindClusters(ScIGMA_data$seurat_object,
+                                                          resolution = clustering_resolution)
+                umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                    as.data.frame()
+                umap_cluster$cluster = ScIGMA_data$seurat_object$seurat_clusters[rownames(umap_cluster)]
+
+                # 2. Rendering
+                output$umap_clustering_plot <- renderPlotly({plot_ly(data = umap_cluster,
+                                                                     x = ~umap_1,
+                                                                     y = ~umap_2,
+                                                                     type = 'scatter',
+                                                                     mode = 'markers',
+                                                                     color = ~cluster,
+                                                                     marker = list(size = 6,  opacity = 1)) %>%
+                        layout(xaxis = list(title = "UMAP 1"),
+                               yaxis = list(title = "UMAP 2")) %>%
+                        toWebGL() # Toujours optimiser pour le single-cell
+                })
+            },ignoreInit = TRUE)
     })
 }
 

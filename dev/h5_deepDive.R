@@ -57,7 +57,82 @@ obj <- filter_variant_ScIGMA(obj = obj,
                              min.cell.pt = 10,
                              min.mut.cell.pt = 10)
 
+obj$variant.annotation <- tryCatch(
+    fetch_variants_batch_fields(obj$variants.filtered,
+                                batch_size = 300,
+                                paths = cfg$paths)
+    , error = function(e){
+        remove_modal_spinner()
+        message(warning("Error during variant annotation: "),
+                stop(e$message))
+    })
+# Add info about proportion of mutated cells per variants
+obj$variant.annotation$probe <- gsub("^[^:]*:", "", obj$variant.annotation$variant_id)
+obj$variant.annotation$cell_proportion <- apply(as.matrix(obj$vaf.mtx.filtered)[,obj$variant.annotation$probe], 2, \(x){
+    sum(x != 0) / nrow(obj$vaf.mtx.filtered)
+})
+
+
+
 obj$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(obj$protein.mtx), jitter = 0.5)
+
+# Initiate seurat object
+library(Seurat)
+obj_seuratObject <- CreateSeuratObject(counts = t(obj$protein.mtx.filtered.normalized) ,
+                   project = "ScIGMA_data",
+                   min.cells = 3,
+                   min.features = floor(sqrt(ncol(obj$protein.mtx.filtered.normalized))))
+
+# obj_seuratObject <- CreateSeuratObject(counts = as.matrix(t(obj$protein.mtx.filtered)),
+#                                        project = "ScIGMA_data",
+#                                        min.cells = 3,
+#                                        min.features = floor(sqrt(ncol(obj$protein.mtx.filtered))))
+
+
+# obj_seuratObject <- NormalizeData(obj_seuratObject, normalization.method = "CLR")
+obj_seuratObject@assays$RNA$data <- normalize_linear_regression(as.matrix(t(obj$protein.mtx.filtered)), jitter = 0.1)
+
+obj_seuratObject <- FindVariableFeatures(obj_seuratObject,
+                                         selection.method = "vst",
+                                         nfeatures = nrow(obj_seuratObject))
+
+obj_seuratObject <- ScaleData(obj_seuratObject, features = rownames(obj_seuratObject))
+obj_seuratObject <- RunPCA(obj_seuratObject,
+                           features = VariableFeatures(object = obj_seuratObject),
+                           npcs = nrow(obj_seuratObject)-2)
+
+obj_seuratObject <- FindNeighbors(obj_seuratObject, dims = 1:(nrow(obj_seuratObject)-2))
+obj_seuratObject <- FindClusters(obj_seuratObject, resolution = 0.15, future.rng.onMisuse = "ignore" )
+
+obj_seuratObject <- RunUMAP(obj_seuratObject,
+                            dims = 1:(nrow(obj_seuratObject)-2),
+                            min.dist = 0.2,
+                            n.neighbors = 30)
+obj$seurat_object <- obj_seuratObject
+
+UMAPPlot(obj_seuratObject)
+
+obj_seuratObject_markers <- FindAllMarkers(obj_seuratObject, only.pos = TRUE)
+
+
+
+obj_marker_long <- obj$seurat_object@assays$RNA$data |>
+    t() |>
+    as.data.frame() |>
+    rownames_to_column("barcode") |>
+    pivot_longer(-barcode, names_to = "marker", values_to = "marker_expression")
+obj_marker_long$seurat_cluster <- obj$seurat_object$seurat_clusters[obj_marker_long$barcode]
+
+obj_marker_long |> group_by(marker, seurat_cluster) |> summarize(mean_expression = mean(marker_expression)) |> ggplot() +
+    geom_bar( aes(x=marker, y=mean_expression), stat="identity",alpha=0.7) + facet_grid(.~seurat_cluster)
+
+obj_marker_long |> ggplot() +
+    geom_boxplot(aes(x=marker, y=marker_expression),alpha=0.7) +
+    facet_grid(.~seurat_cluster)
+
+obj_marker_long |> ggplot(aes(x=marker, y=marker_expression)) +
+    ggbeeswarm::geom_beeswarm() +
+    facet_grid(.~seurat_cluster)
 
 
 
@@ -68,142 +143,13 @@ plot(umap_protein)
 plot(obj$protein.mtx.filtered.normalized [,"CD19"],
      obj$protein.mtx.filtered.normalized [,"CD45"])
 
-render_protein_ridge_plot(obj)
+plan(sequential)
+no_parral_norm <- bench::mark({
+    NormalizeData(obj_seuratObject, normalization.method = "CLR")
+})
 
-
-
-variants_annotated <- fetch_variants_batch_fields(obj$variants.filtered, paths = paths)
-
-# all_variants <- fetch_variants_batch_fields(obj$variants, paths = paths)
-
-# get number cell filtered per variants
-
-cols <- sub(x = variants_annotated$variant_id, pattern = "^([^:]+:)|^:", "")
-
-# variant heatmap
-## Select some variants
-selected_variants <- cols[1:4]
-# selected_variants <- cols[-9]
-
-
-dna_variant_clones <- generate_dna_variant_heatmap(obj = obj, selected_variants_df = variants_annotated[1:4,])
-
-# --------------------------------------------------------------- #
-# Compute ploidy
-
-library(tibble)
-
-## Filter
-## Amplicon completeness
-amp_completeness <- 10
-## Amplicon read depth
-amp_readDepth <- 10
-## Mean cell read depth
-amp_meanCellRead <- 10
-# clone group set a reference
-diploid_ref <- "1"
-
-filtered_data <- filter_cnv_profile(obj,
-                                    dna_variant_clones$clones,
-                                    amp_completeness = amp_completeness,
-                                    amp_readDepth = amp_readDepth,
-                                    amp_meanCellRead = amp_meanCellRead)
-
-ploidy_data <- process_cnv_to_clonal_profile(filtered_data,
-                                             dna_variant_clones$clones,
-                                             diploid_ref = diploid_ref,
-                                             exclude_clone = "small")
-
-obj$ploidy.mtx <- ploidy_data
-
-render_annotation_table(obj = obj, ploidy_data = obj$ploidy.mtx)$symbol |> unique() |> sort()
-
-
-cnv_heatmap <- plot_cnv_heatmap(obj = obj, ploidy_data = obj$ploidy.mtx)
-
-cnv_heatmap <- plot_cnv_heatmap(obj = obj, ploidy_data = obj$ploidy.mtx, display_gene = TRUE)
-
-
-
-## Annotate amplicons
-test <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg38")
-
-
-
-dumb_df <- data.frame(chrom = "1", start_pos = 438149280, end_pos = 438149280)
-annotate_genomic_regions(region_data = dumb_df, build = "hg19")
-
-
-
-# --------------------------------------------------------------- #
-# Lineplot
-
-display_gene = TRUE
-
-mat_data <- t(ploidy_data)
-
-# --- 1. Reorder according to chromosomal position ---
-# Note: We can now drop 'dplyr::' because of the @importFrom above
-tmp_var_table <- obj$cnv_id_table |>
-    filter(dna_id %in% colnames(mat_data)) |>
-    arrange(as.numeric(chrom), as.numeric(start_pos)) |>
-    mutate(chr_lit = paste0("chr", chrom))
-
-mat_data <- mat_data[, tmp_var_table$dna_id]
-
-tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
-sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
-# ---------------------------- #
-# If used want gene names add a column with gene annotation
-# tmp_annotation <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg19")
-# tmp_var_table <- merge(tmp_var_table, tmp_annotation[,"dna_id","hgnc_symbol"])
-
-tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table,
-                                          build = obj$cnv_metadata$genome_version)
-split_vec <- factor(tmp_split_vec$symbol,
-                    levels = unique(tmp_split_vec$symbol))
-
-
-# --- 2. Color Definition ---
-col_fun <- colorRamp2(
-    breaks = c(
-        quantile(mat_data, c(0, 0.25)),
-        2,
-        quantile(mat_data, c(0.75, 1))
-    ),
-    colors = c("black", "#4575B4", "#F0F0F0", "#D73027", "#67001F")
-)
-
-group_colors <- setNames(
-    viridis(nrow(mat_data)),
-    nm = rownames(mat_data)
-)
-
-clone_selected <- "1"
-
-mat_data_restricted <-as.matrix(mat_data[clone_selected,])|>t()
-rownames(mat_data_restricted) <- rownames(mat_data)[rownames(mat_data) == clone_selected]
-# --- 3. Left Annotation ---
-left_ann <- rowAnnotation(
-    df = data.frame(Group = rownames(mat_data_restricted)),
-    col = list(Group = group_colors),
-    show_legend = FALSE,
-    simple_anno_size = unit(1, "cm"),
-    show_annotation_name = FALSE
-)
-
-gene_annotation = data.frame('Gene' = tmp_split_vec$symbol,
-                             'Chromosome' = tmp_split_vec$chrom,
-                             'Probe' = tmp_split_vec$dna_id,
-                             'Chrom_pos' = factor(tmp_split_vec$chr_lit,
-                                                  levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))),
-                             'Chrom_start' = tmp_split_vec$start_pos)
-
-
-plot_cnv_genome(cnv_matrix = mat_data, sub_indices = "2",
-                gene_annotation = gene_annotation, lineplot_type = "genes+amplicons")
-
-
-# --------------------------------------------------------------- #
-# Protein analysis
-
+avail_cores <- future::availableCores() - 2
+plan(multisession, workers = avail_cores)
+parral_norm <- bench::mark({
+    NormalizeData(obj_seuratObject, normalization.method = "CLR")
+})

@@ -399,6 +399,9 @@ generate_dna_variant_heatmap <- function(obj,
 
     clustered_samples <- fct_infreq(clustered_samples) # Change levels name according to frequency
 
+    if (!is.null(obj$dna_clones_renamed)){
+        clustered_samples <- obj$dna_clones_renamed
+    }
     ### Reorder
     tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(clustered_samples),]
 
@@ -418,14 +421,23 @@ generate_dna_variant_heatmap <- function(obj,
     }
 
 
+
+    print("head(clustered_samples)")
+    print(head(clustered_samples))
+
     # plot heatmap
     ## Color palette
     dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0","1","2"))
     ### Legend
     ## Annotation
     heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples)!="small"]
+    print("head(heatmap_true_levels)")
+    print(head(heatmap_true_levels))
     annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)],"grey","#333333"),
                                                nm = c(heatmap_true_levels, "missing","small")))
+    print("heatmap_split_vector")
+    print(heatmap_split_vector)
+
     dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
                                             col =annotationColor,
                                             show_annotation_name = FALSE,

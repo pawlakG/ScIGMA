@@ -81,6 +81,9 @@ ScIGMA_object <- R6::R6Class(
         #' @param selected.variants Selected variant during varaint selection step
         #' @param dna.clones DNA clones found after variant filtering
         #' @param protein.gating_tree
+        #' @param seurat_object description
+        #' @param filetype description
+        #' @param dna_clones_renamed description
         initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),
@@ -126,7 +129,10 @@ ScIGMA_object <- R6::R6Class(
                               cnv_dp_filtered = NULL,
                               cnv_metadata = list(),
                               protein.gating_tree = list(),
-                              protein.umap = NULL) {
+                              protein.umap = NULL,
+                              seurat_object = NULL,
+                              filetype = NULL,
+                              dna_clones_renamed = NULL) {
             # simple validator for HDF5-backed matrices
             .chk <- function(x, nm) {
                 if (!is.null(x) && !inherits(x, "DelayedArray")) {
@@ -190,7 +196,10 @@ ScIGMA_object <- R6::R6Class(
                 cnv_dp_filtered = cnv_dp_filtered,
                 cnv_metadata = cnv_metadata,
                 protein.gating_tree = protein.gating_tree,
-                protein.umap = protein.umap
+                protein.umap = protein.umap,
+                seurat_object = seurat_object,
+                filetype = filetype,
+                dna_clones_renamed = dna_clones_renamed
             )
         },
 
@@ -528,6 +537,24 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$protein.umap)
             }
             self$data$protein.umap <- value
+        },
+        seurat_object = function(value) {
+            if (missing(value)) {
+                return(self$data$seurat_object)
+            }
+            self$data$seurat_object <- value
+        },
+        filetype = function(value) {
+            if (missing(value)) {
+                return(self$data$filetype)
+            }
+            self$data$filetype <- value
+        },
+        dna_clones_renamed = function(value) {
+            if (missing(value)) {
+                return(self$data$dna_clones_renamed)
+            }
+            self$data$dna_clones_renamed <- value
         }
 
     )

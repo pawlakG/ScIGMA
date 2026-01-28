@@ -1,3 +1,5 @@
+font_size_global <- "12px"
+
 #' The application User-Interface
 #'
 #' @param request Internal parameter for `{shiny}`.
@@ -5,28 +7,31 @@
 #' @import shiny
 #' @import bslib
 #' @import gridlayout
+#' @import shinythemes
 #' @import shinyWidgets
+#' @import shinydashboard
 #' @noRd
 app_ui <- function(request) {
     tagList(
+        # Leave this function for adding external resources
         golem_add_external_resources(),
 
+        # Your application UI logic
         page_navbar(
-            title = HTML("ScIGMA portal"),
-            selected = "welcome_tab",
+            fluid = TRUE,
+            theme = bs_theme(bootswatch = "lux"),
 
-            # 1. CORRECTION DU THEME
-            # On utilise font_scale pour grossir le texte proprement
-            # sans casser la hiérarchie visuelle de Lux.
-            theme = bs_theme(
-                bootswatch = "lux",
-                font_scale = 1.1 # Augmente la taille globale de 10% (ajustez selon besoin)
+            tags$head(
+                tags$style(HTML(sprintf("
+      body, .container, .well, .navbar, .form-control,
+      h1, h2, h3, h4, h5, h6, p, label, .btn {
+        font-size: %s !important;
+      }
+    ", font_size_global)))
             ),
 
-            # 2. NETTOYAGE
-            # J'ai retiré le bloc tags$style violent qui écrasait le thème.
-            # Si vous avez besoin de CSS spécifique, ciblez des classes précises sans toucher aux h1-h6 globalement.
-
+            title = HTML("ScIGMA portal"),
+            selected = "welcome_tab", # Utilisation d'ID explicites
             navbar_options = navbar_options(collapsible = TRUE),
 
             nav_panel(
@@ -41,31 +46,40 @@ app_ui <- function(request) {
                 grid_container(
                     layout = c("analysis"),
                     row_sizes = c("1fr"),
+
                     grid_card(
                         area = "analysis",
                         card_body(
+                            # Remplacement de tabsetPanel par navset_tab pour compatibilité bslib
+                            # L'ID 'tabs_analysis_inner' est crucial pour le contrôle serveur
                             navset_tab(
                                 id = "tabs_analysis_inner",
+
                                 nav_panel(
                                     title = "Overview.Preprocess",
                                     value = "tab_overview",
                                     mod_analysis_overview_ui("analysis_overview_1")
                                 ),
+
                                 nav_panel(
                                     title = "DNA",
                                     value = "tab_dna",
                                     mod_analysis_DNA_ui("analysis_DNA_1")
                                 ),
+
                                 nav_panel(
                                     title = "CNV",
                                     value = "tab_cnv",
                                     mod_analysis_CNV_ui("analysis_CNV_1")
                                 ),
+
+                                # Ces onglets seront masqués au démarrage via le serveur
                                 nav_panel(
                                     title = "Protein",
                                     value = "tab_protein",
                                     mod_analysis_Protein_ui("analysis_Protein_1")
                                 ),
+
                                 nav_panel(
                                     title = "Multi-omics",
                                     value = "tab_multi_omics",

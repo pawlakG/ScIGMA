@@ -62,6 +62,7 @@ mod_analysis_overview_ui <- function(id) {
 #'
 #' @noRd
 #' @import tools
+#' @import Seurat
 mod_analysis_overview_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
         ns <- session$ns
@@ -108,6 +109,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             } else {
                 stop("File or folder path doesn't exists\n")
             }
+            ScIGMA_data$filetype <- fileType
             remove_modal_spinner()
             message(whereami::whereami())
             trigger("dataLoaded")
@@ -266,7 +268,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 # CONDITION TO HANDLE
             } else {
                 ScIGMA_data$variant.annotation <- tryCatch(
-                    fetch_variants_batch_fields(ScIGMA_data$variants.filtered,
+                    tmp_annotation <- fetch_variants_batch_fields(ScIGMA_data$variants.filtered,
                                                 batch_size = 300,
                                                 paths = cfg$paths)
                     , error = function(e){
@@ -274,8 +276,38 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                         message(warning("Error during variant annotation: "),
                                 stop(e$message))
                     })
+
+                # Add info about proportion of mutated cells per variants
+                ScIGMA_data$variant.annotation$probe <- gsub("^[^:]*:", "", ScIGMA_data$variant.annotation$variant_id)
+                ScIGMA_data$variant.annotation$cell_proportion <- apply(as.matrix(ScIGMA_data$vaf.mtx.filtered)[,ScIGMA_data$variant.annotation$probe], 2, \(x){
+                    sum(x > 10) / nrow(ScIGMA_data$vaf.mtx.filtered)
+                })
+
                 # ScIGMA_data <- normalizeProtein(ScIGMA_data)
-                ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
+                if (input$file_fileType == "DNA+protein"){
+                    message("Preprocessing protein data ...")
+                    ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
+
+                    ScIGMA_data$seurat_object <- CreateSeuratObject(counts = t(ScIGMA_data$protein.mtx.filtered.normalized) ,
+                                                                    project = "ScIGMA_data",
+                                                                    min.cells = 3,
+                                                                    min.features = floor(sqrt(ncol(ScIGMA_data$protein.mtx.filtered.normalized))))
+
+                    ScIGMA_data$seurat_object@assays$RNA$data <- t(ScIGMA_data$protein.mtx.filtered.normalized)
+
+                    ScIGMA_data$seurat_object <- FindVariableFeatures(ScIGMA_data$seurat_object,
+                                                             selection.method = "vst",
+                                                             nfeatures = nrow(ScIGMA_data$seurat_object))
+
+                    ScIGMA_data$seurat_object <- ScaleData(ScIGMA_data$seurat_object, features = rownames(ScIGMA_data$seurat_object))
+                    ScIGMA_data$seurat_object <- RunPCA(ScIGMA_data$seurat_object,
+                                               features = VariableFeatures(object = ScIGMA_data$seurat_object),
+                                               npcs = nrow(ScIGMA_data$seurat_object)-2)
+
+                    ScIGMA_data$seurat_object <- FindNeighbors(ScIGMA_data$seurat_object, dims = 1:(nrow(ScIGMA_data$seurat_object)-2))
+                }
+
+
                 remove_modal_spinner()
                 trigger("dnaVariant_filtered")
                 trigger("launch_umap")

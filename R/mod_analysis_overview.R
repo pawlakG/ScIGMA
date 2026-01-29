@@ -282,6 +282,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 ScIGMA_data$variant.annotation$cell_proportion <- apply(as.matrix(ScIGMA_data$vaf.mtx.filtered)[,ScIGMA_data$variant.annotation$probe], 2, \(x){
                     sum(x > 10) / nrow(ScIGMA_data$vaf.mtx.filtered)
                 })
+                ScIGMA_data$variant.annotation <- ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact))
+                ScIGMA_data$variant.annotation$row_id <- 1:nrow(ScIGMA_data$variant.annotation)
 
                 # ScIGMA_data <- normalizeProtein(ScIGMA_data)
                 if (input$file_fileType == "DNA+protein"){

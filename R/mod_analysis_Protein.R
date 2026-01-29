@@ -71,75 +71,79 @@ mod_analysis_Protein_ui <- function(id) {
                     )
                 )
             ),
-            nav_panel(
-                "2D markers expression",
-                fluidRow(
-                    # Colonne de Contrôle
-                    column(3,
-                           tagList(
-                               grid_card(
-                                   area = "sidebar",
-                                   h3("UMAP parameters"),
+            nav_panel("UMAP",
+                      accordion(
+                          accordion_panel(
+                              "Markers expression",
+                              fluidRow(
+                                  # Colonne de Contrôle
+                                  column(3,
+                                         tagList(
+                                             grid_card(
+                                                 area = "sidebar",
+                                                 h3("UMAP parameters"),
 
-                                   # Paramètres de la fonction standalone
-                                   numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
-                                   numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
+                                                 # Paramètres de la fonction standalone
+                                                 numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
+                                                 numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
 
-                                   hr(),
-                                   actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
-                                   helpText("The calculation may take a few seconds.")
-                               ),
-                               br(),
-                               h3("UMAP projection"),
-                               selectInput(ns("protein_umap_markers"),
-                                           label = "Markers",
-                                           choices = "None",
-                                           selected = "None")
-                           )
-                    ),
+                                                 hr(),
+                                                 actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
+                                                 helpText("The calculation may take a few seconds.")
+                                             ),
+                                             br(),
+                                             h3("UMAP projection"),
+                                             selectInput(ns("protein_umap_markers"),
+                                                         label = "Markers",
+                                                         choices = "None",
+                                                         selected = "None")
+                                         )
+                                  ),
 
-                    # Colonne de Visualisation
-                    column(9,
-                           grid_card(
-                               area = "main",
-                               h3("2D Projection"),
+                                  # Colonne de Visualisation
+                                  column(9,
+                                         grid_card(
+                                             area = "main",
+                                             h3("2D Projection"),
 
-                               # shinycssloaders::withSpinner(
-                               plotlyOutput(ns("umap_plot"), height = "600px")
-                               # type = 6, # Un style de loader (cercle qui tourne)
-                               # color = "#007bff"
-                               # )
-                           )
-                    )
-                )
-            ),
-            nav_panel(
-                "2D clustering",
-                fluidRow(
-                    # Colonne de Contrôle
-                    column(3,
-                           tagList(
-                               grid_card(
-                                   area = "sidebar",
-                                   h3("Clustering parameters"),
+                                             # shinycssloaders::withSpinner(
+                                             plotlyOutput(ns("umap_plot"), height = "600px")
+                                             # type = 6, # Un style de loader (cercle qui tourne)
+                                             # color = "#007bff"
+                                             # )
+                                         )
+                                  )
+                              )
+                          ),
+                          accordion_panel(
+                              "Unsupervised clustering",
 
-                                   # Paramètres de la fonction standalone
-                                   numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
-                                   hr(),
-                                   actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
-                               )
-                           )
-                    ),
-                    # Colonne de Visualisation
-                    column(9,
-                           grid_card(
-                               area = "main",
-                               h3("2D Projection"),
-                               plotlyOutput(ns("umap_clustering_plot"), height = "600px")
-                           )
-                    )
-                ),
-                fluidRow()
+                              fluidRow(
+                                  # Colonne de Contrôle
+                                  column(3,
+                                         tagList(
+                                             grid_card(
+                                                 area = "sidebar",
+                                                 h3("Clustering parameters"),
+
+                                                 # Paramètres de la fonction standalone
+                                                 numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
+                                                 hr(),
+                                                 actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                                             )
+                                         )
+                                  ),
+                                  # Colonne de Visualisation
+                                  column(9,
+                                         grid_card(
+                                             area = "main",
+                                             h3("2D Projection"),
+                                             plotlyOutput(ns("umap_clustering_plot"), height = "600px")
+                                         )
+                                  )
+                              )
+                          )
+                      )
             )
         )
     )

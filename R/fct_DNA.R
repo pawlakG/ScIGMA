@@ -340,12 +340,12 @@ generate_clonal_labels <- function(ngt_matrix,
 generate_dna_variant_heatmap <- function(obj,
                                          selected_variants_df,
                                          min_prop_cluster = 0.01,
-                                         heatmap_include_all_samples = TRUE){
+                                         heatmap_include_all_samples = TRUE) {
 
     selected_variants <- sub(x = selected_variants_df$variant_id, pattern = "^([^:]+:)|^:", "")
 
     # Get genotype matrix for selected variants
-    gt <- obj$gt.mtx[,selected_variants, drop = FALSE] |> as.matrix()
+    gt <- obj$gt.mtx[, selected_variants, drop = FALSE] |> as.matrix()
     # Get NGT_MASK matrix for selected variants
     msk <- obj$dna.variant.filter.mask.filtered[, selected_variants, drop = FALSE] |> as.matrix() != 0
 
@@ -360,17 +360,17 @@ generate_dna_variant_heatmap <- function(obj,
 
     # Apply NGT_MASK matrix
     # gt_filtered <- gt[common_rows,]
-    gt_filtered <- gt[common_rows,common_cols]
+    gt_filtered <- gt[common_rows, common_cols]
 
     # Set value 3 for filtered genotypes
     gt_filtered[cbind(row(msk)[msk],
                       col(msk)[msk])] <- 3
 
     # Take a subset where no row has values equal to 3 : meaning no missing info
-    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0,]
+    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0, ]
 
     # Take rows with any values equal to 3
-    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0,]
+    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0, ]
     tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
 
 
@@ -387,7 +387,7 @@ generate_dna_variant_heatmap <- function(obj,
 
     ### Reassign too small samples clusters (compared to total samples) to a "small" group
     res_table_clusters <- table(clustered_samples)
-    too_small_clusters <- names(res_table_clusters)[res_table_clusters/nrow(gt) < min_prop_cluster]
+    too_small_clusters <- names(res_table_clusters)[res_table_clusters / nrow(gt) < min_prop_cluster]
     clustered_samples[clustered_samples %in% too_small_clusters] <- "small"
     small_cluster <- clustered_samples[clustered_samples == "small"] |> as.factor()
     nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |> sort() |> as.factor()
@@ -399,47 +399,54 @@ generate_dna_variant_heatmap <- function(obj,
 
     clustered_samples <- fct_infreq(clustered_samples) # Change levels name according to frequency
 
-    if (!is.null(obj$dna_clones_renamed)){
+    if (!is.null(obj$dna_clones_renamed)) {
         clustered_samples <- obj$dna_clones_renamed
     }
     ### Reorder
-    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(clustered_samples),]
+    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(sort(clustered_samples)), ]
+
+    # --- FIX START: Logic for split vector ordering ---
+    # We extract the desired levels from the sorted clustered_samples factor directly
+    # This ensures we respect the numeric or custom order, not alphabetic
+    sorted_clusters <- sort(clustered_samples)
+    desired_levels <- levels(sorted_clusters)
 
     # rbind with samples with missing info if heatmap_include_all_samples is TRUE
-    if (heatmap_include_all_samples){
+    if (heatmap_include_all_samples) {
         tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
                                                               tmp_heamtap_matrix_filtered_withMissing)
         # Set labels / annotations
-        heatmap_split_vector <- c(as.character(clustered_samples),
+        # We construct the vector, then immediately cast to factor with explicit levels
+        heatmap_split_vector <- c(as.character(sorted_clusters),
                                   rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
+
+        heatmap_split_vector <- factor(heatmap_split_vector,
+                                       levels = c(desired_levels, "missing"))
+
     } else {
         tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_noMissing_ordered
-        heatmap_split_vector <- as.character(clustered_samples)
-        # Remove "small" cluster
-        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[heatmap_split_vector != "small",]
-        heatmap_split_vector <- heatmap_split_vector[heatmap_split_vector != "small"]
+
+        # Filter out small clusters first
+        heatmap_split_char <- as.character(sorted_clusters)
+        keep_idx <- heatmap_split_char != "small"
+
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[keep_idx, ]
+        heatmap_split_char <- heatmap_split_char[keep_idx]
+
+        # Create factor with correct levels (excluding "small" if present in levels)
+        final_levels <- desired_levels[desired_levels != "small"]
+        heatmap_split_vector <- factor(heatmap_split_char, levels = final_levels)
     }
-
-
-
-    print("head(clustered_samples)")
-    print(head(clustered_samples))
-
     # plot heatmap
     ## Color palette
-    dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0","1","2"))
+    dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0", "1", "2"))
     ### Legend
     ## Annotation
-    heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples)!="small"]
-    print("head(heatmap_true_levels)")
-    print(head(heatmap_true_levels))
-    annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)],"grey","#333333"),
-                                               nm = c(heatmap_true_levels, "missing","small")))
-    print("heatmap_split_vector")
-    print(heatmap_split_vector)
-
+    heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples) != "small"]
+    annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)], "grey", "#333333"),
+                                               nm = c(heatmap_true_levels, "missing", "small")))
     dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
-                                            col =annotationColor,
+                                            col = annotationColor,
                                             show_annotation_name = FALSE,
                                             show_legend = FALSE)
 
@@ -455,8 +462,9 @@ generate_dna_variant_heatmap <- function(obj,
     ## Heatmap
     #
     heatmap <- Heatmap(tmp_heamtap_matrix_filtered_complete_ordered,
+                       row_order = rownames(tmp_heamtap_matrix_filtered_complete_ordered),
                        column_names_rot = 75,
-                       row_split = heatmap_split_vector,
+                       row_split = heatmap_split_vector, # Now a factor with correct levels
                        show_column_dend = FALSE,
                        column_split = selected_variants,
                        column_title = NULL,
@@ -469,10 +477,11 @@ generate_dna_variant_heatmap <- function(obj,
                        left_annotation = dna_variant_annotation,
                        heatmap_legend_param = list(
                            title = "Genotype",
-                           at = c("0","1","2"),
-                           labels = c("WT","HET","HOM"),
+                           at = c("0", "1", "2"),
+                           labels = c("WT", "HET", "HOM"),
                            grid_height = grid::unit(4, "cm")
                        ))
     return(list("heatmap" = heatmap,
                 "clones" = clustered_samples))
 }
+

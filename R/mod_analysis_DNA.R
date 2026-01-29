@@ -10,44 +10,54 @@
 mod_analysis_DNA_ui <- function(id) {
     ns <- NS(id)
     tagList(
-        accordion(
-            id = ns("acc"),
-            open = FALSE,
-            accordion_panel(
-                "Select DNA variants",
-                DTOutput(ns("variant_selection")),
-                br(),
-                fluidRow(
-                    column(width = 6,
-                           materialSwitch(
-                               inputId = ns("heatmap_include_all_samples"),
-                               label = "Include all samples ?",
-                               value = TRUE,
-                               status = "success"
-                           )
+        navset_card_underline(
+            nav_panel(
+                "Variant selection",
+                accordion(
+                    id = ns("acc"),
+                    open = FALSE,
+                    accordion_panel(
+                        "Select DNA variants",
+                        DTOutput(ns("variant_selection")),
+                        br(),
+                        fluidRow(
+                            actionButton(ns("btn_filtrer"), "Apply",
+                                         class = "btn-primary")
+                        )
                     ),
-                    column(
-                        width = 6,
-                        actionButton(ns("btn_filtrer"), "Apply",
-                                     class = "btn-primary")
-                    )
+                    accordion_panel(
+                        "DNA variant heatmap",
+                        fluidRow(
+                            div(
+                                plotOutput(ns("dna_variant_heatmap"),
+                                           height = "600px", width = "900px"),
+                                align = "center"),
+                            fluidRow(
+                                column(6,
+                                       materialSwitch(
+                                           inputId = ns("heatmap_include_all_samples"),
+                                           label = "Show missings ?",
+                                           value = TRUE,
+                                           status = "success"
+                                       )
+                                ),
+                                column(6,
+                                       actionButton(ns("btn_dna_variant_download"), "Download plot",
+                                                    class = "btn-primary")
+                                )
+                            )
+                        )
+                    ),
+                    accordion_panel(
+                        "Rename clusters",
+                        uiOutput(ns("rename_cluster_ui")
+                        )
+                    ),
                 )
-            ),
-
-            accordion_panel(
-                "Rename clusters",
-                uiOutput(ns("rename_cluster_ui")
-                )
-            ),
-            br(),
-            fluidRow(
-                div(
-                    plotOutput(ns("heatmap"),
-                               height = "600px", width = "700px"),
-                    align = "center")
             )
         )
     )
+
 }
 
 #' analysis_right_DNA Server Functions
@@ -64,20 +74,25 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         # Afficher la table de sélection
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            datatable(ScIGMA_data$variant.annotation|> arrange(desc(cell_proportion), desc(impact)),
+            print("ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact)")
+            print(ScIGMA_data$variant.annotation)
+            datatable(ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact)),
                       selection = 'multiple',
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
         # Récupérer les lignes sélectionnées seulement quand l'utilisateur clique
         observeEvent({input$btn_filtrer
+            input$heatmap_include_all_samples
             watch("dna_clones_renamed")}, {
                 print("Rendering DNA heatmap")
                 sel <- input$variant_selection_rows_selected
                 heatmap_include_all_samples <- input$heatmap_include_all_samples
                 if (length(sel) > 0) {
+                    print(ScIGMA_data$variant.annotation)
                     # récupérer les données correspondantes
-                    ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[sel, ]
+                    # ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[sel, ]
+                    ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[ScIGMA_data$variant.annotation$row_id %in% sel, ]
                     tmp_selected_variant <- sub(x = ScIGMA_data$variants.filtered$variant_id, pattern = "^([^:]+:)|^:", "")
                     # make heatmap
                     ht_res <- generate_dna_variant_heatmap(obj = ScIGMA_data,
@@ -90,12 +105,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                         # Set dna.clones
                         ScIGMA_data$dna.clones <- ht_res$clones
                     }
-                    print("ScIGMA_data$dna.clones")
-                    print(levels(ScIGMA_data$dna.clones))
                     # Trigger event
                     trigger("dnaVariant_selected")
                     # render heatmap
-                    output$heatmap <- renderPlot({
+                    output$dna_variant_heatmap <- renderPlot({
                         ht
                     })
                 }
@@ -141,8 +154,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                          # update dna.clones labels
                          oldName <- input$rename_cluster_ui_oldName
                          newName <- input$rename_cluster_ui_newName
-                         levels(ScIGMA_data$dna.clones)[levels(ScIGMA_data$dna.clones) == oldName] <- newName
-
+                         levels <- oldName
+                         names(levels) <- newName
+                         # ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, newName = oldName)
+                         ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, !!!levels)
                          ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
                          trigger("dna_clones_renamed")
                      })

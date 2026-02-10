@@ -80,7 +80,7 @@ mod_analysis_Protein_ui <- function(id) {
                                   column(3,
                                          tagList(
                                              grid_card(
-                                                 area = "sidebar",
+                                                 area = "umap_accordion_first",
                                                  h3("UMAP parameters"),
 
                                                  # Paramètres de la fonction standalone
@@ -94,9 +94,14 @@ mod_analysis_Protein_ui <- function(id) {
                                                      inputId = ns("run_umap_btn"),
                                                      label = "Run UMAP",
                                                      style = "unite",
-                                                     color = "royal"
+                                                     color = "primary"
                                                  ),
-                                                 helpText("The calculation may take a few seconds.")
+                                                 helpText("The calculation may take a few seconds."),
+                                                 hr(),
+                                                 downloadButton(
+                                                     outputId = ns("protein_umap_download_bttn"),
+                                                     label = "Download UMAP in high resolution."
+                                                 )
                                              )
                                          )
                                   ),
@@ -157,6 +162,7 @@ mod_analysis_Protein_ui <- function(id) {
 #' analysis_right_Protein Server Functions
 #'
 #' @noRd
+#' @importFrom ggprism theme_prism
 #' @importFrom plotly renderPlotly plot_ly layout event_data toWebGL config
 #' @importFrom shiny moduleServer reactiveValues observe req updateSelectInput updateTextInput renderUI renderText actionLink div observeEvent
 mod_analysis_Protein_server <- function(id, ScIGMA_data) {
@@ -427,6 +433,19 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         observeEvent({watch("umap_computed")},{
             umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                 as.data.frame()
+
+            print(head(umap_cluster))
+
+            ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
+                ggplot(aes(x=umap_1, y=umap_2)) +
+                geom_point(size=2) +
+                xlab('UMAP 1') +
+                ylab('UMAP 2') +
+                theme_prism()
+
+            print("ScIGMA_data$umaps$umap_protein_general")
+            print(ScIGMA_data$umaps$umap_protein_general)
+
             # 2. Rendering
             output$umap_plot_build <- renderPlotly({plot_ly(data = umap_cluster,
                                                             x = ~umap_1,
@@ -507,61 +526,120 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                              } else {
                                  ScIGMA_data$protein.mtx
                              }
-                             ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data, protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data)])
+                             ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data,
+                                                                          protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
 
                              output$markers_umap_panel_ui <-  renderUI({
-                                 tagList(
-                                     fluidRow(
+                                 fluidRow(
+                                     tagList(
                                          column(3,
-                                                virtualSelectInput(
-                                                    inputId = ns("protein_umap_markers"),
-                                                    label = "Markers :",
-                                                    choices = colnames(protein_markers_df),
-                                                    multiple = TRUE,
-                                                    width = "100%",
-                                                    dropboxWrapper = "body",
-                                                    selected = "None"
-                                                ),
-                                                actionBttn(
-                                                    inputId = ns("protein_umap_markers_bttn"),
-                                                    label = "Plot markers projections",
-                                                    style = "unite",
-                                                    color = "primary"
+                                                grid_card(
+                                                    area = "umap_marker_select",
+                                                    virtualSelectInput(
+                                                        inputId = ns("protein_umap_markers"),
+                                                        label = "Markers :",
+                                                        choices = colnames(protein_markers_df),
+                                                        multiple = TRUE,
+                                                        width = "100%",
+                                                        dropboxWrapper = "body",
+                                                        selected = "None"
+                                                    ),
+                                                    hr(),
+                                                    actionBttn(
+                                                        inputId = ns("protein_umap_markers_bttn"),
+                                                        label = "Plot markers projections",
+                                                        style = "unite",
+                                                        color = "primary"
+                                                    ),
+                                                    hr(),
+                                                    downloadButton(
+                                                        outputId = ns("protein_umap_markers_download_bttn"),
+                                                        label = "Download UMAPs"
+                                                    )
+
                                                 )
                                          ),
                                          column(9,
-                                                plotlyOutput(ns("umap_plot_markers"), height = "600px"))
+                                                plotOutput(ns("umap_plot_markers"), height = "600px"))
                                      )
                                  )
                              })
                          }
 
-                     }, ignoreInit = TRUE)
+                     })
 
 
         observeEvent(input$protein_umap_markers_bttn,{
+
+            # >> handle inputs _
+
+            req(input$protein_umap_markers)
             umap_marker_choice <- input$protein_umap_markers
 
-            if (umap_marker_choice != "None"){
-                # umap_marker_col <- umap_marker_choice
-                plot_df$color <- as.vector(protein_markers_df[rownames(plot_df), umap_marker_choice])
+            message("umap_marker_choice")
+            print(umap_marker_choice)
+
+            # >> Handle markers selection _
+
+            if (is.null(umap_marker_choice)){
+                umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                    as.data.frame()
+                umap_df$ptn_expression <- 0
+                umap_df$marker <- "No marker selected"
+            } else if (length(umap_marker_choice) == 1) {
+                umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                    as.data.frame()
+                umap_df$ptn_expression <- ScIGMA_data$seurat_object@meta.data[,umap_marker_choice]
+                umap_df$marker <- umap_marker_choice
             } else {
-                plot_df$color <- I("grey")
+                umap_df <- cbind(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings,
+                                 ScIGMA_data$seurat_object@meta.data[,umap_marker_choice]) |>
+                    as.data.frame()
+                umap_df <- umap_df |>
+                    pivot_longer(-c(umap_1, umap_2),
+                                 values_to = "ptn_expression",
+                                 names_to = "marker")
             }
 
-            # 2. Rendering
-            output$umap_plot_markers <- renderPlotly({plot_ly(data = plot_df,
-                                                              x = ~umap_1,
-                                                              y = ~umap_2,
-                                                              type = 'scatter',
-                                                              mode = 'markers',
-                                                              color = ~color,
-                                                              marker = list(size = 6,  opacity = 1)) %>%
-                    layout(xaxis = list(title = "UMAP 1"),
-                           yaxis = list(title = "UMAP 2")) %>%
-                    toWebGL() # Toujours optimiser pour le single-cell
-            })
+            ScIGMA_data$umaps$umap_protein_markers <- umap_df |>
+                ggplot(aes(x=umap_1, y=umap_2, color=ptn_expression)) +
+                geom_point(size = 1) +
+                facet_wrap(~marker) +
+                scale_color_viridis_c("inferno") +
+                xlab("UMAP 1") +
+                ylab("UMAP 2") +
+                ggprism::theme_prism()
+
+            output$umap_plot_markers <- renderPlot(ScIGMA_data$umaps$umap_protein_markers )
         },ignoreInit = TRUE)
+
+        # [ NODE_ACCESS : Download primary UMAP ]
+        # ----------------------------------------------------- _
+        output$protein_umap_download_bttn <- downloadHandler(
+            filename = function() {
+                "protein_umap.png"
+            },
+            content = function(file) {
+                ggsave(file, ScIGMA_data$umaps$umap_protein_general,
+                       units = "in",
+                       width = 12, height = 10, dpi = 300,
+                       bg = "transparent")
+            }
+        )
+
+        # [ NODE_ACCESS : Download markers UMAPs ]
+        # ----------------------------------------------------- _
+        output$protein_umap_markers_download_bttn <- downloadHandler(
+            filename = function() {
+                "protein_umap_markers.png"
+            },
+            content = function(file) {
+                ggsave(file, ScIGMA_data$umaps$umap_protein_markers ,
+                       units = "in",
+                       width = 12, height = 10, dpi = 300,
+                       bg = "transparent")
+            }
+        )
 
     })
 }

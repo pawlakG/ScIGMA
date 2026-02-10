@@ -19,6 +19,7 @@ Imports:
     forcats,
     future,
     gargoyle,
+    ggprism,
     golem,
     gridlayout,
     HDF5Array,

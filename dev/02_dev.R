@@ -32,6 +32,7 @@ golem::add_module(name = "analysis_right_multiOmics", with_test = TRUE) # Name o
 
 ## Add packages ----
 usethis::use_package("bslib")
+usethis::use_package("ggprism")
 usethis::use_package("stringr")
 usethis::use_package("future")
 usethis::use_package("promises")

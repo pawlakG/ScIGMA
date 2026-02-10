@@ -84,6 +84,7 @@ ScIGMA_object <- R6::R6Class(
         #' @param seurat_object description
         #' @param filetype description
         #' @param dna_clones_renamed description
+        #' @param umaps list of generated umaps
         initialize = function(meta.data = list(),
                               cell.ids = character(),
                               cell.ids.filtered = character(),
@@ -132,7 +133,8 @@ ScIGMA_object <- R6::R6Class(
                               protein.umap = NULL,
                               seurat_object = NULL,
                               filetype = NULL,
-                              dna_clones_renamed = NULL) {
+                              dna_clones_renamed = NULL,
+                              umaps = list()) {
             # simple validator for HDF5-backed matrices
             .chk <- function(x, nm) {
                 if (!is.null(x) && !inherits(x, "DelayedArray")) {
@@ -199,7 +201,8 @@ ScIGMA_object <- R6::R6Class(
                 protein.umap = protein.umap,
                 seurat_object = seurat_object,
                 filetype = filetype,
-                dna_clones_renamed = dna_clones_renamed
+                dna_clones_renamed = dna_clones_renamed,
+                umaps = umaps
             )
         },
 
@@ -555,6 +558,12 @@ ScIGMA_object <- R6::R6Class(
                 return(self$data$dna_clones_renamed)
             }
             self$data$dna_clones_renamed <- value
+        },
+        umaps = function(value) {
+            if (missing(value)) {
+                return(self$data$umaps)
+            }
+            self$data$umaps <- value
         }
 
     )

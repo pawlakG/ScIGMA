@@ -84,6 +84,26 @@ obj$seurat_object <- RunUMAP(obj$seurat_object,
 
 
 
+obj$seurat_object@meta.data <- cbind(obj$seurat_object@meta.data,
+                                             obj$protein.mtx.filtered.normalized[rownames(obj$seurat_object@meta.data),])
+
+
+umap_df <- cbind(obj$seurat_object@reductions$umap@cell.embeddings,
+                 obj$seurat_object@meta.data[,colnames(obj$protein.mtx.filtered.normalized)])
+
+umap_df_long <- umap_df |> pivot_longer(-c(umap_1, umap_2), values_to = "ptn_expression", names_to = "marker")
+
+umap_df_long |> ggplot(aes(x=umap_1, y=umap_2, color=ptn_expression)) +
+    geom_point(size = 1) +
+    facet_wrap(~marker) +
+    scale_color_viridis_c("inferno") +
+    ggprism::theme_prism() +
+    xlab("UMAP 1") +
+    ylab("UMAP 2")
+
+
+
+
 
 obj_marker_long <- obj$seurat_object@assays$RNA$data |>
     t() |>

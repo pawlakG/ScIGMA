@@ -74,7 +74,7 @@ mod_analysis_Protein_ui <- function(id) {
             nav_panel("UMAP",
                       accordion(
                           accordion_panel(
-                              "Markers expression",
+                              "Built UMAP model",
                               fluidRow(
                                   # Colonne de Contrôle
                                   column(3,
@@ -88,15 +88,16 @@ mod_analysis_Protein_ui <- function(id) {
                                                  numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
 
                                                  hr(),
-                                                 actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
+                                                 # actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
+
+                                                 actionBttn(
+                                                     inputId = ns("run_umap_btn"),
+                                                     label = "Run UMAP",
+                                                     style = "unite",
+                                                     color = "royal"
+                                                 ),
                                                  helpText("The calculation may take a few seconds.")
-                                             ),
-                                             br(),
-                                             h3("UMAP projection"),
-                                             selectInput(ns("protein_umap_markers"),
-                                                         label = "Markers",
-                                                         choices = "None",
-                                                         selected = "None")
+                                             )
                                          )
                                   ),
 
@@ -107,13 +108,17 @@ mod_analysis_Protein_ui <- function(id) {
                                              h3("2D Projection"),
 
                                              # shinycssloaders::withSpinner(
-                                             plotlyOutput(ns("umap_plot"), height = "600px")
+                                             plotlyOutput(ns("umap_plot_build"), height = "600px")
                                              # type = 6, # Un style de loader (cercle qui tourne)
                                              # color = "#007bff"
                                              # )
                                          )
                                   )
                               )
+                          ),
+                          accordion_panel(
+                              "Markers expression",
+                              uiOutput(ns("markers_umap_panel_ui"))
                           ),
                           accordion_panel(
                               "Unsupervised clustering",
@@ -391,6 +396,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # }
 
             # Compute UMAP
+
+
             ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
                                                  dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
                                                  min.dist = min_dist,
@@ -414,45 +421,25 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         }) %>%
             bindEvent(input$run_umap_btn) # Force l'exécution UNIQUEMENT sur clic
 
-        observeEvent({watch("umap_computed")
-            input$protein_umap_markers},{
-                umap_marker_choice <- input$protein_umap_markers
-                # F. Création du Plotly
-                # On fusionne avec les métadonnées pour la coloration (facultatif)
-                # plot_df <- as.data.frame(ScIGMA_data$protein.umap)
-                plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
-                    as.data.frame()
 
-                protein_markers_df <- if(!is.null(ScIGMA_data$protein.mtx.filtered.normalized)){
-                    ScIGMA_data$protein.mtx.filtered.normalized
-                } else {
-                    ScIGMA_data$protein.mtx
-                }
-                # Exemple : on ajoute la couleur d'un marqueur si sélectionné ailleurs, sinon gris
-                plot_df <- cbind(plot_df, protein_markers_df[rownames(plot_df),])
-                print("plot_df")
-                print(head(plot_df))
 
-                if (umap_marker_choice != "None"){
-                    # umap_marker_col <- umap_marker_choice
-                    plot_df$color <- as.vector(protein_markers_df[rownames(plot_df), umap_marker_choice])
-                } else {
-                    plot_df$color <- I("grey")
-                }
+        # render UMAP without clustering
+        observeEvent({watch("umap_computed")},{
+            umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                as.data.frame()
+            # 2. Rendering
+            output$umap_plot_build <- renderPlotly({plot_ly(data = umap_cluster,
+                                                            x = ~umap_1,
+                                                            y = ~umap_2,
+                                                            type = 'scatter',
+                                                            mode = 'markers',
+                                                            marker = list(size = 6,  opacity = 1)) %>%
+                    layout(xaxis = list(title = "UMAP 1"),
+                           yaxis = list(title = "UMAP 2")) %>%
+                    toWebGL() # Toujours optimiser pour le single-cell
+            })
+        },ignoreInit = TRUE)
 
-                # 2. Rendering
-                output$umap_plot <- renderPlotly({plot_ly(data = plot_df,
-                                                          x = ~umap_1,
-                                                          y = ~umap_2,
-                                                          type = 'scatter',
-                                                          mode = 'markers',
-                                                          color = ~color,
-                                                          marker = list(size = 6,  opacity = 1)) %>%
-                        layout(xaxis = list(title = "UMAP 1"),
-                               yaxis = list(title = "UMAP 2")) %>%
-                        toWebGL() # Toujours optimiser pour le single-cell
-                })
-            },ignoreInit = TRUE)
 
 
         # Render Barplot for all proteins
@@ -496,6 +483,86 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         toWebGL() # Toujours optimiser pour le single-cell
                 })
             },ignoreInit = TRUE)
+
+
+
+        observeEvent(watch("umap_computed"),
+                     {
+                         req(ScIGMA_data$seurat_object)
+
+                         if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                             output$markers_umap_panel_ui <-  renderUI({
+                                 tagList(
+                                     fluidRow(
+                                         h2("Please compute UMAP first")
+                                     )
+                                 )
+                             })
+                         } else {
+                             # >> Add protein marker information to seurat object _
+                             plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                                 as.data.frame()
+                             protein_markers_df <- if(!is.null(ScIGMA_data$protein.mtx.filtered.normalized)){
+                                 ScIGMA_data$protein.mtx.filtered.normalized
+                             } else {
+                                 ScIGMA_data$protein.mtx
+                             }
+                             ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data, protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data)])
+
+                             output$markers_umap_panel_ui <-  renderUI({
+                                 tagList(
+                                     fluidRow(
+                                         column(3,
+                                                virtualSelectInput(
+                                                    inputId = ns("protein_umap_markers"),
+                                                    label = "Markers :",
+                                                    choices = colnames(protein_markers_df),
+                                                    multiple = TRUE,
+                                                    width = "100%",
+                                                    dropboxWrapper = "body",
+                                                    selected = "None"
+                                                ),
+                                                actionBttn(
+                                                    inputId = ns("protein_umap_markers_bttn"),
+                                                    label = "Plot markers projections",
+                                                    style = "unite",
+                                                    color = "primary"
+                                                )
+                                         ),
+                                         column(9,
+                                                plotlyOutput(ns("umap_plot_markers"), height = "600px"))
+                                     )
+                                 )
+                             })
+                         }
+
+                     }, ignoreInit = TRUE)
+
+
+        observeEvent(input$protein_umap_markers_bttn,{
+            umap_marker_choice <- input$protein_umap_markers
+
+            if (umap_marker_choice != "None"){
+                # umap_marker_col <- umap_marker_choice
+                plot_df$color <- as.vector(protein_markers_df[rownames(plot_df), umap_marker_choice])
+            } else {
+                plot_df$color <- I("grey")
+            }
+
+            # 2. Rendering
+            output$umap_plot_markers <- renderPlotly({plot_ly(data = plot_df,
+                                                              x = ~umap_1,
+                                                              y = ~umap_2,
+                                                              type = 'scatter',
+                                                              mode = 'markers',
+                                                              color = ~color,
+                                                              marker = list(size = 6,  opacity = 1)) %>%
+                    layout(xaxis = list(title = "UMAP 1"),
+                           yaxis = list(title = "UMAP 2")) %>%
+                    toWebGL() # Toujours optimiser pour le single-cell
+            })
+        },ignoreInit = TRUE)
+
     })
 }
 

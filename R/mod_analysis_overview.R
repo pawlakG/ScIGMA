@@ -37,8 +37,8 @@ mod_analysis_overview_ui <- function(id) {
                    actionBttn(
                        inputId = ns("file_process"),
                        label = "Load file",
-                       color = "primary",
-                       style = "stretch",
+                       color = "success",
+                       style = "unite",
                        icon = icon("magnifying-glass-chart"),
                        block = TRUE
                    )
@@ -110,6 +110,14 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 stop("File or folder path doesn't exists\n")
             }
             ScIGMA_data$filetype <- fileType
+
+
+            # ScIGMA_data <- normalizeProtein(ScIGMA_data)
+            if (ScIGMA_data$filetype == "DNA+protein"){
+                message("Preprocessing protein data ...")
+                ScIGMA_data <- protein_run_pca(ScIGMA_data)
+            }
+
             remove_modal_spinner()
             message(whereami::whereami())
             trigger("dataLoaded")
@@ -202,7 +210,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                     ),
                     fluidRow(
                         actionBttn(
-                            inputId = ns("overview_process"),
+                            inputId = ns("dna_variant_filtering"),
                             label = "Filter DNA variants",
                             color = "primary",
                             style = "stretch",
@@ -221,7 +229,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
         # --------------------------------------------------------------- #
         # Filter DNA variant
-        observeEvent(input$overview_process,{
+        observeEvent(input$dna_variant_filtering,{
             filePath <- input$file_h5file$datapath
             overview_preprocess_minCellPt <- input$overview_preprocess_minCellPt
             overview_preprocess_minMutCellPt <- input$overview_preprocess_minMutCellPt
@@ -284,31 +292,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 })
                 ScIGMA_data$variant.annotation <- ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact))
                 ScIGMA_data$variant.annotation$row_id <- 1:nrow(ScIGMA_data$variant.annotation)
-
-                # ScIGMA_data <- normalizeProtein(ScIGMA_data)
-                if (input$file_fileType == "DNA+protein"){
-                    message("Preprocessing protein data ...")
-                    ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
-
-                    ScIGMA_data$seurat_object <- CreateSeuratObject(counts = t(ScIGMA_data$protein.mtx.filtered.normalized) ,
-                                                                    project = "ScIGMA_data",
-                                                                    min.cells = 3,
-                                                                    min.features = floor(sqrt(ncol(ScIGMA_data$protein.mtx.filtered.normalized))))
-
-                    ScIGMA_data$seurat_object@assays$RNA$data <- t(ScIGMA_data$protein.mtx.filtered.normalized)
-
-                    ScIGMA_data$seurat_object <- FindVariableFeatures(ScIGMA_data$seurat_object,
-                                                             selection.method = "vst",
-                                                             nfeatures = nrow(ScIGMA_data$seurat_object))
-
-                    ScIGMA_data$seurat_object <- ScaleData(ScIGMA_data$seurat_object, features = rownames(ScIGMA_data$seurat_object))
-                    ScIGMA_data$seurat_object <- RunPCA(ScIGMA_data$seurat_object,
-                                               features = VariableFeatures(object = ScIGMA_data$seurat_object),
-                                               npcs = nrow(ScIGMA_data$seurat_object)-2)
-
-                    ScIGMA_data$seurat_object <- FindNeighbors(ScIGMA_data$seurat_object, dims = 1:(nrow(ScIGMA_data$seurat_object)-2))
-                }
-
 
                 remove_modal_spinner()
                 trigger("dnaVariant_filtered")

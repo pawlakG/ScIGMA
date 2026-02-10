@@ -73,46 +73,15 @@ obj$variant.annotation$cell_proportion <- apply(as.matrix(obj$vaf.mtx.filtered)[
 })
 
 
-
-obj$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(obj$protein.mtx), jitter = 0.5)
-
-# Initiate seurat object
-library(Seurat)
-obj_seuratObject <- CreateSeuratObject(counts = t(obj$protein.mtx.filtered.normalized) ,
-                   project = "ScIGMA_data",
-                   min.cells = 3,
-                   min.features = floor(sqrt(ncol(obj$protein.mtx.filtered.normalized))))
-
-# obj_seuratObject <- CreateSeuratObject(counts = as.matrix(t(obj$protein.mtx.filtered)),
-#                                        project = "ScIGMA_data",
-#                                        min.cells = 3,
-#                                        min.features = floor(sqrt(ncol(obj$protein.mtx.filtered))))
+obj <- protein_run_pca(obj)
 
 
-# obj_seuratObject <- NormalizeData(obj_seuratObject, normalization.method = "CLR")
-obj_seuratObject@assays$RNA$data <- normalize_linear_regression(as.matrix(t(obj$protein.mtx.filtered)), jitter = 0.1)
+obj$seurat_object <- RunUMAP(obj$seurat_object,
+                                     dims = 1:(nrow(obj$seurat_object)-2),
+                                     min.dist = 0.15,
+                                     n.neighbors = 30,
+                                     future.seed=TRUE)
 
-obj_seuratObject <- FindVariableFeatures(obj_seuratObject,
-                                         selection.method = "vst",
-                                         nfeatures = nrow(obj_seuratObject))
-
-obj_seuratObject <- ScaleData(obj_seuratObject, features = rownames(obj_seuratObject))
-obj_seuratObject <- RunPCA(obj_seuratObject,
-                           features = VariableFeatures(object = obj_seuratObject),
-                           npcs = nrow(obj_seuratObject)-2)
-
-obj_seuratObject <- FindNeighbors(obj_seuratObject, dims = 1:(nrow(obj_seuratObject)-2))
-obj_seuratObject <- FindClusters(obj_seuratObject, resolution = 0.15, future.rng.onMisuse = "ignore" )
-
-obj_seuratObject <- RunUMAP(obj_seuratObject,
-                            dims = 1:(nrow(obj_seuratObject)-2),
-                            min.dist = 0.2,
-                            n.neighbors = 30)
-obj$seurat_object <- obj_seuratObject
-
-UMAPPlot(obj_seuratObject)
-
-obj_seuratObject_markers <- FindAllMarkers(obj_seuratObject, only.pos = TRUE)
 
 
 

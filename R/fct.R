@@ -65,3 +65,30 @@ update_cluster_labels = function(new_labels) {
         message(sprintf("Updated %d cluster labels.", sum(valid_updates)))
     }
 }
+
+
+protein_run_pca <- function(ScIGMA_data){
+
+    ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
+
+    ScIGMA_data$seurat_object <- CreateSeuratObject(counts = t(ScIGMA_data$protein.mtx.filtered.normalized) ,
+                                                    project = "ScIGMA_data",
+                                                    min.cells = 3,
+                                                    min.features = floor(sqrt(ncol(ScIGMA_data$protein.mtx.filtered.normalized))))
+
+    ScIGMA_data$seurat_object@assays$RNA$data <- t(ScIGMA_data$protein.mtx.filtered.normalized)
+
+    ScIGMA_data$seurat_object <- FindVariableFeatures(ScIGMA_data$seurat_object,
+                                                      selection.method = "vst",
+                                                      nfeatures = nrow(ScIGMA_data$seurat_object))
+
+    ScIGMA_data$seurat_object <- ScaleData(ScIGMA_data$seurat_object, features = rownames(ScIGMA_data$seurat_object))
+    ScIGMA_data$seurat_object <- RunPCA(ScIGMA_data$seurat_object,
+                                        features = VariableFeatures(object = ScIGMA_data$seurat_object),
+                                        npcs = nrow(ScIGMA_data$seurat_object)-2)
+
+    ScIGMA_data$seurat_object <- FindNeighbors(ScIGMA_data$seurat_object, dims = 1:(nrow(ScIGMA_data$seurat_object)-2))
+    return(ScIGMA_data)
+}
+
+

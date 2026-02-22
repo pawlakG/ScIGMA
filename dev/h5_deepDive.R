@@ -40,7 +40,7 @@ file.exists("../inputs/bPodvinDatasets/")
 # --------------------------------------------------------------- #
 # More than one  h5
 
-obj <- loadH5_dir_HDF5("../inputs/bPodvinDatasets/all/", feature_policy = "intersect", omic.type = )
+# obj <- loadH5_dir_HDF5("../inputs/bPodvinDatasets/all/", feature_policy = "intersect", omic.type = )
 # obj$realize_all(dir = "store", file = "ScIGMA_merged.h5", chunkdim = c(1024,512), level = 6)
 
 # --------------------------------------------------------------- #
@@ -84,61 +84,114 @@ obj$seurat_object <- RunUMAP(obj$seurat_object,
 
 
 
-obj$seurat_object@meta.data <- cbind(obj$seurat_object@meta.data,
-                                             obj$protein.mtx.filtered.normalized[rownames(obj$seurat_object@meta.data),])
-
-
-umap_df <- cbind(obj$seurat_object@reductions$umap@cell.embeddings,
-                 obj$seurat_object@meta.data[,colnames(obj$protein.mtx.filtered.normalized)])
-
-umap_df_long <- umap_df |> pivot_longer(-c(umap_1, umap_2), values_to = "ptn_expression", names_to = "marker")
-
-umap_df_long |> ggplot(aes(x=umap_1, y=umap_2, color=ptn_expression)) +
-    geom_point(size = 1) +
-    facet_wrap(~marker) +
-    scale_color_viridis_c("inferno") +
-    ggprism::theme_prism() +
-    xlab("UMAP 1") +
-    ylab("UMAP 2")
+# [ NODE_ACCESS : TRY BITSC2 ]
+# ----------------------------------------------------- _
 
 
 
+library(hdf5r)
+
+library(rhdf5)
+
+# prepare_bitsc2_input: Extracts and transforms H5 layers for BiTSC2
+prepare_bitsc2_input <- function(file_path) {
+    # Define internal paths within the Tapestri H5 structure
+    assay_path <- "/assays/dna_variants/"
+    layer_path <- paste0(assay_path, "layers/")
+
+    # Read AF (Allele Frequency) and DP (Total Depth)
+    # rhdf5 reads dimensions in the order they are stored in H5
+    af_matrix <- rhdf5::h5read(file_path, paste0(layer_path, "AF"))
+    af_matrix_init <- af_matrix
+    af_matrix <- af_matrix/100
+    dp_matrix <- rhdf5::h5read(file_path, paste0(layer_path, "DP"))
+
+    # Retrieve metadata for identification
+    variant_ids <- rhdf5::h5read(file_path, paste0(assay_path, "ca/id"))
+    cell_barcodes <- rhdf5::h5read(file_path, paste0(assay_path, "ra/barcode"))
+
+    # Close all open H5 handles to prevent file locking
+    rhdf5::h5closeAll()
+
+    # Reconstruct alternate allele counts: A = AF * DP
+    # We use round() to ensure integer values for the binomial likelihood
+    alt_counts <- round(af_matrix * dp_matrix)
+
+    # BiTSC2 requires the matrix shape: variants (rows) x cells (columns)
+    # Note: verify dimensions as rhdf5 might transpose depending on H5 layout
+    if (nrow(alt_counts) != length(variant_ids)) {
+        alt_counts <- t(alt_counts)
+        dp_matrix <- t(dp_matrix)
+    }
+
+    rownames(alt_counts) <- variant_ids
+    colnames(alt_counts) <- cell_barcodes
+    rownames(dp_matrix) <- variant_ids
+    colnames(dp_matrix) <- cell_barcodes
+
+    return(list(
+        af_matrix_init = af_matrix_init,
+        alternate_counts = alt_counts,
+        total_depth = dp_matrix
+    ))
+}
 
 
-obj_marker_long <- obj$seurat_object@assays$RNA$data |>
-    t() |>
-    as.data.frame() |>
-    rownames_to_column("barcode") |>
-    pivot_longer(-barcode, names_to = "marker", values_to = "marker_expression")
-obj_marker_long$seurat_cluster <- obj$seurat_object$seurat_clusters[obj_marker_long$barcode]
+library(rhdf5)
 
-obj_marker_long |> group_by(marker, seurat_cluster) |> summarize(mean_expression = mean(marker_expression)) |> ggplot() +
-    geom_bar( aes(x=marker, y=mean_expression), stat="identity",alpha=0.7) + facet_grid(.~seurat_cluster)
+# extract_clean_bitsc2_data: Filters out low-quality genotypes before BiTSC2
+extract_clean_bitsc2_data <- function(file_path, gq_threshold = 30) {
+    # Load layers using rhdf5
+    assay_path <- "/assays/dna_variants/"
+    layer_path <- paste0(assay_path, "layers/")
+    af_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/AF")
+    af_matrix <- af_matrix/100
+    dp_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/DP")
+    gq_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/GQ")
 
-obj_marker_long |> ggplot() +
-    geom_boxplot(aes(x=marker, y=marker_expression),alpha=0.7) +
-    facet_grid(.~seurat_cluster)
+    # Retrieve metadata for identification
+    variant_ids <- rhdf5::h5read(file_path, paste0(assay_path, "ca/id"))
+    cell_barcodes <- rhdf5::h5read(file_path, paste0(assay_path, "ra/barcode"))
 
-obj_marker_long |> ggplot(aes(x=marker, y=marker_expression)) +
-    ggbeeswarm::geom_beeswarm() +
-    facet_grid(.~seurat_cluster)
+    # Close all open H5 handles to prevent file locking
+    rhdf5::h5closeAll()
 
+    # Reconstruct alternate allele counts: A = AF * DP
+    # We use round() to ensure integer values for the binomial likelihood
+    alt_counts <- round(af_matrix * dp_matrix)
 
+    # BiTSC2 requires the matrix shape: variants (rows) x cells (columns)
+    # Note: verify dimensions as rhdf5 might transpose depending on H5 layout
+    if (nrow(alt_counts) != length(variant_ids)) {
+        alt_counts <- t(alt_counts)
+        dp_matrix <- t(dp_matrix)
+    }
 
-umap_protein <- run_umap_protein(expression_matrix = obj$protein.mtx.filtered.normalized, n_neighbors = 30, min_dist = 0.1)
-plot(umap_protein)
+    rownames(alt_counts) <- variant_ids
+    colnames(alt_counts) <- cell_barcodes
+    rownames(dp_matrix) <- variant_ids
+    colnames(dp_matrix) <- cell_barcodes
 
+    # Identify low quality calls (GQ < threshold)
+    # These should be treated as 'Missing' (NA) rather than Wild Type (0)
+    low_quality_mask <- gq_matrix < gq_threshold
 
-plot(obj$protein.mtx.filtered.normalized [,"CD19"],
-     obj$protein.mtx.filtered.normalized [,"CD45"])
+    # Apply mask: setting AF to NA for low quality entries
+    # This forces BiTSC2 to rely on the clonal structure (imputation)
+    af_matrix[low_quality_mask] <- NA
 
-plan(sequential)
-no_parral_norm <- bench::mark({
-    NormalizeData(obj_seuratObject, normalization.method = "CLR")
-})
+    # Final count reconstruction
+    # A = round(AF * DP)
+    alt_counts <- round(af_matrix * dp_matrix)
 
-avail_cores <- future::availableCores() - 2
-plan(multisession, workers = avail_cores)
-parral_norm <- bench::mark({
-    NormalizeData(obj_seuratObject, normalization.method = "CLR")
-})
+    rhdf5::h5closeAll()
+
+    return(list(
+        A = t(alt_counts),
+        D = t(dp_matrix)
+    ))
+}
+
+test <- extract_clean_bitsc2_data(directory)
+
+saveRDS(test, "../../extract_clean_bitsc2_data.rds")

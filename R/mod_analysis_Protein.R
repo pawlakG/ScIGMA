@@ -1,8 +1,10 @@
 #' analysis_right_Protein UI Function
 #'
 #' @noRd
-#' @importFrom shiny NS tagList navset_card_underline nav_panel accordion accordion_panel fluidRow column grid_card h3 h4 hr selectInput checkboxInput actionButton uiOutput textInput verbatimTextOutput
+#' @importFrom bslib accordion accordion_panel nav_panel navset_card_underline
 #' @importFrom plotly plotlyOutput
+#' @importFrom shiny NS actionButton checkboxInput column fluidRow h3 h4 hr
+#' @importFrom shiny selectInput tagList textInput uiOutput verbatimTextOutput
 mod_analysis_Protein_ui <- function(id) {
     ns <- NS(id)
     tagList(

@@ -75,6 +75,11 @@ app_ui <- function(request) {
                         )
                     )
                 )
+            ),
+            nav_panel(
+                title = HTML("Download data"),
+                value = "welcome_tab",
+                mod_download_panel_ui("download_panel_1")
             )
         )
     )

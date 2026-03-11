@@ -77,26 +77,26 @@ app_server <- function(input, output, session) {
         }
     })
 
-    # --------------------------------------------------------------- #
-    # Analysis
-    # ---------------------------- #
-    # Overview
+    # [ NODE_ACCESS : Analysis ]
+    # ----------------------------------------------------- _
+    # >> Overview _
     mod_analysis_overview_server("analysis_overview_1", ScIGMA_data)
 
-    # ---------------------------- #
-    # Analysis right up
+    # >> DNA _
     mod_analysis_DNA_server("analysis_DNA_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # Protein
+    # >> Protein _
     mod_analysis_Protein_server("analysis_Protein_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # CNV
+    # >> CNV _
     mod_analysis_CNV_server("analysis_CNV_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # MultiOmics
+    # >> MultiOmics _
     mod_analysis_multiOmics_server("analysis_multiOmics_1", ScIGMA_data)
+
+    # [ NODE_ACCESS : DOWWLOAD ]
+    # ----------------------------------------------------- _
+    # >> Download data _
+    mod_download_panel_server("download_panel_1", ScIGMA_data)
 
 }

@@ -5,8 +5,8 @@ t0 <- Sys.time()
 
 # 1. Génération de matrices avec données massives manquantes (Dropout)
 n_loci <- 5L # Diminué pour une validation claire de la topologie
-n_cells <- 6000L
-n_regions <- 4L
+n_cells <- 10000L
+n_regions <- 5L
 
 set.seed(1337)
 

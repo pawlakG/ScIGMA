@@ -29,6 +29,7 @@ golem::add_module(name = "analysis_right_DNA_down", with_test = TRUE) # Name of 
 golem::add_module(name = "analysis_right_CNV", with_test = TRUE) # Name of the module
 golem::add_module(name = "analysis_right_Protein", with_test = TRUE) # Name of the module
 golem::add_module(name = "analysis_right_multiOmics", with_test = TRUE) # Name of the module
+golem::add_module(name = "download_panel", with_test = TRUE) # Name of the module
 
 ## Add packages ----
 usethis::use_package("bslib")

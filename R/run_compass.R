@@ -30,16 +30,21 @@ run_compass_mcmc <- function(
         patient_sex = "female"
 ) {
 
-    # Barrière de sécurité stricte (Fail Fast)
+    # Barrière de sécurité stricte
     if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
         stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
     }
 
-    # NEW : Neutralisation des NAs (Transformation en absence de couverture)
-    # Rcpp crasherait si des NA_integer_ étaient passés au C++
+    # Neutralisation des NAs
     variant_matrices$REF[is.na(variant_matrices$REF)] <- 0L
     variant_matrices$ALT[is.na(variant_matrices$ALT)] <- 0L
     variant_matrices$GT[is.na(variant_matrices$GT)] <- 0L
+
+    # NEW : Extraction des noms biologiques canoniques
+    locus_names <- rownames(variant_matrices$REF)
+    if ( is.null(locus_names) ) {
+        locus_names <- paste0("Locus_", seq_len(nrow(variant_matrices$REF)) - 1L)
+    }
 
     message("Initializing COMPASS C++ backend (In-Memory)...")
 
@@ -50,6 +55,7 @@ run_compass_mcmc <- function(
             genotypes = variant_matrices$GT,
             locus_region_mapping = as.integer(locus_regions),
             region_counts = region_matrix,
+            locus_names = as.character(locus_names), # NEW : Injection vers Rcpp
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),

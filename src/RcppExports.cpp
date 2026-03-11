@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // run_compass_inference_cpp
-int run_compass_inference_cpp(Rcpp::IntegerMatrix ref_counts, Rcpp::IntegerMatrix alt_counts, Rcpp::IntegerMatrix genotypes, Rcpp::IntegerVector locus_region_mapping, Rcpp::IntegerMatrix region_counts, std::string output_prefix, int n_chains, int chain_length, bool use_cna, std::string sex);
-RcppExport SEXP _ScIGMA_run_compass_inference_cpp(SEXP ref_countsSEXP, SEXP alt_countsSEXP, SEXP genotypesSEXP, SEXP locus_region_mappingSEXP, SEXP region_countsSEXP, SEXP output_prefixSEXP, SEXP n_chainsSEXP, SEXP chain_lengthSEXP, SEXP use_cnaSEXP, SEXP sexSEXP) {
+int run_compass_inference_cpp(Rcpp::IntegerMatrix ref_counts, Rcpp::IntegerMatrix alt_counts, Rcpp::IntegerMatrix genotypes, Rcpp::IntegerVector locus_region_mapping, Rcpp::IntegerMatrix region_counts, Rcpp::StringVector locus_names, std::string output_prefix, int n_chains, int chain_length, bool use_cna, std::string sex);
+RcppExport SEXP _ScIGMA_run_compass_inference_cpp(SEXP ref_countsSEXP, SEXP alt_countsSEXP, SEXP genotypesSEXP, SEXP locus_region_mappingSEXP, SEXP region_countsSEXP, SEXP locus_namesSEXP, SEXP output_prefixSEXP, SEXP n_chainsSEXP, SEXP chain_lengthSEXP, SEXP use_cnaSEXP, SEXP sexSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,18 +21,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type genotypes(genotypesSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type locus_region_mapping(locus_region_mappingSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type region_counts(region_countsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::StringVector >::type locus_names(locus_namesSEXP);
     Rcpp::traits::input_parameter< std::string >::type output_prefix(output_prefixSEXP);
     Rcpp::traits::input_parameter< int >::type n_chains(n_chainsSEXP);
     Rcpp::traits::input_parameter< int >::type chain_length(chain_lengthSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cna(use_cnaSEXP);
     Rcpp::traits::input_parameter< std::string >::type sex(sexSEXP);
-    rcpp_result_gen = Rcpp::wrap(run_compass_inference_cpp(ref_counts, alt_counts, genotypes, locus_region_mapping, region_counts, output_prefix, n_chains, chain_length, use_cna, sex));
+    rcpp_result_gen = Rcpp::wrap(run_compass_inference_cpp(ref_counts, alt_counts, genotypes, locus_region_mapping, region_counts, locus_names, output_prefix, n_chains, chain_length, use_cna, sex));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ScIGMA_run_compass_inference_cpp", (DL_FUNC) &_ScIGMA_run_compass_inference_cpp, 10},
+    {"_ScIGMA_run_compass_inference_cpp", (DL_FUNC) &_ScIGMA_run_compass_inference_cpp, 11},
     {NULL, NULL, 0}
 };
 

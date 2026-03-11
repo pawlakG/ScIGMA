@@ -51,6 +51,7 @@ void ingest_r_data(
         Rcpp::IntegerMatrix genotypes,
         Rcpp::IntegerVector locus_region_mapping,
         Rcpp::IntegerMatrix region_counts,
+        Rcpp::StringVector locus_names, // NEW
         bool use_cna
 ) {
     n_loci = ref_counts.nrow();
@@ -60,7 +61,6 @@ void ingest_r_data(
         throw std::runtime_error("Dimensions mismatch between REF and ALT matrices.");
     }
 
-    // Blindage mémoire contre les SegFaults
     int max_region = -1;
     for ( int i = 0; i < n_loci; i++ ) {
         if ( locus_region_mapping[i] > max_region ) {
@@ -112,6 +112,7 @@ void ingest_r_data(
         }
         cells.push_back(c);
     }
+
     data.locus_to_region.clear();
     for ( int i = 0; i < n_loci; i++ ) {
         data.locus_to_region.push_back(locus_region_mapping[i]);
@@ -123,22 +124,21 @@ void ingest_r_data(
         data.region_to_loci[data.locus_to_region[i]].push_back(i);
     }
 
-    // NEW: Allocation des méta-données obligatoires pour éviter le SegFault
-    // lors de la génération de l'arbre (Tree::to_dot) et des scores (Tree::compute_prior_score)
     data.locus_to_name.clear();
     data.locus_to_chromosome.clear();
     data.locus_to_freq.clear();
     for ( int i = 0; i < n_loci; i++ ) {
-        data.locus_to_name.push_back("Locus_" + std::to_string(i));
-        data.locus_to_chromosome.push_back("1"); // Chromosome factice
-        data.locus_to_freq.push_back(0.0);       // Fréquence factice
+        // UPDATED : Ingestion directe du nom de variant R vers le std::string C++
+        data.locus_to_name.push_back(Rcpp::as<std::string>(locus_names[i]));
+        data.locus_to_chromosome.push_back("1");
+        data.locus_to_freq.push_back(0.0);
     }
 
     data.region_to_name.clear();
     data.region_to_chromosome.clear();
     for ( int k = 0; k < n_regions; k++ ) {
         data.region_to_name.push_back("Region_" + std::to_string(k));
-        data.region_to_chromosome.push_back("1"); // Chromosome factice
+        data.region_to_chromosome.push_back("1");
     }
 
     data.variant_is_SNV = std::vector<bool>(n_loci, true);
@@ -152,6 +152,7 @@ int run_compass_inference_cpp(
         Rcpp::IntegerMatrix genotypes,
         Rcpp::IntegerVector locus_region_mapping,
         Rcpp::IntegerMatrix region_counts,
+        Rcpp::StringVector locus_names, // NEW
         std::string output_prefix,
         int n_chains = 4,
         int chain_length = 5000,
@@ -171,6 +172,7 @@ int run_compass_inference_cpp(
             genotypes,
             locus_region_mapping,
             region_counts,
+            locus_names, // NEW
             use_cna
         );
 

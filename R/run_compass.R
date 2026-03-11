@@ -1,5 +1,8 @@
-# UPDATED
 # File: R/run_compass.R
+
+#' @useDynLib ScIGMA, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
+NULL
 
 #' Execute COMPASS MCMC Phylogeny (In-Memory)
 #'
@@ -27,10 +30,16 @@ run_compass_mcmc <- function(
         patient_sex = "female"
 ) {
 
-    # NEW: Barrière de sécurité stricte (Fail Fast)
+    # Barrière de sécurité stricte (Fail Fast)
     if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
         stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
     }
+
+    # NEW : Neutralisation des NAs (Transformation en absence de couverture)
+    # Rcpp crasherait si des NA_integer_ étaient passés au C++
+    variant_matrices$REF[is.na(variant_matrices$REF)] <- 0L
+    variant_matrices$ALT[is.na(variant_matrices$ALT)] <- 0L
+    variant_matrices$GT[is.na(variant_matrices$GT)] <- 0L
 
     message("Initializing COMPASS C++ backend (In-Memory)...")
 
@@ -44,7 +53,7 @@ run_compass_mcmc <- function(
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),
-            use_cna = TRUE, # Imposé en dur au backend C++
+            use_cna = TRUE,
             sex = patient_sex
         )
         TRUE

@@ -9,7 +9,6 @@
 #include "Tree.h"
 #include "Node.h"
 #include "Scores.h"
-#include "input.h"
 
 #include <assert.h>
 
@@ -22,7 +21,7 @@ extern std::vector<Cell> cells;
 extern Data data;
 extern Params parameters;
 
-Tree::Tree(Scores* cache, bool use_CNA): 
+Tree::Tree(Scores* cache, bool use_CNA):
     hastings_ratio(-1.0),
     use_CNA(use_CNA)
 {
@@ -76,7 +75,7 @@ Tree::Tree(){
 }
 
 
-Tree::Tree(const Tree& source):  
+Tree::Tree(const Tree& source):
     // copy constructor
     use_CNA(source.use_CNA),
     n_nodes(source.n_nodes),
@@ -140,15 +139,15 @@ Tree& Tree::operator=(const Tree& source){
     children = source.children;
     DFT_order=source.DFT_order;
     node_probabilities = source.node_probabilities;
-    
+
     dropout_rates = source.dropout_rates;
     dropout_rates_ref = source.dropout_rates_ref;
     dropout_rates_alt = source.dropout_rates_alt;
-   
+
     region_probabilities = source.region_probabilities;
     candidate_regions = source.candidate_regions;
     regions_successor = source.regions_successor;
-    
+
     log_prior_score = source.log_prior_score;
     log_likelihood = source.log_likelihood;
     log_score = source.log_score;
@@ -156,7 +155,7 @@ Tree& Tree::operator=(const Tree& source){
     cells_attach_loglik = source.cells_attach_loglik;
     cells_loglik = source.cells_loglik;
     cells_attach_prob = source.cells_attach_prob;
-    
+
     for (int i=0;i<n_nodes;i++){
         nodes.push_back(new Node(*source.nodes[i]));
     }
@@ -169,7 +168,7 @@ void Tree::compute_children(){
     for (int i=0; i <n_nodes; i++){
         children[i].clear();
     }
-    for (int i=1; i <n_nodes; i++){ //start from 1 because the root has no parent  
+    for (int i=1; i <n_nodes; i++){ //start from 1 because the root has no parent
         children[parents[i]].push_back(i);
     }
 
@@ -201,7 +200,7 @@ bool Tree::is_ancestor(int potential_ancestor, int potential_descendant){
 void Tree::compute_nodes_genotypes(){
     // Perform a depth-first traversal and compute the genotype of each node, based on the genotype of its parent.
     std::stack<int> stk;
-    stk.push(0); 
+    stk.push(0);
     while (!stk.empty()) {
         int top = stk.top();
         stk.pop();
@@ -224,7 +223,7 @@ void Tree::compute_nodes_genotypes(){
                 while (DFT_order[i]!=k && DFT_order[i]!=l) i++;
                 if (DFT_order[i]==k) doublets.push_back(new Node(*nodes[k],*nodes[l]));
                 else doublets.push_back(new Node(*nodes[l],*nodes[k]));
-                
+
             }
         }
     }
@@ -251,7 +250,7 @@ void Tree::compute_attachment_scores(bool use_doublets_local, bool recompute_CNA
 
     if (use_doublets_local){
         for (int k=0;k<n_nodes;k++){
-            for (int l=k;l<n_nodes;l++){ 
+            for (int l=k;l<n_nodes;l++){
                 // traverse in DFT order, so that the scores of the parent are always already computed
                 int n1 = DFT_order[k]; // first node of the doublet
                 int n2 = DFT_order[l]; // second node of the doublet
@@ -266,7 +265,7 @@ void Tree::compute_attachment_scores(bool use_doublets_local, bool recompute_CNA
                     if (parents[n1]>n1) idx_parent = n_nodes * n1 - (n1*(n1-1))/2 + parents[n1]-n1;
                     else idx_parent = n_nodes * parents[n1] - (parents[n1]*(parents[n1]-1))/2 + n1- parents[n1];
                     doublets[idx]->compute_attachment_scores_parent(use_CNA,doublets[idx_parent],dropout_rates_ref,dropout_rates_alt,region_probabilities,recompute_CNA_scores);
-                } 
+                }
                 // compute doublet (n1,n2) from (n1,parent(n2)) (or (parent(n2),n1) )
                 else {
                     int idx_parent;
@@ -287,7 +286,7 @@ void Tree::compute_likelihood(bool allow_diff_dropoutrates){
 
     // Remove empty nodes
     int n=1;
-    while (n<n_nodes){  
+    while (n<n_nodes){
         if (nodes[n]->is_empty()){
             delete_node(n);
             n=1;
@@ -330,7 +329,7 @@ void Tree::compute_likelihood(bool allow_diff_dropoutrates){
     }
     if (parameters.use_doublets && !use_doublets_EM){
         // if we did not use doublets for the EM algorithm, we need to recompute the scores with the doublets
-        compute_attachment_scores(parameters.use_doublets,true); 
+        compute_attachment_scores(parameters.use_doublets,true);
         compute_cells_likelihoods(parameters.use_doublets);
     }
     log_likelihood=0;
@@ -344,7 +343,7 @@ void Tree::compute_cells_likelihoods(bool use_doublets_local){
     int n_attachment_points = n_nodes;
     if (use_doublets_local) n_attachment_points = (n_nodes*(n_nodes+3)) / 2; //can attach to a node or to a doublet
 
-    for (int j=0; j<n_cells; j++){ 
+    for (int j=0; j<n_cells; j++){
         double max_loglik=-DBL_MAX;
         int best_attach=-1;
         cells_attach_loglik[j].resize(n_attachment_points);
@@ -360,7 +359,7 @@ void Tree::compute_cells_likelihoods(bool use_doublets_local){
             int idx=0;
             for (int k=0;k<n_nodes;k++){
                 for (int l=k;l<n_nodes;l++){
-                    cells_attach_loglik[j][n_nodes+idx] = doublets[idx]->attachment_scores[j] + std::log(node_probabilities[k]) 
+                    cells_attach_loglik[j][n_nodes+idx] = doublets[idx]->attachment_scores[j] + std::log(node_probabilities[k])
                     + std::log(node_probabilities[l]) +std::log(parameters.doublet_rate);
                     if (k!=l)  cells_attach_loglik[j][n_nodes+idx] += std::log(2); // the doublet (l,k) has the same probability as (k,l)
                     if ( cells_attach_loglik[j][n_nodes+idx] > max_loglik){
@@ -382,7 +381,7 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
     nodes_attachment_counts.resize(n_nodes);
     for (int k=0;k<n_nodes;k++) nodes_attachment_counts[k]=0.0;
     //E-step: compute probabilities that cell j is attached to node k, number of cells attached to each node and number of dropouts
-    for (int j=0; j<n_cells; j++){ 
+    for (int j=0; j<n_cells; j++){
         cells_attach_prob[j].resize(n_attachment_points);
 
         for (int k=0;k<n_nodes;k++){
@@ -402,7 +401,7 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
             }
         }
     }
-    // count dropouts 
+    // count dropouts
     double doublet_rate_local = parameters.doublet_rate;
     if (!use_doublets_local) doublet_rate_local=0.0;
     std::vector<double> dropoutref_counts(n_loci,0.0);
@@ -430,7 +429,7 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
             std::pair<int,int> p=m.first;
             int n_ref=p.first;
             int n_alt=p.second;
-            if (n_ref>0 && n_alt>0){ // only consider dropouts for heterozygous genotypes. 
+            if (n_ref>0 && n_alt>0){ // only consider dropouts for heterozygous genotypes.
                 const std::vector<double>& dropoutsref= cache_scores->get_dropoutref_counts_genotype(n_ref,n_alt,i,dropout_rates_ref[i],
                                                                                                     dropout_rates_alt[i]);
                 const std::vector<double>& dropoutsalt= cache_scores->get_dropoutalt_counts_genotype(n_ref,n_alt,i,dropout_rates_ref[i],
@@ -440,14 +439,14 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
                     if (cells[j].ref_counts[i]+cells[j].alt_counts[i]>4){
                         dropoutref_counts[i]+=genotypes_prob[p][j] * dropoutsref[j];
                         dropoutalt_counts[i]+=genotypes_prob[p][j] * dropoutsalt[j];
-                        nrefalleles[i]+=genotypes_prob[p][j] * n_ref; 
-                        naltalleles[i]+=genotypes_prob[p][j] * n_alt; 
+                        nrefalleles[i]+=genotypes_prob[p][j] * n_ref;
+                        naltalleles[i]+=genotypes_prob[p][j] * n_alt;
                     }
                 }
             }
-        }   
+        }
     }
-    
+
 
     //M-step: optimize the node probabilities and dropout rates
     avg_diff_nodeprob=0.0;
@@ -455,23 +454,23 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
         double prev = node_probabilities[k];
         node_probabilities[k] = nodes_attachment_counts[k] / n_cells;
         avg_diff_nodeprob+=std::abs(node_probabilities[k]-prev) / n_nodes;
-    } 
+    }
 
     avg_diff_dropoutrates=0.0;
     for (int i=0;i<n_loci;i++){ // update dropout rates
         double prev_ref = dropout_rates_ref[i];
         double prev_alt = dropout_rates_alt[i];
-        dropout_rates[i] = ((parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1)*2 + dropoutref_counts[i]+dropoutalt_counts[i]) 
+        dropout_rates[i] = ((parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1)*2 + dropoutref_counts[i]+dropoutalt_counts[i])
                                     / ((parameters.prior_dropoutrate_omega-2)*2+nrefalleles[i]+naltalleles[i]);
         if (allow_diff_dropoutrates){
             // See if likelihood can be improved by allowing 2 different dropout rates
-            dropout_rates_ref[i] = (parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1+dropoutref_counts[i]) 
+            dropout_rates_ref[i] = (parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1+dropoutref_counts[i])
                                         / (parameters.prior_dropoutrate_omega-2+nrefalleles[i]);
-            dropout_rates_alt[i] = (parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1+dropoutalt_counts[i]) 
+            dropout_rates_alt[i] = (parameters.prior_dropoutrate_mean*parameters.prior_dropoutrate_omega-1+dropoutalt_counts[i])
                                         / (parameters.prior_dropoutrate_omega-2+naltalleles[i]);
             double diff_dropoutrates_lik = dropoutref_counts[i] * std::log(dropout_rates_ref[i]) + (nrefalleles[i] - dropoutref_counts[i]) * std::log(1-dropout_rates_ref[i])
                     + dropoutalt_counts[i] * std::log(dropout_rates_alt[i]) + (naltalleles[i] - dropoutalt_counts[i]) * std::log(1-dropout_rates_alt[i])
-                    +(parameters.prior_dropoutrate_mean * parameters.prior_dropoutrate_omega-1) * (std::log(dropout_rates_ref[i]) + std::log(dropout_rates_alt[i])) 
+                    +(parameters.prior_dropoutrate_mean * parameters.prior_dropoutrate_omega-1) * (std::log(dropout_rates_ref[i]) + std::log(dropout_rates_alt[i]))
                     +((1.0-parameters.prior_dropoutrate_mean) * parameters.prior_dropoutrate_omega-1) * (std::log(1.0-dropout_rates_ref[i]) + std::log(1.0-dropout_rates_alt[i]));
             double same_dropoutrate_lik = (dropoutref_counts[i]+dropoutalt_counts[i]) * std::log(dropout_rates[i])
                         + (nrefalleles[i] + naltalleles[i] - dropoutref_counts[i] - dropoutalt_counts[i]) * std::log(1-dropout_rates[i])
@@ -481,11 +480,11 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
                 dropout_rates_ref[i] = dropout_rates[i];
                 dropout_rates_alt[i] = dropout_rates[i];
             }
-        } 
+        }
         else{
             dropout_rates_ref[i] = dropout_rates[i];
-            dropout_rates_alt[i] = dropout_rates[i]; 
-        }  
+            dropout_rates_alt[i] = dropout_rates[i];
+        }
         // Set minimum and maximum dropout rate
         if (dropout_rates[i]<0.01) dropout_rates[i]=0.01;
         if (dropout_rates_ref[i]<0.01) dropout_rates_ref[i]=0.01;
@@ -494,7 +493,7 @@ void Tree::EM_step(bool use_doublets_local, bool allow_diff_dropoutrates){
         if (dropout_rates[i]>0.50) dropout_rates[i]=0.50;
         if (dropout_rates_ref[i]>0.50) dropout_rates_ref[i]=0.50;
         if (dropout_rates_alt[i]>0.50) dropout_rates_alt[i]=0.50;
-        
+
         avg_diff_dropoutrates+= (std::abs(dropout_rates_ref[i] - prev_ref) + std::abs(dropout_rates_alt[i] - prev_alt))  / n_loci;
 
     }
@@ -516,7 +515,7 @@ bool Tree::rec_check_max_one_event_per_region_per_lineage(int node, std::vector<
 
 void Tree::compute_prior_score(){
     // Penalize number of nodes
-    log_prior_score=-n_nodes*(4+n_loci)*parameters.node_cost; 
+    log_prior_score=-n_nodes*(4+n_loci)*parameters.node_cost;
     // Forbid empty nodes and penalize nodes with only CNAs (since the order of CNAs is generally less reliable)
     for (int i=1;i<n_nodes;i++){
         if (nodes[i]->get_number_mutations()==0 && nodes[i]->get_number_CNA()==0) log_prior_score-=100000;
@@ -538,14 +537,14 @@ void Tree::compute_prior_score(){
 
     // Penalize CNA events
     log_prior_score-= ncells_coef* (parameters.LOH_cost+parameters.CNA_cost) /10.0 *  nodes[0]->get_number_CNA();  // Smaller penalty for CNLOH events at the root
-    for (int n=1;n<n_nodes;n++){ 
-        log_prior_score-= ncells_coef*parameters.CNA_cost * nodes[n]->get_number_disjoint_CNA(regions_successor); 
+    for (int n=1;n<n_nodes;n++){
+        log_prior_score-= ncells_coef*parameters.CNA_cost * nodes[n]->get_number_disjoint_CNA(regions_successor);
         // Higher penalty for CNAs resulting in LOH, because they have a bigger impact on the likelihood
-        log_prior_score-= ncells_coef*parameters.LOH_cost * nodes[n]->get_number_disjoint_LOH(regions_successor);  
+        log_prior_score-= ncells_coef*parameters.LOH_cost * nodes[n]->get_number_disjoint_LOH(regions_successor);
     }
 
     // Cannot have a CNA event at the root.
-    if (nodes[0]->get_number_CNA_noncopyneutral()>0) log_prior_score-= 100000; 
+    if (nodes[0]->get_number_CNA_noncopyneutral()>0) log_prior_score-= 100000;
     // One lineage cannot have more than one CNA affecting each region (but it is still possible to have events affecting the same region in parallel branches)
     if (!rec_check_max_one_event_per_region_per_lineage(0,std::vector<int>(n_regions,0))) log_prior_score-=1000000;
 
@@ -554,12 +553,12 @@ void Tree::compute_prior_score(){
     // with probability lambda, both alleles have the same dropout rate. With probability 1-lambda, they have the same dropout rate
     for (int i=0;i<n_loci;i++){
         if (std::abs(dropout_rates_ref[i]-dropout_rates_alt[i])>0.001){
-            log_prior_score-=70; 
+            log_prior_score-=70;
         }
         // Dropout rates are sampled from a beta distribution.
-        log_prior_score+= (parameters.prior_dropoutrate_mean * parameters.prior_dropoutrate_omega-1) 
-                                * (std::log(dropout_rates_ref[i]) + std::log(dropout_rates_alt[i])) 
-                        + ((1.0-parameters.prior_dropoutrate_mean) * parameters.prior_dropoutrate_omega-1) 
+        log_prior_score+= (parameters.prior_dropoutrate_mean * parameters.prior_dropoutrate_omega-1)
+                                * (std::log(dropout_rates_ref[i]) + std::log(dropout_rates_alt[i]))
+                        + ((1.0-parameters.prior_dropoutrate_mean) * parameters.prior_dropoutrate_omega-1)
                                 * (std::log(1.0-dropout_rates_ref[i]) + std::log(1.0-dropout_rates_alt[i]));
     }
 }
@@ -647,7 +646,7 @@ void Tree::to_dot(std::string filename, bool simplified){
 
     if (full_output){
         // Recompute assignment probabilities, only taking singlets into account
-        std::vector<std::vector<double>> cells_attach_loglik_singlet; 
+        std::vector<std::vector<double>> cells_attach_loglik_singlet;
         std::vector<double> cells_loglik_singlet;
         std::vector<int> best_attachments_singlet;
         cells_attach_loglik_singlet.resize(n_cells);
@@ -666,7 +665,7 @@ void Tree::to_dot(std::string filename, bool simplified){
             cells_loglik_singlet[j] = Scores::log_sum_exp(cells_attach_loglik_singlet[j]);
         }
 
-        // Assignments of cells to nodes 
+        // Assignments of cells to nodes
         std::ofstream out_file_cell_assignments(basename+"_cellAssignments.tsv");
         std::ofstream out_file_cell_assignment_probs(basename+"_cellAssignmentProbs.tsv");
 
@@ -685,13 +684,13 @@ void Tree::to_dot(std::string filename, bool simplified){
                 }
         }*/
         out_file_cell_assignment_probs<<std::endl;
-        
+
         // Content
         for (int j=0;j<n_cells;j++){
             out_file_cell_assignments << cells[j].name<<"\t"<<best_attachments_singlet[j];
             if (best_attachments[j]>=n_nodes) out_file_cell_assignments<<"\tyes"<<std::endl;
             else out_file_cell_assignments<<"\tno"<<std::endl;
-            
+
             out_file_cell_assignment_probs<<cells[j].name;
             for (int k=0; k < n_nodes;k++){
                 out_file_cell_assignment_probs<<"\t"<<std::exp(cells_attach_loglik_singlet[j][k]-cells_loglik_singlet[j]);
@@ -724,7 +723,7 @@ void Tree::to_dot(std::string filename, bool simplified){
             else{
                 out_file_json<<"\t\t\"parent\": \"-\","<<std::endl;
             }
-            
+
             //SNV
             out_file_json<<"\t\t\"SNV\": [";
             std::vector<int> SNVs = nodes[k]->get_mutations();
@@ -774,7 +773,7 @@ void Tree::to_dot(std::string filename, bool simplified){
         out_file_json.close();
 
         // ----------------------------------
-        // Node genotypes 
+        // Node genotypes
 
         std::ofstream out_file_genotypes(basename+"_nodes_genotypes.tsv");
 
@@ -829,12 +828,12 @@ void Tree::to_dot(std::string filename, bool simplified){
             out_file_copynumbers.close();
         }
     }
-    
+
 }
 
 
 Tree::Tree(std::string gv_file, bool use_CNA_arg): //Create tree from a graphviz file
-    hastings_ratio(-1.0)     
+    hastings_ratio(-1.0)
 {
     for (int i=0;i<n_loci;i++){
         dropout_rates.push_back(0.05);
@@ -871,7 +870,7 @@ Tree::Tree(std::string gv_file, bool use_CNA_arg): //Create tree from a graphviz
             parents[child] = parent;
         }
     }
-    // Create nodes 
+    // Create nodes
     for (int i=0;i<n_nodes;i++){
         nodes.push_back(new Node(cache_scores));
     }
@@ -953,9 +952,9 @@ Tree::Tree(std::string gv_file, bool use_CNA_arg): //Create tree from a graphviz
                 //HTML tags: events separated by <br/>
                 if (line[idx+1]=='/') idx+=4; // </B>
                 idx+=5;
-                if (line[idx]=='>') finished_reading_line=true; 
+                if (line[idx]=='>') finished_reading_line=true;
             }
-         } 
+         }
         if (!std::getline (file, line)) finished_reading_labels=true;
      }
     // Initialize utils
@@ -1059,7 +1058,7 @@ bool Tree::select_regions(int index){
                 if (nodes_regionprobs[k][n].size()>=std::max(40.0,0.03*n_cells)){
                     double prob = 0;
                     for (double d: nodes_regionprobs[k][n]) prob+= d/nodes_regionprobs[k][n].size();
-                    if ((prob>region_probabilities[k]*1.275 || region_probabilities[k]>prob*1.35) && (region_probabilities[k]>0.05/n_regions || (!parameters.filter_regions))){ 
+                    if ((prob>region_probabilities[k]*1.275 || region_probabilities[k]>prob*1.35) && (region_probabilities[k]>0.05/n_regions || (!parameters.filter_regions))){
                         candidate_regions.push_back(k);
                         break;
                     }
@@ -1090,7 +1089,7 @@ bool Tree::select_regions(int index){
         }
         std::cout<<std::endl;
     }
-    
+
     return true;
 }
 
@@ -1213,7 +1212,7 @@ void Tree::move_SNV(){
         destination_node = std::rand()%(n_nodes-1);
         if (destination_node==source_node) destination_node = n_nodes-1;
         hastings_ratio*= 1/(1.0-new_node_prob) * (n_nodes-1);
-        
+
     }
 
     // Remove the mutation from the source node and add it to the destination node
@@ -1259,7 +1258,7 @@ void Tree::split_merge_node(){
         // Select one node which is not the root
         int node1 = std::rand()%(n_nodes-1) + 1;
         int node2 = parents[node1];
-        // Move the events of node 1 into node 2 
+        // Move the events of node 1 into node 2
         while (nodes[node1]->get_number_mutations()>0){
             nodes[node2]->add_mutation(nodes[node1]->remove_random_mutation());
         }
@@ -1277,9 +1276,9 @@ void Tree::split_merge_node(){
         // and 2**n_children possibilities to set the parent of the children of the split node
         if (n_nodes==1) hastings_ratio = 1.0/merge_probability;
         else hastings_ratio = (1.0-merge_probability)/merge_probability;
-        
+
         hastings_ratio *= 1.0/std::pow(2.0,nodes[node2]->get_number_mutations() + nodes[node2]->get_number_CNA());
-        hastings_ratio *= 1.0/ std::pow(2.0,children[node2].size()); 
+        hastings_ratio *= 1.0/ std::pow(2.0,children[node2].size());
     }
     else{ // Split node
         int node = std::rand()%n_nodes;
@@ -1305,9 +1304,9 @@ void Tree::split_merge_node(){
                         + nodes[node]->get_number_CNA()+nodes[n_nodes-1]->get_number_CNA();
         if (n_nodes==2) hastings_ratio = default_merge_probability;
         else hastings_ratio = merge_probability / (1.0-merge_probability);
-        
+
         hastings_ratio *= std::pow(2.0,n_events);
-        hastings_ratio *= std::pow(2.0,children[node].size()+children[n_nodes-1].size()); 
+        hastings_ratio *= std::pow(2.0,children[node].size()+children[n_nodes-1].size());
     }
 }
 
@@ -1315,7 +1314,7 @@ void Tree::split_merge_node(){
 void Tree::add_remove_CNA(bool use_CNA){
     double default_add_probability=0.70;
     double add_probability = default_add_probability;
-    
+
     std::vector<int> nodes_with_events{};
     for (int i=0;i<n_nodes;i++){
         if (nodes[i]->get_number_CNA()>0) nodes_with_events.push_back(i);
@@ -1331,9 +1330,9 @@ void Tree::add_remove_CNA(bool use_CNA){
         hastings_ratio=0.0;
         return;
     }
-    
-    
-    
+
+
+
 
     if ( (1.0*std::rand())/RAND_MAX <= add_probability){ // add CNA event
         // Select node, type (gain, loss, CNLOH), region and alleles
@@ -1354,7 +1353,7 @@ void Tree::add_remove_CNA(bool use_CNA){
             region = candidate_regions[std::rand()%candidate_regions.size()];
             n_candidate_regions = candidate_regions.size();
         }
-        
+
         int parent;
         if (node<n_nodes){ // Add event to an existing node
             parent = node;
@@ -1364,7 +1363,7 @@ void Tree::add_remove_CNA(bool use_CNA){
             parent = node - n_nodes;
             node = n_nodes;
             add_node(parent);
-            hastings_ratio = std::pow(2,children[parent].size()); 
+            hastings_ratio = std::pow(2,children[parent].size());
         }
         std::vector<int> alleles{};
         for (int i=0;i<data.region_to_loci[region].size();i++){
@@ -1380,13 +1379,13 @@ void Tree::add_remove_CNA(bool use_CNA){
         // To reverse the move, we need to select remove, select the same node, and select the right CNA event
         int n_nodes_with_events = nodes_with_events.size();
         if (nodes[node]->get_number_CNA()==1) n_nodes_with_events++;
-        hastings_ratio *= (1.0-default_add_probability) /n_nodes_with_events  / nodes[node]->get_number_CNA() 
+        hastings_ratio *= (1.0-default_add_probability) /n_nodes_with_events  / nodes[node]->get_number_CNA()
                             / add_probability * 2*n_nodes * n_candidate_regions * n_possible_types * std::pow(2,alleles.size());
     }
     else{ // remove CNA event
         // Select a node which has a CNA event
         int node = nodes_with_events[std::rand()%nodes_with_events.size()];
-        auto CNA = nodes[node]->remove_random_CNA(); 
+        auto CNA = nodes[node]->remove_random_CNA();
         int n_alleles = std::get<2>(CNA).size();
         int n_possible_types=1;
         if (use_CNA && candidate_regions.size()>0) n_possible_types=3;
@@ -1419,7 +1418,7 @@ void Tree::move_CNA(){
         hastings_ratio=0.0;
         return;
     }
-    
+
     double new_node_prob=0.20;
     int source_node = nodes_with_event[std::rand() % nodes_with_event.size()];
     hastings_ratio=1.0 * initial_nb_nodes_with_events * nodes[source_node]->get_number_CNA();
@@ -1436,7 +1435,7 @@ void Tree::move_CNA(){
         hastings_ratio*= (1-new_node_prob) / (n_nodes-1);
         if (nodes[source_node]->get_number_CNA()==0) new_nb_nodes_with_events--;
     }
-    
+
     int destination_node;
     if (n_nodes<=1) new_node_prob = 1.0;
     if (1.0*std::rand()/RAND_MAX<new_node_prob){
@@ -1491,7 +1490,7 @@ void Tree::merge_or_duplicate_CNA(){
         // No CNA can be merged or duplicated
         hastings_ratio=0.0;
         return;
-    } 
+    }
 
 
     int event_index = std::rand()%(duplicate_CNAs.size() + nodes_with_CNA_and_multiple_children.size());
@@ -1626,7 +1625,7 @@ void Tree::merge_or_duplicate_CNA(){
         }
 
         hastings_ratio= 1.0 / nodes_with_CNA_and_multiple_children.size() * (duplicate_CNAs.size() + nodes_with_CNA_and_multiple_children.size());
-        hastings_ratio*= 
+        hastings_ratio*=
         hastings_ratio*= 1.0 * nodes_with_CNA_and_multiple_children.size() * (nodes[node_ancestor]->get_number_CNA()+1.0)
                              * children[node_ancestor].size() *descendants1.size() * descendants2.size();
         //Reverse

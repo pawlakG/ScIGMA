@@ -1,10 +1,10 @@
-# UPDATED
 # File: tests/test_compass_in_memory.R
 # Exécution stricte en console APRÈS devtools::load_all()
 
 # 1. Génération de matrices factices (Mock Data)
 n_loci <- 5L
-n_cells <- 10L
+# n_cells <- 10L
+n_cells <- 500L
 n_regions <- 2L
 
 set.seed(42)
@@ -70,7 +70,6 @@ status_execution_no_cna <- tryCatch({
         patient_sex = "female"
     )
 }, error = function(e) {
-    # L'erreur native R que nous avons injectée doit apparaître ici
     message("SUCCÈS DU VERROUILLAGE (Rejet propre par R) : ", e$message)
     FALSE
 })

@@ -1,4 +1,3 @@
-# NEW
 # File: src/Makevars
 # Compilation OS-agnostique (Linux/macOS)
 CXX_STD = CXX11

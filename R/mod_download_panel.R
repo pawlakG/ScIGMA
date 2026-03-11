@@ -28,4 +28,4 @@ mod_download_panel_server <- function(id, ScIGMA_data){
 # mod_download_panel_ui("download_panel_1")
 
 ## To be copied in the server
-# mod_download_panel_server("download_panel_1")
+# mod_download_panel_server("download_panel_1", ScIGMA_data)

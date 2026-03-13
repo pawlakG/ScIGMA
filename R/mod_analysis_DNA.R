@@ -67,52 +67,81 @@ mod_analysis_DNA_ui <- function(id) {
 #'
 #' @import InteractiveComplexHeatmap
 #' @importFrom ComplexHeatmap draw
+#' @importFrom forcats fct_recode
 mod_analysis_DNA_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
+        # UPDATED
+        # File: R/mod_analysis_overview.R (ou fichier contenant ce module)
+
         ns <- session$ns
-        # Render DNA variants dataframe
-        # Afficher la table de sélection
+
+        # 1. Render DNA variants dataframe
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            print("ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact)")
-            print(ScIGMA_data$variant.annotation)
-            datatable(ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact)),
+            req(ScIGMA_data$mae) # Sécurité
+
+            # Extraction et tri (La "Vue")
+            tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+                as.data.frame() |>
+                dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+                dplyr::arrange(desc(cell_proportion), desc(impact))
+
+            datatable(tmp_variant_annotation,
                       selection = 'multiple',
+                      rownames = FALSE, # Désactivé car variant_id est déjà présent
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
-        # Récupérer les lignes sélectionnées seulement quand l'utilisateur clique
-        observeEvent({input$btn_filtrer
+
+        # 2. Récupérer les lignes sélectionnées
+        observeEvent({
+            input$btn_filtrer
             input$heatmap_include_all_samples
-            watch("dna_clones_renamed")}, {
-                print("Rendering DNA heatmap")
-                sel <- input$variant_selection_rows_selected
-                heatmap_include_all_samples <- input$heatmap_include_all_samples
-                if (length(sel) > 0) {
-                    print(ScIGMA_data$variant.annotation)
-                    # récupérer les données correspondantes
-                    # ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[sel, ]
-                    ScIGMA_data$variants.filtered <- ScIGMA_data$variant.annotation[ScIGMA_data$variant.annotation$row_id %in% sel, ]
-                    tmp_selected_variant <- sub(x = ScIGMA_data$variants.filtered$variant_id, pattern = "^([^:]+:)|^:", "")
-                    # make heatmap
-                    ht_res <- generate_dna_variant_heatmap(obj = ScIGMA_data,
-                                                           selected_variants_df = ScIGMA_data$variants.filtered,
-                                                           heatmap_include_all_samples = heatmap_include_all_samples)
-                    ht <- ht_res$heatmap
-                    ht <- draw(ht)
-                    print("new heatmap rendered")
-                    if(is.null(ScIGMA_data$dna_clones_renamed)){ # Initiate dna.clones if not present
-                        # Set dna.clones
-                        ScIGMA_data$dna.clones <- ht_res$clones
-                    }
-                    # Trigger event
-                    trigger("dnaVariant_selected")
-                    # render heatmap
-                    output$dna_variant_heatmap <- renderPlot({
-                        ht
-                    })
+            watch("dna_clones_renamed")
+        }, {
+            print("Rendering DNA heatmap")
+            sel_indices <- input$variant_selection_rows_selected
+            heatmap_include_all_samples <- input$heatmap_include_all_samples
+
+            if (length(sel_indices) > 0) {
+
+                # RECONSTRUCTION DE LA VUE : Indispensable pour mapper les index de l'UI (sel_indices)
+                # avec les véritables identifiants biologiques, car arrange() a mélangé les lignes.
+                sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+                    as.data.frame() |>
+                    dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+                    dplyr::arrange(desc(cell_proportion), desc(impact))
+
+                # Extraction sécurisée des variants sélectionnés
+                selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
+
+                # Mise à jour de l'objet global (au cas où d'autres modules l'utilisent)
+                ScIGMA_data$variants.filtered <- selected_df
+
+                # Génération de la Heatmap
+                ht_res <- generate_dna_variant_heatmap(
+                    obj = ScIGMA_data,
+                    selected_variants_df = selected_df,
+                    heatmap_include_all_samples = heatmap_include_all_samples
+                )
+
+                ht <- ComplexHeatmap::draw(ht_res$heatmap)
+                print("New heatmap rendered")
+
+                # Gestion des clones
+                if (is.null(ScIGMA_data$dna_clones_renamed)) {
+                    ScIGMA_data$dna.clones <- ht_res$clones
                 }
-            })
+
+                # Déclenchement des événements avals
+                trigger("dnaVariant_selected")
+
+                # Affichage
+                output$dna_variant_heatmap <- renderPlot({
+                    ht
+                })
+            }
+        })
 
 
         observeEvent(watch("dnaVariant_selected"),

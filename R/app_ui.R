@@ -47,7 +47,7 @@ app_ui <- function(request) {
                             navset_tab(
                                 id = "tabs_analysis_inner",
                                 nav_panel(
-                                    title = "Overview.Preprocess",
+                                    title = "Load and preprocess",
                                     value = "tab_overview",
                                     mod_analysis_overview_ui("analysis_overview_1")
                                 ),

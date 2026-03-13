@@ -23,61 +23,29 @@ h5f$assays$protein_read_counts$ra$sample_name
 h5closeAll()
 
 
-# --------------------------------------------------------------- #
-#
+# [ NODE_ACCESS : Test MAE pipeline ]
+# ----------------------------------------------------- _
+devtools::load_all()
+ScIGMA_data <- loadH5_HDF5_biocond(
+    filepath = directory,
+    sample_name = "aml_4_lines",
+    omic_type = "DNA+protein"
+)
+ScIGMA_data <- normalizeProtein(ScIGMA_data)
+ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
 
-obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA+protein")
+ScIGMA_data <- filter_and_annotate_variants(ScIGMA_data, paths = cfg$paths)
 
-
-obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA")
-
-obj <- loadH5_dir_HDF5(directory, omic.type = "DNA+protein",feature_policy = "intersect")
-
-bench::mark(loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA+protein"), iterations = 10)
-
-file.exists("../inputs/bPodvinDatasets/")
-
-# --------------------------------------------------------------- #
-# More than one  h5
-
-# obj <- loadH5_dir_HDF5("../inputs/bPodvinDatasets/all/", feature_policy = "intersect", omic.type = )
-# obj$realize_all(dir = "store", file = "ScIGMA_merged.h5", chunkdim = c(1024,512), level = 6)
-
-# --------------------------------------------------------------- #
-# DEBUG
-
-library(bench)
-
-obj <- filter_variant_ScIGMA(obj = obj,
-                             min.dp = 10,
-                             min.gq = 30,
-                             vaf.ref = 5,
-                             vaf.hom = 95,
-                             vaf.het = 30,
-                             min.cell.pt = 10,
-                             min.mut.cell.pt = 10)
-
-obj$variant.annotation <- tryCatch(
-    fetch_variants_batch_fields(obj$variants.filtered,
-                                batch_size = 300,
-                                paths = cfg$paths)
-    , error = function(e){
-        remove_modal_spinner()
-        message(warning("Error during variant annotation: "),
-                stop(e$message))
-    })
-# Add info about proportion of mutated cells per variants
-obj$variant.annotation$probe <- gsub("^[^:]*:", "", obj$variant.annotation$variant_id)
-obj$variant.annotation$cell_proportion <- apply(as.matrix(obj$vaf.mtx.filtered)[,obj$variant.annotation$probe], 2, \(x){
-    sum(x != 0) / nrow(obj$vaf.mtx.filtered)
-})
+SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+    as.data.frame() |>
+    dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+    arrange(desc(cell_proportion), desc(impact))
 
 
-obj <- protein_run_pca(obj)
 
 
-obj$seurat_object <- RunUMAP(obj$seurat_object,
-                                     dims = 1:(nrow(obj$seurat_object)-2),
+ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
+                                     dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
                                      min.dist = 0.15,
                                      n.neighbors = 30,
                                      future.seed=TRUE)

@@ -29,7 +29,6 @@ app_server <- function(input, output, session) {
 
     # --------------------------------------------------------------- #
     # Initialize lens object
-    # ScIGMA_data <- ScIGMA_object$new()
     ScIGMA_data <- ScIGMA_object$new()
 
     # --------------------------------------------------------------- #
@@ -60,6 +59,8 @@ app_server <- function(input, output, session) {
 
         # Placeholder pour la logique :
         show_advanced_tabs <- FALSE
+        print("ScIGMA_data$filetype app_server")
+        print(ScIGMA_data$filetype )
         # Exemple hypothétique basé sur ta demande :
         if (ScIGMA_data$filetype == "DNA+protein") {
                 show_advanced_tabs <- TRUE

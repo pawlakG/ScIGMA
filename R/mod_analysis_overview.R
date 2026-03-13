@@ -87,39 +87,51 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             show_modal_spinner(text = "Loading data ...")
             if (file.exists(filePath)) {
                 if (file.info(filePath)$isdir) {
-                    ScIGMA_data$data <- tryCatch(
-                        loadH5_dir_HDF5(dir = filePath,
-                                        sample.name = sampleName,
-                                        feature_policy = "intersect",
-                                        omic.type = fileType),
+                    ScIGMA_data <- tryCatch(
+                        loadH5_HDF5_biocond(
+                            filepath = filePath,
+                            sample_name = sampleName,
+                            omic_type = fileType
+                        ),
                         error = function(e){
                             message("Error during loadH5")
                             stop(e$message)
                         })
                 } else {
-                    ScIGMA_data$data <- tryCatch(
-                        loadH5_HDF5(filepath = filePath,
-                                    sample.name = sampleName,
-                                    omic.type = fileType),
+                    temp_scigma_obj <- tryCatch(
+                        loadH5_HDF5_biocond(
+                            filepath = filePath,
+                            sample_name = sampleName,
+                            omic_type = fileType
+                        ),
                         error = function(e){
                             message("Error during loadH5")
                             stop(e$message)
-                        })
+                        }
+                    )
                 }
             } else {
                 stop("File or folder path doesn't exists\n")
             }
-            ScIGMA_data$filetype <- fileType
+            # 2. On transfère les données dans l'objet R6 GLOBAL partagé
+            # Cela préserve la référence mémoire pour tous tes modules Shiny
+            ScIGMA_data$mae <- temp_scigma_obj$mae
+            ScIGMA_data$mae_raw <- temp_scigma_obj$mae
+            ScIGMA_data$filetype <- temp_scigma_obj$filetype
+            # ScIGMA_data$backing_files <- temp_scigma_obj$backing_files # (Si besoin)
 
+            # ScIGMA_data$filetype <- fileType
 
-            # ScIGMA_data <- normalizeProtein(ScIGMA_data)
             if (ScIGMA_data$filetype == "DNA+protein"){
                 message("Preprocessing protein data ...")
-                ScIGMA_data <- protein_run_pca(ScIGMA_data)
-            }
 
+                ScIGMA_data <- normalizeProtein(ScIGMA_data)
+                ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
+            }
             remove_modal_spinner()
             message(whereami::whereami())
+            print("ScIGMA_data$filetype mod_analysis_overview")
+            print(ScIGMA_data$filetype)
             trigger("dataLoaded")
         })
 
@@ -127,13 +139,16 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         # Render Summary UI
         output$overview <- renderUI({
             watch("dataLoaded")
+            print("ScIGMA_data render UI")
+            print(ScIGMA_data)
             message(whereami::whereami())
             fluidRow(
                 column(3,
                        card(
                            card_header("Number of cells"),
                            card_body(
-                               p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$cell.ids)),
+                               # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$cell.ids)),
+                               p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(colData(ScIGMA_data$mae))),
                                  style="text-align:center")
                            ))
                        # summaryBox(title = "Number of cells", value = ifelse(is.null(ScIGMA_data$data),yes = "No data loaded", no = length(ScIGMA_data$data@cell.ids)), icon = icon("credit-card"))
@@ -141,21 +156,24 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 column(3,
                        card(
                            card_header("DNA variants"),
-                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$variants)),
+                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$variants)),
+                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["dna_variants"]])),
                              style="text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("number of CNVs"),
-                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$amps)),
+                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$amps)),
+                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["amplicons"]])),
                              style="text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("Number of proteins"),
-                           p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$proteins)),
+                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$proteins)),
+                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["proteins"]])),
                              style="text-align:center")
                        )
                 )
@@ -167,7 +185,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         output$preprocess <- renderUI({
             watch("dataLoaded")
             message(whereami::whereami())
-            if(!is.null(ScIGMA_data)){
+            req(ScIGMA_data$mae)
+            if(!is.null(ScIGMA_data$mae)){
                 tagList(
                     fluidRow(
                         h5("Filter DNA variants:"),
@@ -229,75 +248,53 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
         # --------------------------------------------------------------- #
         # Filter DNA variant
-        observeEvent(input$dna_variant_filtering,{
+        observeEvent(input$dna_variant_filtering, {
             filePath <- input$file_h5file$datapath
             overview_preprocess_minCellPt <- input$overview_preprocess_minCellPt
             overview_preprocess_minMutCellPt <- input$overview_preprocess_minMutCellPt
+
             req(overview_preprocess_minCellPt)
             req(overview_preprocess_minMutCellPt)
-            message(whereami::whereami())
-            show_modal_spinner()
-
-
-            # ---------------------------- #
-            # Store initial cell and DNA variant info
-            init_metrics$init_number_cell <- length(ScIGMA_data$cell.ids)
-            init_metrics$init_number_dna_variant <- length(ScIGMA_data$variants)
+            req(ScIGMA_data$mae) # Sécurité : s'assure que les données sont chargées
 
             message(whereami::whereami())
-            # ---------------------------- #
-            # Filter variants
-            ScIGMA_data$data <- tryCatch(
-                filter_variant_ScIGMA(obj = ScIGMA_data,
-                                      min.cell.pt = overview_preprocess_minCellPt,
-                                      min.mut.cell.pt = overview_preprocess_minMutCellPt),
-                error = function(e){
-                    remove_modal_spinner()
-
-                    message("Error during DNA variant filtering")
-                    stop(e$message)
-                })
+            show_modal_spinner(text = "Filtering and annotating DNA variants...")
 
             # ---------------------------- #
-            # Normalize CNV
-            # ScIGMA_data$data$amp.mtx.normalized <- tryCatch(
-            #     normalize_amplicon_counts(count_matrix = ScIGMA_data$data$amp.mtx),
-            #     error = function(e){
-            #         remove_modal_spinner()
-            #
-            #         message("Error during CNV filtering")
-            #         stop(e$message)
-            #     })
+            # Store initial cell and DNA variant info (Utilisation du MAE)
+            init_metrics$init_number_cell <- ncol(ScIGMA_data$mae)
+            init_metrics$init_number_dna_variant <- nrow(ScIGMA_data$mae[["dna_variants"]])
 
             message(whereami::whereami())
+
             # ---------------------------- #
-            # Annotate variants
-            if (length(ScIGMA_data$variants) == 0){
-                # CONDITION TO HANDLE
-            } else {
-                ScIGMA_data$variant.annotation <- tryCatch(
-                    tmp_annotation <- fetch_variants_batch_fields(ScIGMA_data$variants.filtered,
-                                                batch_size = 300,
-                                                paths = cfg$paths)
-                    , error = function(e){
-                        remove_modal_spinner()
-                        message(warning("Error during variant annotation: "),
-                                stop(e$message))
-                    })
-
-                # Add info about proportion of mutated cells per variants
-                ScIGMA_data$variant.annotation$probe <- gsub("^[^:]*:", "", ScIGMA_data$variant.annotation$variant_id)
-                ScIGMA_data$variant.annotation$cell_proportion <- apply(as.matrix(ScIGMA_data$vaf.mtx.filtered)[,ScIGMA_data$variant.annotation$probe], 2, \(x){
-                    sum(x > 10) / nrow(ScIGMA_data$vaf.mtx.filtered)
-                })
-                ScIGMA_data$variant.annotation <- ScIGMA_data$variant.annotation |> arrange(desc(cell_proportion), desc(impact))
-                ScIGMA_data$variant.annotation$row_id <- 1:nrow(ScIGMA_data$variant.annotation)
-
+            # Execute Pipeline: Filter + Annotate + Proportions
+            temp_scigma_obj <- tryCatch({
+                filter_and_annotate_variants(
+                    obj = ScIGMA_data,
+                    paths = cfg$paths, # Assure-toi que cfg$paths est bien accessible ici
+                    min_cell_pt = overview_preprocess_minCellPt,
+                    min_mut_cell_pt = overview_preprocess_minMutCellPt
+                    # Les autres paramètres prendront leurs valeurs par défaut (min_dp=10, etc.)
+                )
+            }, error = function(e) {
                 remove_modal_spinner()
-                trigger("dnaVariant_filtered")
-                trigger("launch_umap")
-            }
+                message("Error during DNA variant filtering and annotation")
+                stop(e$message)
+            })
+
+            # ---------------------------- #
+            # Update Global R6 Reference
+            # On transfère le MAE filtré et annoté dans l'objet global
+            ScIGMA_data$mae <- temp_scigma_obj$mae
+
+            message(whereami::whereami())
+
+            # ---------------------------- #
+            # Trigger downstream modules
             remove_modal_spinner()
+            trigger("dnaVariant_filtered")
+            trigger("launch_umap")
         })
 
 
@@ -306,38 +303,55 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         output$dnaFilterResults <- renderUI({
             watch("dnaVariant_filtered")
             message(whereami::whereami())
-            if (length(ScIGMA_data$data$variant.filter) == 0){
-                fluidRow(
-                    h5("DNA variant filtering results:"),
-                    div("Data not filtered yet", align ="center")
-                )
-            } else if (ScIGMA_data$data$variant.filter != "filtered") {
+
+            # Sécurité anti-crash
+            if (is.null(ScIGMA_data$mae)) return(NULL)
+
+            filter_status <- S4Vectors::metadata(ScIGMA_data$mae)$variant_filter
+
+            if (is.null(filter_status) || filter_status != "filtered") {
                 fluidRow(
                     h5("DNA variant filtering results:"),
                     div("Data not filtered yet", align ="center")
                 )
             } else {
+                # Extraction des dimensions POST-filtrage
+                current_cells <-ncol(ScIGMA_data$mae[["dna_variants"]])
+                current_variants <- nrow(ScIGMA_data$mae[["dna_variants"]])
+
+                # UPDATED: Extraction directe des dimensions PRE-filtrage depuis mae_raw
+                print("ScIGMA_data$mae_raw")
+                print(ScIGMA_data)
+                print(str(ScIGMA_data))
+                initial_cells <- ncol(ScIGMA_data$mae_raw[["dna_variants"]])
+                initial_variants <- nrow(ScIGMA_data$mae_raw[["dna_variants"]])
+
+                print(initial_cells)
+                print(current_cells)
+                print(initial_variants)
+                print(current_variants)
+
                 tagList(
                     fluidRow(
                         h5("DNA variant filtering results:"),
                         column(6,
                                HTML(
-                                   paste0("Number of cells removed: ", init_metrics$init_number_cell - length(ScIGMA_data$cell.ids.filtered), "</br>"),
-                                   paste0("Number of DNA variants removed: ", init_metrics$init_number_dna_variant - length(ScIGMA_data$variants.filtered))
+                                   # UPDATED : Utilisation des variables dynamiques locales
+                                   paste0("Number of cells removed: ", initial_cells - current_cells, "</br>"),
+                                   paste0("Number of DNA variants removed: ", initial_variants - current_variants)
                                )
                         ),
                         column(6,
                                div(
                                    HTML(
-                                       paste0("Actual number of cells: ", length(ScIGMA_data$cell.ids.filtered), "</br>"),
-                                       paste0("Actual number of DNA variants : ", length(ScIGMA_data$variants.filtered))
+                                       paste0("Actual number of cells: ", current_cells, "</br>"),
+                                       paste0("Actual number of DNA variants : ", current_variants)
                                    )
                                ), align = "justify")
                     )
                 )
             }
         })
-
     })
 }
 

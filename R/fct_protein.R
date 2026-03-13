@@ -15,86 +15,76 @@
 #' \dontrun{
 #' scigma <- normalizeProtein(scigma)
 #' }
-
 normalizeProtein <- function(ScIGMA_object) {
-    # extract count matrix
-    inputMatrix <- ScIGMA_object$protein.mtx.filtered |> as.matrix()
-    # apply normalization CLR method
-    ret <- (compositions::clr(inputMatrix + 1))
+    # 1. Extraction MAE (Protéines x Cellules)
+    inputMatrix <- SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "counts") |> as.matrix()
 
-    ScIGMA_object$protein.mtx.filtered.normalized <- as.matrix(ret)
-    ScIGMA_object$protein.normalize.method <- "CLR normalized"
+    # 2. Calcul CLR (Cellules en lignes)
+    tmp_clr <- compositions::clr(t(inputMatrix) + 1)
+
+    # CRITIQUE : Destruction de la classe 'rmult' et retour à une matrice R native
+    tmp_mat <- as.matrix(unclass(tmp_clr))
+
+    # 3. Transposition pour le stockage MAE (Protéines x Cellules)
+    ret <- t(tmp_mat)
+
+    # 4. Injection sécurisée
+    SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "clr") <- ret
+
+    # 5. Mise à jour des métadonnées
+    S4Vectors::metadata(ScIGMA_object$mae)$protein_normalize_method <- "CLR normalized"
+
     return(ScIGMA_object)
 }
 
-
-
-# --------------------------------------------------------------- #
 #' Render ridge plot with ggplot2 and plotly
-#'
-#' @import ggplot2
-#' @import ggridges
-#' @import plotly
-#' @import tidyr
+#' @export
 render_protein_ridge_plot <- function(obj){
-    tmp_data <- obj$protein.mtx.filtered.normalized |>
-        as_tibble() |>
-        pivot_longer(everything())
+    # On extrait l'assay CLR s'il existe, sinon on fallback sur counts
+    assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
+
+    # Transposition obligatoire pour ggplot (Cellules en lignes, Protéines en colonnes)
+    tmp_data <- t(SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)) |>
+        dplyr::as_tibble() |>
+        tidyr::pivot_longer(dplyr::everything())
+
     tmp_plot <- tmp_data |>
-        ggplot(aes(x=value, y=name, fill = name)) +
-        geom_density_ridges() +
-        theme_ridges() +
-        theme(legend.position = "none")
-    print("render plotlied plot")
-    # print("tmp_plot")
-    # print(tmp_plot)
-    print(tmp_plot) |> plotly::ggplotly()
+        ggplot2::ggplot(ggplot2::aes(x=value, y=name, fill = name)) +
+        ggridges::geom_density_ridges() +
+        ggridges::theme_ridges() +
+        ggplot2::theme(legend.position = "none")
+
+    plotly::ggplotly(tmp_plot)
 }
 
 #' Génère un barplot de la proportion de protéines
-#'
-#' @import MatrixGenerics
-#'
-#' @param obj Un objet contenant la matrice protéique (obj$protein.mtx)
-#' @param title Titre optionnel du graphique
-#'
-#' @return Un objet ggplot représentant la distribution relative des protéines
 #' @export
-#'
-#' @examples
-#' plot_protein_barplot(obj)
 plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
 
-    print("obj$protein.mtx")
-    print(dim(obj$protein.mtx))
-    print(head(obj$protein.mtx, 2))
-    print(class(obj$protein.mtx))
-
-    # Vérifications basiques
-    if (is.null(obj$protein.mtx)) {
-        stop("Object do not have a protein matrix (obj$protein.mtx).")
+    ptn_mtx <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
+    if (is.null(ptn_mtx)) {
+        stop("Object does not have a protein count matrix.")
     }
 
-    # Calcul des pourcentages
+    # CRITIQUE : Puisque les protéines sont en lignes, on utilise rowSums2
     protein_barplot_df <- data.frame(
-        protein = colnames(obj$protein.mtx),
-        percent = round(colSums2(obj$protein.mtx) / sum(obj$protein.mtx), 5) * 100
+        protein = rownames(ptn_mtx),
+        percent = round(DelayedMatrixStats::rowSums2(ptn_mtx) / sum(ptn_mtx), 5) * 100
     )
 
-    # Génération du plot
     protein_barplot <- protein_barplot_df |>
-        ggplot(aes(x = protein, y = percent)) +
-        geom_bar(stat = "identity", fill = "steelblue") +
-        xlab("Antibody") +
-        ylab("Percentage") +
-        ggtitle(title) +
-        theme_minimal() +
-        theme(
-            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5)
+        ggplot2::ggplot(ggplot2::aes(x = protein, y = percent)) +
+        ggplot2::geom_bar(stat = "identity", fill = "steelblue") +
+        ggplot2::xlab("Antibody") +
+        ggplot2::ylab("Percentage") +
+        ggplot2::ggtitle(title) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+            axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1),
+            plot.title = ggplot2::element_text(hjust = 0.5)
         )
 
-    print(protein_barplot) |> plotly::ggplotly()
+    plotly::ggplotly(protein_barplot)
 }
 
 #' Normalize Protein Data using Linear Regression (with Jitter & Scaling)
@@ -121,19 +111,18 @@ normalize_linear_regression <- function(raw_matrix,
                                         jitter = 0,
                                         scale = 1) {
 
-    # 1. Validation & Setup
+    # 1. Validation & Setup (Matrice: Protéines x Cellules)
     if (!is.matrix(raw_matrix)) raw_matrix <- as.matrix(raw_matrix)
 
     # 2. Apply Jitter (Noise Injection)
     if (jitter > 0) {
-        n_elements <- length(raw_matrix)
-        noise <- rnorm(n = n_elements, mean = 0, sd = jitter)
-        raw_matrix <- raw_matrix + matrix(noise, nrow = nrow(raw_matrix), ncol = ncol(raw_matrix))
+        noise <- matrix(rnorm(length(raw_matrix), 0, jitter), nrow = nrow(raw_matrix))
+        raw_matrix <- raw_matrix + noise
         raw_matrix[raw_matrix < 0] <- 0 # Clip negatives
     }
 
-    # 3. Calculate Library Size (Technical Covariate)
-    library_size <- rowSums(raw_matrix)
+    # 3. Calculate Library Size (CRITIQUE: colSums car les cellules sont en colonnes)
+    library_size <- colSums(raw_matrix)
 
     # 4. Transform for Regression
     if (use_log) {
@@ -144,9 +133,8 @@ normalize_linear_regression <- function(raw_matrix,
         work_lib_size <- library_size
     }
 
-    # 5. Regression Loop (Regress Out Depth)
-    norm_mat <- apply(work_mat, 2, function(protein_counts) {
-        # Check for zero variance to avoid lm failure
+    # 5. Regression Loop (CRITIQUE: MARGIN = 1 pour itérer sur les Protéines/Lignes)
+    norm_mat <- apply(work_mat, 1, function(protein_counts) {
         if (var(protein_counts) == 0) return(protein_counts)
 
         fit <- lm(protein_counts ~ work_lib_size)
@@ -159,31 +147,22 @@ normalize_linear_regression <- function(raw_matrix,
         }
     })
 
-    # Restore dimensions/names lost during apply
+    # ATTENTION: apply() avec MARGIN=1 retourne une matrice transposée (Cellules x Protéines).
+    # Il faut la re-transposer pour restaurer l'architecture canonique.
+    norm_mat <- t(norm_mat)
     rownames(norm_mat) <- rownames(raw_matrix)
     colnames(norm_mat) <- colnames(raw_matrix)
 
-    # 6. Apply Scaling (Dynamic Range Compression)
-    # "The amount by which the read counts are scaled down."
+    # 6. Apply Scaling
     final_scale <- scale
-
     if (is.null(final_scale)) {
-        # Estimation Strategy:
-        # If no scale is provided, we use the global Standard Deviation of the
-        # corrected matrix. This standardizes the data unit (similar to Z-score scaling
-        # but maintaining the relative mean differences if add_mean=TRUE).
         message("Estimating scale factor from data distribution...")
         final_scale <- sd(norm_mat, na.rm = TRUE)
-        message(sprintf("Estimated Scale Factor: %.4f", final_scale))
     }
 
-    # Prevent division by zero
     if (final_scale == 0) final_scale <- 1
 
-    # Apply scaling
-    norm_mat <- norm_mat / final_scale
-
-    return(norm_mat)
+    return(norm_mat / final_scale)
 }
 
 

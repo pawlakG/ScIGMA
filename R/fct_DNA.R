@@ -146,6 +146,90 @@ filter_variant_ScIGMA <- function(
     invisible(filtered)
 }
 
+# UPDATED: filter_variant_ScIGMA_mae (Orienté strict Features x Cells)
+#' @importFrom SummarizedExperiment assay assay<-
+#' @importFrom DelayedMatrixStats rowSums2 colSums2
+#' @importFrom DelayedArray realize
+#' @importFrom BiocParallel SnowParam MulticoreParam
+filter_variant_ScIGMA_mae <- function(
+        obj,
+        min.dp = 10, min.gq = 30,
+        vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
+        min.cell.pt = 50, min.mut.cell.pt = 1
+) {
+
+    message("Filtering variants and cells (Matrix: Features x Cells)...")
+    if (!inherits(obj, "ScIGMA_object")) stop("obj must be a ScIGMA_object.")
+
+    bp <- if (.Platform$OS.type == "windows") {
+        BiocParallel::SnowParam(workers = parallel::detectCores() - 1)
+    } else {
+        BiocParallel::MulticoreParam(workers = parallel::detectCores() - 1)
+    }
+
+    # ---- 1. Extraction (Variants x Cellules) ----
+    vaf_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
+    gt_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
+    dp_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
+    gq_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gq")
+
+    # ---- 2. Quality masks ----
+    dp_tf      <- dp_mtx < min.dp
+    gq_tf      <- gq_mtx < min.gq
+    vaf_ref_tf <- (vaf_mtx > vaf.ref) & (gt_mtx == 0L)
+    vaf_hom_tf <- (vaf_mtx < vaf.hom) & (gt_mtx == 2L)
+    vaf_het_tf <- (vaf_mtx < vaf.het) & (gt_mtx == 1L)
+
+    keep_mask <- !(dp_tf | gq_tf | vaf_ref_tf | vaf_hom_tf | vaf_het_tf)
+
+    gt_mtx[!keep_mask] <- 3L
+    vaf_mtx[gt_mtx == 3L] <- -1
+
+    # DIMENSIONS CANONIQUES : Lignes = Variants, Colonnes = Cellules
+    num_variants <- nrow(gt_mtx)
+    num_cells    <- ncol(gt_mtx)
+
+    gt_mtx_realized <- DelayedArray::realize(gt_mtx)
+
+    # ---- 3. Variant filtering (Calculé sur les LIGNES) ----
+    cell_cover_per_variant <- DelayedMatrixStats::rowSums2(gt_mtx_realized != 3L, BPPARAM = bp)
+    mut_cells_per_variant  <- DelayedMatrixStats::rowSums2((gt_mtx_realized == 1L) | (gt_mtx_realized == 2L), BPPARAM = bp)
+
+    # sum(rowSums2((test == 1L) | (test == 2L), BPPARAM = bp) > ncol(test)*0.01)
+
+
+    variant_keep_tf <- (cell_cover_per_variant > num_cells * (min.cell.pt / 100)) &
+        (mut_cells_per_variant > num_cells * (min.mut.cell.pt / 100))
+
+    # ---- 4. Cell filtering (Calculé sur les COLONNES) ----
+    cell_keep_tf <- DelayedMatrixStats::colSums2(gt_mtx_realized != 3L, BPPARAM = bp) > num_variants * (min.cell.pt / 100)
+
+    # ---- 5. MAE Subsetting ----
+    # Subsetting global des cellules (colonnes) pour toutes les omiques
+    mae_filtered <- obj$mae[, cell_keep_tf, drop = FALSE]
+
+    # Subsetting spécifique des variants (lignes) pour l'expérience ADN uniquement
+    mae_filtered[["dna_variants"]] <- mae_filtered[["dna_variants"]][variant_keep_tf, , drop = FALSE]
+
+    # Injection des matrices corrigées (-1 et 3L) aux bonnes dimensions
+    SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "vaf") <- vaf_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
+    SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "gt")  <- gt_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
+
+    # ---- 6. R6 Instantiation ----
+    filtered_obj <- ScIGMA_object$new(
+        mae = mae_filtered,
+        mae_raw = obj$mae_raw,
+        backing_files = obj$backing_files,
+        filetype = obj$filetype,
+        seurat_object = obj$seurat_object
+    )
+
+    removed_cells <- num_cells - sum(cell_keep_tf)
+    removed_variants <- num_variants - sum(variant_keep_tf)
+    message(sprintf("Filtered out: %d cells and %d variants.", removed_cells, removed_variants))
+
+    invisible(filtered_obj)
+}
 
 # Normalize counts (amplicons x cells)
 # Step 1: Each cell is normalized by its total read count (library size)
@@ -342,81 +426,88 @@ generate_dna_variant_heatmap <- function(obj,
                                          min_prop_cluster = 0.01,
                                          heatmap_include_all_samples = TRUE) {
 
-    selected_variants <- sub(x = selected_variants_df$variant_id, pattern = "^([^:]+:)|^:", "")
+    # 1. Extraction des identifiants (La source de vérité)
+    target_variants <- selected_variants_df$variant_id
 
-    # Get genotype matrix for selected variants
-    gt <- obj$gt.mtx[, selected_variants, drop = FALSE] |> as.matrix()
-    # Get NGT_MASK matrix for selected variants
-    msk <- obj$dna.variant.filter.mask.filtered[, selected_variants, drop = FALSE] |> as.matrix() != 0
+    # Création des noms courts pour l'affichage et le clustering en aval
+    short_variants <- sub(x = target_variants, pattern = "^([^:]+:)|^:", "")
 
-    # Align rows and columns
-    common_rows <- intersect(rownames(gt),
-                             rownames(msk))
-    common_cols <- intersect(colnames(gt),
-                             colnames(msk))
+    # 2. Extraction Out-of-Core depuis le MAE (Format natif : Variants x Cells)
+    gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
+    msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
+
+
+    # 3. Transposition immédiate pour le clustering (Format requis : Cells x Variants)
+    gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
+    msk <- t(as.matrix(msk_full[short_variants, , drop = FALSE])) != 0
+
+    # Réassignation des noms courts sur les colonnes
+    colnames(gt) <- short_variants
+    colnames(msk) <- short_variants
+    selected_variants <- short_variants
+
+    # 4. Alignement (Sécurité)
+    common_rows <- intersect(rownames(gt), rownames(msk))
+    common_cols <- intersect(colnames(gt), colnames(msk))
+
     if (length(common_rows) == 0L || length(common_cols) == 0L) {
-        stop("No overlap (rows/columns) between gt.mtx and mask.")
+        stop("Fatal: No overlap between gt matrix and mask.")
     }
 
-    # Apply NGT_MASK matrix
-    # gt_filtered <- gt[common_rows,]
-    gt_filtered <- gt[common_rows, common_cols]
+    # 5. Application du NGT_MASK
+    gt_filtered <- gt[common_rows, common_cols, drop = FALSE]
 
     # Set value 3 for filtered genotypes
-    gt_filtered[cbind(row(msk)[msk],
-                      col(msk)[msk])] <- 3
+    gt_filtered[cbind(row(msk)[msk], col(msk)[msk])] <- 3
 
-    # Take a subset where no row has values equal to 3 : meaning no missing info
-    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0, ]
+    # 6. Séparation avec/sans données manquantes (Ajout de drop=FALSE pour éviter les vecteurs)
+    tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0, , drop = FALSE]
+    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0, , drop = FALSE]
 
-    # Take rows with any values equal to 3
-    tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0, ]
-    tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
+    if (nrow(tmp_heamtap_matrix_filtered_withMissing) > 0) {
+        tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
+    }
 
-
-    ## generate clonal labels
-    # Note: 'generate_clonal_labels' must be available in the environment or imported
-    results_clustering <- generate_clonal_labels(ngt_matrix = tmp_heamtap_matrix_filtered_noMissing,
-                                                 target_variants_df = selected_variants_df,
-                                                 ignore_missing = TRUE)
+    ## 7. Génération des labels clonaux
+    results_clustering <- generate_clonal_labels(
+        ngt_matrix = tmp_heamtap_matrix_filtered_noMissing,
+        target_variants_df = selected_variants_df,
+        ignore_missing = TRUE
+    )
 
     clustered_samples <- setNames(results_clustering$cell_metadata$clonal_cluster_id,
                                   nm = results_clustering$cell_metadata$cell_barcode)
 
-
-
-    ### Reassign too small samples clusters (compared to total samples) to a "small" group
+    ### Reassign too small samples clusters
     res_table_clusters <- table(clustered_samples)
     too_small_clusters <- names(res_table_clusters)[res_table_clusters / nrow(gt) < min_prop_cluster]
     clustered_samples[clustered_samples %in% too_small_clusters] <- "small"
+
     small_cluster <- clustered_samples[clustered_samples == "small"] |> as.factor()
     nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |> sort() |> as.factor()
-    nonSmall_cluster <- fct_infreq(nonSmall_cluster)
+    nonSmall_cluster <- forcats::fct_infreq(nonSmall_cluster)
     levels(nonSmall_cluster) <- as.character(1:length(levels(nonSmall_cluster)))
-    # clustered_samples <- clustered_samples |> sort() |> as.factor()
-    clustered_samples <- fct_c(nonSmall_cluster, small_cluster)
+
+    clustered_samples <- forcats::fct_c(nonSmall_cluster, small_cluster)
     names(clustered_samples) <- c(names(nonSmall_cluster), names(small_cluster))
 
-    clustered_samples <- fct_infreq(clustered_samples) # Change levels name according to frequency
+    clustered_samples <- forcats::fct_infreq(clustered_samples)
 
     if (!is.null(obj$dna_clones_renamed)) {
         clustered_samples <- obj$dna_clones_renamed
     }
-    ### Reorder
-    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(sort(clustered_samples)), ]
 
-    # --- FIX START: Logic for split vector ordering ---
-    # We extract the desired levels from the sorted clustered_samples factor directly
-    # This ensures we respect the numeric or custom order, not alphabetic
+    ### Reorder
+    tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[names(sort(clustered_samples)), , drop = FALSE]
+
     sorted_clusters <- sort(clustered_samples)
     desired_levels <- levels(sorted_clusters)
 
-    # rbind with samples with missing info if heatmap_include_all_samples is TRUE
+    # rbind with samples with missing info
     if (heatmap_include_all_samples) {
         tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
                                                               tmp_heamtap_matrix_filtered_withMissing)
-        # Set labels / annotations
-        # We construct the vector, then immediately cast to factor with explicit levels
+
         heatmap_split_vector <- c(as.character(sorted_clusters),
                                   rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
 
@@ -426,61 +517,62 @@ generate_dna_variant_heatmap <- function(obj,
     } else {
         tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_noMissing_ordered
 
-        # Filter out small clusters first
         heatmap_split_char <- as.character(sorted_clusters)
         keep_idx <- heatmap_split_char != "small"
 
-        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[keep_idx, ]
+        tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_complete_ordered[keep_idx, , drop = FALSE]
         heatmap_split_char <- heatmap_split_char[keep_idx]
 
-        # Create factor with correct levels (excluding "small" if present in levels)
         final_levels <- desired_levels[desired_levels != "small"]
         heatmap_split_vector <- factor(heatmap_split_char, levels = final_levels)
     }
+
     # plot heatmap
-    ## Color palette
     dna_variant_colorPalette <- setNames(c("#E9E8EC", "#BAB7D0", "#3C2692"), nm = c("0", "1", "2"))
-    ### Legend
-    ## Annotation
+
     heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples) != "small"]
     annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)], "grey", "#333333"),
                                                nm = c(heatmap_true_levels, "missing", "small")))
-    dna_variant_annotation <- rowAnnotation(Cluster = heatmap_split_vector,
-                                            col = annotationColor,
-                                            show_annotation_name = FALSE,
-                                            show_legend = FALSE)
 
-    # ---------------------------- #
+    dna_variant_annotation <- ComplexHeatmap::rowAnnotation(
+        Cluster = heatmap_split_vector,
+        col = annotationColor,
+        show_annotation_name = FALSE,
+        show_legend = FALSE
+    )
+
     # Verify colnames before plotting
     idx_colnames <- sapply(colnames(tmp_heamtap_matrix_filtered_complete_ordered), function(x) {
         which(grepl(x, selected_variants_df$variant_id))
-
     }, simplify = FALSE, USE.NAMES = FALSE) |> unlist()
 
     new_colnames <- selected_variants_df$variant_id[idx_colnames]
     new_colnames <- sub(":", "    \n", new_colnames)
+
     ## Heatmap
-    #
-    heatmap <- Heatmap(tmp_heamtap_matrix_filtered_complete_ordered,
-                       row_order = rownames(tmp_heamtap_matrix_filtered_complete_ordered),
-                       column_names_rot = 75,
-                       row_split = heatmap_split_vector, # Now a factor with correct levels
-                       show_column_dend = FALSE,
-                       column_split = selected_variants,
-                       column_title = NULL,
-                       column_labels = new_colnames,
-                       cluster_rows = FALSE,
-                       show_row_names = FALSE,
-                       na_col = "black",
-                       col = dna_variant_colorPalette,
-                       show_heatmap_legend = TRUE,
-                       left_annotation = dna_variant_annotation,
-                       heatmap_legend_param = list(
-                           title = "Genotype",
-                           at = c("0", "1", "2"),
-                           labels = c("WT", "HET", "HOM"),
-                           grid_height = grid::unit(4, "cm")
-                       ))
+    heatmap <- ComplexHeatmap::Heatmap(
+        tmp_heamtap_matrix_filtered_complete_ordered,
+        row_order = rownames(tmp_heamtap_matrix_filtered_complete_ordered),
+        column_names_rot = 75,
+        row_split = heatmap_split_vector,
+        show_column_dend = FALSE,
+        column_split = selected_variants,
+        column_title = NULL,
+        column_labels = new_colnames,
+        cluster_rows = FALSE,
+        show_row_names = FALSE,
+        na_col = "black",
+        col = dna_variant_colorPalette,
+        show_heatmap_legend = TRUE,
+        left_annotation = dna_variant_annotation,
+        heatmap_legend_param = list(
+            title = "Genotype",
+            at = c("0", "1", "2"),
+            labels = c("WT", "HET", "HOM"),
+            grid_height = grid::unit(4, "cm")
+        )
+    )
+
     return(list("heatmap" = heatmap,
                 "clones" = clustered_samples))
 }

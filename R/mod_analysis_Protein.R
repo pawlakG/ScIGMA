@@ -183,19 +183,22 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # Initialize Inputs & Root Gate from R6 Object
         observeEvent({
-            watch("dnaVariant_filtered")
+            # watch("dnaVariant_filtered")
+            watch("dataLoaded")
+
         },{
+            req(ScIGMA_data$mae[["proteins"]])
 
-            req(ScIGMA_data$protein.mtx)
-
-            # Populate SelectInputs for Markers
-            ptn_names <- colnames(ScIGMA_data$protein.mtx)
+            # UPDATED : Extraction depuis les lignes du MAE
+            ptn_names <- rownames(ScIGMA_data$mae[["proteins"]])
+            print("ptn_names")
+            print(ptn_names)
             updateSelectInput(session, "xvar", choices = ptn_names, selected = ptn_names[1])
             updateSelectInput(session, "yvar", choices = ptn_names, selected = ptn_names[2])
 
             # Initialize Root (All Cells)
             if (is.null(r_state$subsets[["root"]])) {
-                n_cells <- nrow(ScIGMA_data$protein.mtx)
+                n_cells <- ncol(ScIGMA_data$mae[["proteins"]]) # UPDATED : Cellules = Colonnes
                 r_state$subsets[["root"]] <- 1:n_cells
                 r_state$subset_meta[["root"]] <- list(
                     name = "Tout",
@@ -204,10 +207,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 )
             }
             updateSelectInput(
-                session = session,      # Indispensable dans un module
-                inputId = "protein_umap_markers",       # Pas besoin de ns() ici, c'est géré par session
-                choices = c("None", colnames(ScIGMA_data$protein.mtx)),
-                selected = "None" # Optionnel : définir la sélection par défaut
+                session = session,
+                inputId = "protein_umap_markers",
+                choices = c("None", ptn_names),
+                selected = "None"
             )
         })
 
@@ -221,27 +224,26 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         output$biplot <- renderPlotly({
             req(input$xvar, input$yvar, r_state$current_view)
 
-            # 1. Get indices (Recursive filtering)
             current_indices <- r_state$subsets[[r_state$current_view]]
 
-            # 2. Fetch data from R6 (Reference access)
-            # We assume ScIGMA_data$protein.mtx is the matrix.
-            # raw_x <- ScIGMA_data$protein.mtx[current_indices, input$xvar]
-            # raw_y <- ScIGMA_data$protein.mtx[current_indices, input$yvar]
-            raw_x <- t(ScIGMA_data$seurat_object@assays$RNA$data)[current_indices, input$xvar]
-            raw_y <- t(ScIGMA_data$seurat_object@assays$RNA$data)[current_indices, input$yvar]
+            # UPDATED : Extraction directe depuis le MAE (Source de vérité unique)
+            # On cherche les données CLR en priorité, sinon les counts bruts.
+            assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+
+            # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
+            raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
+            raw_y <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$yvar, current_indices]
+            print("enculé")
 
             plot_df <- data.frame(
                 x = raw_x,
                 y = raw_y,
-                custom_id = current_indices # Key for mapping back to global R6 rows
+                custom_id = current_indices
             )
 
-            # 3. Transform
             if (input$logx) plot_df$x <- log1p(plot_df$x)
             if (input$logy) plot_df$y <- log1p(plot_df$y)
 
-            # 4. Render (WebGL for performance)
             plot_ly(
                 data = plot_df,
                 x = ~x,
@@ -254,10 +256,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ) %>%
                 layout(
                     title = paste("Gate:", r_state$subset_meta[[r_state$current_view]]$name),
-                    xaxis = list(title = input$xvar,
-                                 range = list(0, max(plot_df$x)+1)),
-                    yaxis = list(title = input$yvar,
-                                 range = list(0, max(plot_df$y)+1)),
+                    xaxis = list(title = input$xvar, range = list(0, max(plot_df$x)+1)),
+                    yaxis = list(title = input$yvar, range = list(0, max(plot_df$y)+1)),
                     dragmode = "lasso"
                 ) %>%
                 toWebGL() %>%

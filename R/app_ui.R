@@ -11,6 +11,8 @@ app_ui <- function(request) {
     tagList(
         golem_add_external_resources(),
 
+        use_waiter(),
+
         page_navbar(
             title = HTML("ScIGMA portal"),
             selected = "welcome_tab",

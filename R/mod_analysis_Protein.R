@@ -114,11 +114,7 @@ mod_analysis_Protein_ui <- function(id) {
                                              area = "main",
                                              h3("2D Projection"),
 
-                                             # shinycssloaders::withSpinner(
                                              plotlyOutput(ns("umap_plot_build"), height = "600px")
-                                             # type = 6, # Un style de loader (cercle qui tourne)
-                                             # color = "#007bff"
-                                             # )
                                          )
                                   )
                               )
@@ -164,6 +160,7 @@ mod_analysis_Protein_ui <- function(id) {
 #' analysis_right_Protein Server Functions
 #'
 #' @noRd
+#' @import ggplot2
 #' @importFrom ggprism theme_prism
 #' @importFrom plotly renderPlotly plot_ly layout event_data toWebGL config
 #' @importFrom shiny moduleServer reactiveValues observe req updateSelectInput updateTextInput renderUI renderText actionLink div observeEvent
@@ -229,11 +226,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # UPDATED : Extraction directe depuis le MAE (Source de vérité unique)
             # On cherche les données CLR en priorité, sinon les counts bruts.
             assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+            print("assay_to_use")
+            print(assay_to_use)
 
             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
             raw_y <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$yvar, current_indices]
-            print("enculé")
 
             plot_df <- data.frame(
                 x = raw_x,
@@ -387,12 +385,21 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # On écoute explicitement le trigger ET les paramètres
             watch("launch_umap")
 
+            # show_modal_spinner(text = "Filtering and annotating DNA variants...")
+            w <- Waiter$new(
+                # id = "umap_clustering_plot", # Peut cibler un plot précis ou toute la page
+                html = spin_loaders(1, color = "black"),             # Spinner discret et élégant
+                color = "rgba(255, 255, 255, 0.5)" # Fond blanc semi-transparent (pas de bloc blanc opaque)
+            )
+            w$show()
+
             # Récupération isolée des paramètres pour ne pas relancer le calcul
             # si l'utilisateur change juste le chiffre sans cliquer
             n_neighbors <- isolate(input$n_neighbors)
             min_dist <- isolate(input$min_dist)
 
-            req(ScIGMA_data$protein.mtx)
+            # req(ScIGMA_data$protein.mtx)
+            req(ScIGMA_data$mae[["proteins"]])
 
             message("Computing UMAP...")
 
@@ -402,6 +409,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # } else {
             #     ScIGMA_data$protein.mtx
             # }
+
+            # Perform PCA
+            if (ScIGMA_data$filetype == "DNA+protein"){
+                message("Preprocessing protein data ...")
+
+                ScIGMA_data <- normalizeProtein(ScIGMA_data)
+                ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
+            }
 
             # Compute UMAP
 
@@ -423,6 +438,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # Stockage dans l'objet R6
             # ScIGMA_data$protein.umap <- umap_coords
 
+            w$hide()
             gargoyle::trigger("umap_computed")
             message("Calcul UMAP terminé.")
 
@@ -445,19 +461,21 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 ylab('UMAP 2') +
                 theme_prism()
 
-            print("ScIGMA_data$umaps$umap_protein_general")
-            print(ScIGMA_data$umaps$umap_protein_general)
-
             # 2. Rendering
-            output$umap_plot_build <- renderPlotly({plot_ly(data = umap_cluster,
-                                                            x = ~umap_1,
-                                                            y = ~umap_2,
-                                                            type = 'scatter',
-                                                            mode = 'markers',
-                                                            marker = list(size = 6,  opacity = 1)) %>%
+            output$umap_plot_build <- renderPlotly({
+
+                p <- plot_ly(data = umap_cluster,
+                             x = ~umap_1,
+                             y = ~umap_2,
+                             type = 'scatter',
+                             mode = 'markers',
+                             marker = list(size = 6,  opacity = 1)) %>%
                     layout(xaxis = list(title = "UMAP 1"),
                            yaxis = list(title = "UMAP 2")) %>%
                     toWebGL() # Toujours optimiser pour le single-cell
+
+                print("test_2")
+                return(p)
             })
         },ignoreInit = TRUE)
 
@@ -473,6 +491,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # render UMAP with clustering
         observeEvent({watch("umap_computed")
             input$find_clusters_btn},{
+
                 clustering_resolution <- input$umap_clust_resolution
                 # Compute umap
                 if (is.null(ScIGMA_data$seurat_object@reductions$umap)){
@@ -492,17 +511,75 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 umap_cluster$cluster = ScIGMA_data$seurat_object$seurat_clusters[rownames(umap_cluster)]
 
                 # 2. Rendering
-                output$umap_clustering_plot <- renderPlotly({plot_ly(data = umap_cluster,
-                                                                     x = ~umap_1,
-                                                                     y = ~umap_2,
-                                                                     type = 'scatter',
-                                                                     mode = 'markers',
-                                                                     color = ~cluster,
-                                                                     marker = list(size = 6,  opacity = 1)) %>%
-                        layout(xaxis = list(title = "UMAP 1"),
-                               yaxis = list(title = "UMAP 2")) %>%
-                        toWebGL() # Toujours optimiser pour le single-cell
+                # output$umap_clustering_plot <- renderPlotly({plot_ly(data = umap_cluster,
+                #                                                      x = ~umap_1,
+                #                                                      y = ~umap_2,
+                #                                                      type = 'scatter',
+                #                                                      mode = 'markers',
+                #                                                      color = ~cluster,
+                #                                                      marker = list(size = 6,  opacity = 1)) %>%
+                #         layout(xaxis = list(title = "UMAP 1"),
+                #                yaxis = list(title = "UMAP 2")) %>%
+                #         toWebGL() # Toujours optimiser pour le single-cell
+                # })
+                output$umap_clustering_plot <- renderPlotly({
+
+                    w <- Waiter$new(
+                        id = "umap_plot_build",
+                        html = spin_3(),
+                        color = transparent(0.5)
+                    )
+
+                    w$show()
+
+                    p <- plot_ly(data = umap_cluster,
+                            x = ~umap_1,
+                            y = ~umap_2,
+                            type = 'scatter',
+                            mode = 'markers',
+                            color = ~cluster,
+                            marker = list(size = 6, opacity = 0.9)) %>%
+                        layout(
+                            # Configuration de l'axe X
+                            xaxis = list(
+                                title = list(text = "<b>UMAP 1</b>", font = list(size = 16, color = "black")),
+                                tickfont = list(size = 14, color = "black", family = "Arial"),
+                                showline = TRUE,
+                                linewidth = 2,        # Épaisseur de l'axe (style Prism)
+                                linecolor = "black",
+                                mirror = FALSE,       # Garde l'axe uniquement en bas
+                                ticks = "outside",    # Ticks vers l'extérieur
+                                tickwidth = 2,
+                                gridcolor = 'transparent',
+                                zeroline = FALSE
+                            ),
+                            # Configuration de l'axe Y
+                            yaxis = list(
+                                title = list(text = "<b>UMAP 2</b>", font = list(size = 16, color = "black")),
+                                tickfont = list(size = 14, color = "black", family = "Arial"),
+                                showline = TRUE,
+                                linewidth = 2,        # Épaisseur de l'axe
+                                linecolor = "black",
+                                mirror = FALSE,
+                                ticks = "outside",
+                                tickwidth = 2,
+                                gridcolor = 'transparent',
+                                zeroline = FALSE
+                            ),
+                            # Paramètres généraux
+                            plot_bgcolor = "white",  # Fond blanc
+                            paper_bgcolor = "white",
+                            legend = list(
+                                font = list(size = 12, family = "Arial"),
+                                title = list(text = "<b>Cluster</b>")
+                            ),
+                            margin = list(l = 50, r = 50, b = 50, t = 50) # Marges propres
+                        ) %>%
+                        toWebGL()
+                    w$hide()
+                    return(p)
                 })
+
             },ignoreInit = TRUE)
 
 
@@ -523,11 +600,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                              # >> Add protein marker information to seurat object _
                              plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                                  as.data.frame()
-                             protein_markers_df <- if(!is.null(ScIGMA_data$protein.mtx.filtered.normalized)){
-                                 ScIGMA_data$protein.mtx.filtered.normalized
-                             } else {
-                                 ScIGMA_data$protein.mtx
-                             }
+
+
+                             assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+
+                             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
+                             print(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[,1:5])
+                             protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |>t()
+
                              ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data,
                                                                           protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
 
@@ -577,9 +657,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             req(input$protein_umap_markers)
             umap_marker_choice <- input$protein_umap_markers
-
-            message("umap_marker_choice")
-            print(umap_marker_choice)
 
             # >> Handle markers selection _
 

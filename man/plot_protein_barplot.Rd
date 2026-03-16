@@ -6,17 +6,6 @@
 \usage{
 plot_protein_barplot(obj, title = "Protein Percentage Distribution")
 }
-\arguments{
-\item{obj}{Un objet contenant la matrice protéique (obj$protein.mtx)}
-
-\item{title}{Titre optionnel du graphique}
-}
-\value{
-Un objet ggplot représentant la distribution relative des protéines
-}
 \description{
 Génère un barplot de la proportion de protéines
-}
-\examples{
-plot_protein_barplot(obj)
 }

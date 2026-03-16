@@ -24,6 +24,7 @@ normalizeProtein <- function(ScIGMA_object) {
 
     # CRITIQUE : Destruction de la classe 'rmult' et retour à une matrice R native
     tmp_mat <- as.matrix(unclass(tmp_clr))
+    tmp_mat <- apply(tmp_mat, 2, \(x) x + abs(min(x)))  # Translate to non-negative values
 
     # 3. Transposition pour le stockage MAE (Protéines x Cellules)
     ret <- t(tmp_mat)

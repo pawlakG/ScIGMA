@@ -7,6 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+#' @import waiter
 mod_analysis_overview_ui <- function(id) {
     ns <- NS(id)
     ## Add a spinner
@@ -84,7 +85,12 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             req(fileType)
             sampleName <- file_path_sans_ext(input$file_h5file$name)
             message(whereami::whereami())
-            show_modal_spinner(text = "Loading data ...")
+            # show_modal_spinner(text = "Loading data ...")
+            w <- Waiter$new(
+                html = spin_double_bounce(),             # Spinner discret et élégant
+                color = "rgba(255, 255, 255, 0.5)" # Fond blanc semi-transparent (pas de bloc blanc opaque)
+            )
+            w$show()
             if (file.exists(filePath)) {
                 if (file.info(filePath)$isdir) {
                     ScIGMA_data <- tryCatch(
@@ -121,17 +127,10 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             # ScIGMA_data$backing_files <- temp_scigma_obj$backing_files # (Si besoin)
 
             # ScIGMA_data$filetype <- fileType
-
-            if (ScIGMA_data$filetype == "DNA+protein"){
-                message("Preprocessing protein data ...")
-
-                ScIGMA_data <- normalizeProtein(ScIGMA_data)
-                ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
-            }
-            remove_modal_spinner()
+            # remove_modal_spinner()
+            w$hide()
             message(whereami::whereami())
-            print("ScIGMA_data$filetype mod_analysis_overview")
-            print(ScIGMA_data$filetype)
+
             trigger("dataLoaded")
         })
 
@@ -258,7 +257,13 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             req(ScIGMA_data$mae) # Sécurité : s'assure que les données sont chargées
 
             message(whereami::whereami())
-            show_modal_spinner(text = "Filtering and annotating DNA variants...")
+            # show_modal_spinner(text = "Filtering and annotating DNA variants...")
+            w <- Waiter$new(
+                # id = "umap_clustering_plot", # Peut cibler un plot précis ou toute la page
+                html = spin_loaders(1, color = "black"),             # Spinner discret et élégant
+                color = "rgba(255, 255, 255, 0.5)" # Fond blanc semi-transparent (pas de bloc blanc opaque)
+            )
+            w$show()
 
             # ---------------------------- #
             # Store initial cell and DNA variant info (Utilisation du MAE)
@@ -292,7 +297,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             # ---------------------------- #
             # Trigger downstream modules
-            remove_modal_spinner()
+            # remove_modal_spinner()
+            w$hide()
             trigger("dnaVariant_filtered")
             trigger("launch_umap")
         })
@@ -320,16 +326,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 current_variants <- nrow(ScIGMA_data$mae[["dna_variants"]])
 
                 # UPDATED: Extraction directe des dimensions PRE-filtrage depuis mae_raw
-                print("ScIGMA_data$mae_raw")
-                print(ScIGMA_data)
-                print(str(ScIGMA_data))
                 initial_cells <- ncol(ScIGMA_data$mae_raw[["dna_variants"]])
                 initial_variants <- nrow(ScIGMA_data$mae_raw[["dna_variants"]])
-
-                print(initial_cells)
-                print(current_cells)
-                print(initial_variants)
-                print(current_variants)
 
                 tagList(
                     fluidRow(

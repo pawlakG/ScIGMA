@@ -5,7 +5,7 @@
 n_loci <- 5L
 # n_cells <- 10L
 n_cells <- 500L
-n_regions <- 2L
+n_regions <- 5L
 
 set.seed(42)
 

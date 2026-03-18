@@ -577,3 +577,167 @@ generate_dna_variant_heatmap <- function(obj,
                 "clones" = clustered_samples))
 }
 
+# NEW
+# File: fct_DNA.R (ou script dédié à COMPASS)
+
+#' Build matrices for COMPASS (Joint SNV/CNV Phylogeny)
+#'
+#' @description
+#' Extracts and formats data from a ScIGMA_object MAE to feed the COMPASS MCMC backend.
+#' Computes M_ref and M_alt from Depth and VAF. Aggregates amplicon depths by Gene to form
+#' the region count matrix (C). Computes the 0-based topological mapping vector (locus_regions).
+#'
+#' @param obj A ScIGMA_object (R6) containing the MAE.
+#' @param selected_variants Character vector. The exact variant IDs to include in the phylogeny.
+#'
+#' @return A list containing:
+#'   - M_ref: Matrix (Cells x Variants) of Reference allele counts.
+#'   - M_alt: Matrix (Cells x Variants) of Alternate allele counts.
+#'   - C: Matrix (Cells x Genes) of total region depth.
+#'   - locus_regions: Integer vector (0-based) mapping each variant to its column in C.
+#'   - regions_names: Character vector of the region (Gene) names in order.
+#'
+#' @export
+build_compass_matrices <- function(obj, selected_variants) {
+
+    message("Building COMPASS topological and count matrices...")
+
+    # ---- 1. Extraction et Calcul des matrices SNV (M_ref, M_alt) ----
+    # Extraction depuis le MAE (Variants x Cellules)
+    dp_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
+    vaf_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
+
+    # Subsetting stricte sur les variants sélectionnés
+    dp_sub <- as.matrix(dp_full[selected_variants, , drop = FALSE])
+    vaf_sub <- as.matrix(vaf_full[selected_variants, , drop = FALSE])
+
+    # Transposition au standard ML (Cellules x Variants)
+    dp_mat <- t(dp_sub)
+    vaf_mat <- t(vaf_sub)
+
+    # Dérivation probabiliste des comptes d'allèles
+    # VAF est en pourcentage (0-100) dans Tapestri
+    M_alt <- round(dp_mat * (vaf_mat / 100))
+    M_ref <- dp_mat - M_alt
+
+    # Gestion du bruit de fond (VAF = -1 pour les génotypes non fiables)
+    missing_mask <- vaf_mat < 0
+    M_alt[missing_mask] <- NA
+    M_ref[missing_mask] <- NA
+
+    # ---- 2. Extraction et Agrégation des CNV (Matrice C) ----
+    amp_full <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+
+    genome_v <- S4Vectors::metadata(obj$mae)$genome_version
+    if (is.null(genome_v)) genome_v <- "hg19"
+
+    # Annotation des amplicons pour récupérer les Gènes (symbol)
+    cnv_annotated <- annotate_genomic_regions(cnv_id_table, build = genome_v)
+    cnv_annotated$symbol[is.na(cnv_annotated$symbol)] <- "Unknown"
+
+    # Transposition au standard ML (Cellules x Amplicons)
+    amp_mat <- t(as.matrix(amp_full))
+
+    # Agrégation Spatiale : Amplicons -> Gènes
+    C_mat <- aggregate_matrix_by_mappingTable(
+        numeric_matrix = amp_mat,
+        mapping_table = cnv_annotated,
+        feature_column_name = dna_id,
+        group_column_name = symbol
+    )
+
+    # ---- 3. Mapping Topologique (locus_regions) ----
+    # Récupération de l'ID amplicon parent pour chaque variant
+    dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
+    snv_info <- dna_id_table[selected_variants, , drop = FALSE]
+
+    # Jointure SNV -> Amplicon -> Gène
+    snv_to_gene <- merge(
+        x = data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon),
+        y = cnv_annotated[, c("dna_id", "symbol")],
+        by.x = "amplicon",
+        by.y = "dna_id",
+        all.x = TRUE,
+        sort = FALSE
+    )
+
+    # Restauration de l'ordre d'origine
+    snv_to_gene <- snv_to_gene[match(selected_variants, snv_to_gene$variant_id), ]
+    snv_to_gene$symbol[is.na(snv_to_gene$symbol)] <- "Unknown"
+
+    # Dérivation de l'index Base-0 pour le C++
+    gene_cols <- colnames(C_mat)
+    locus_regions <- match(snv_to_gene$symbol, gene_cols) - 1
+
+    # Fail-Fast : Arrêt si un variant tombe dans le vide topologique
+    if (any(is.na(locus_regions))) {
+        stop("Fatal: Some selected variants could not be mapped to a valid region in matrix C.")
+    }
+
+    message("Matrices successfully built for COMPASS.")
+
+    return(list(
+        M_ref = M_ref,
+        M_alt = M_alt,
+        C = C_mat,
+        locus_regions = locus_regions,
+        variants = selected_variants,
+        regions = gene_cols
+    ))
+}
+
+# NEW
+# File: R/fct_compass_wrapper.R
+
+#' Run COMPASS MCMC phylogeny inference
+#'
+#' @description
+#' Triggers the COMPASS CLI via system call. Isolates MCMC memory overhead
+#' from the main R process.
+#'
+#' @param input_dir Character. Path to matrices directory.
+#' @param output_dir Character. Path for COMPASS output.
+#' @param compass_exec Character. Path or alias to COMPASS executable.
+#' @param n_iters Integer. Number of MCMC iterations per chain.
+#' @param restarts Integer. Number of random initializations.
+#' @param threads Integer. Cores allocated for parallel chains.
+#'
+#' @return Logical. TRUE if successful.
+#' @export
+run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
+                             n_iters = 100000, restarts = 10, threads = 8) {
+    if (!dir.exists(input_dir)) {
+        stop("Fatal: input directory not found.")
+    }
+    dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+    print("test0")
+    args <- c(
+        "--m-ref", file.path(input_dir, "M_ref.tsv"),
+        "--m-alt", file.path(input_dir, "M_alt.tsv"),
+        "--c-mat", file.path(input_dir, "C_mat.tsv"),
+        "--locus-regions", file.path(input_dir, "locus_regions.txt"),
+        "--out-dir", output_dir,
+        "--iters", as.character(n_iters),
+        "--restarts", as.character(restarts),
+        "--threads", as.character(threads)
+    )
+
+    print("test1")
+    message("Spawning COMPASS backend process...")
+
+    print("test2")
+    exit_status <- system2(
+        command = compass_exec,
+        args = args,
+        stdout = file.path(output_dir, "compass.log"),
+        stderr = file.path(output_dir, "compass.err")
+    )
+
+    print("test3")
+    if (exit_status != 0) {
+        stop("Critical: MCMC process crashed. Inspect compass.err.")
+    }
+
+    invisible(TRUE)
+}

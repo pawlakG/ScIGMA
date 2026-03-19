@@ -1,0 +1,22 @@
+{
+"nodes":[
+	{
+		"name": "Node 0",
+		"parent": "-",
+		"SNV": ["NRAS p.G12S","NF1 intronic"],
+		"CNA": []
+	},
+	{
+		"name": "Node 1",
+		"parent": "Node 0",
+		"SNV": ["NRAS p.G12A","DNMT3A p.L889P","IDH2 p.R172K","DNMT3A p.763fs*"],
+		"CNA": ["Gain Region_12"]
+	},
+	{
+		"name": "Node 2",
+		"parent": "Node 1",
+		"SNV": ["FLT3 p.V491L"],
+		"CNA": []
+	}
+]
+}

@@ -1,0 +1,52 @@
+{
+"nodes":[
+	{
+		"name": "Node 0",
+		"parent": "-",
+		"SNV": [],
+		"CNA": []
+	},
+	{
+		"name": "Node 1",
+		"parent": "Node 0",
+		"SNV": ["NF1 intronic"],
+		"CNA": []
+	},
+	{
+		"name": "Node 2",
+		"parent": "Node 4",
+		"SNV": [],
+		"CNA": ["Gain Region_5"]
+	},
+	{
+		"name": "Node 3",
+		"parent": "Node 4",
+		"SNV": ["NRAS p.G12S"],
+		"CNA": []
+	},
+	{
+		"name": "Node 4",
+		"parent": "Node 6",
+		"SNV": ["DNMT3A p.L889P","DNMT3A p.763fs*"],
+		"CNA": []
+	},
+	{
+		"name": "Node 5",
+		"parent": "Node 3",
+		"SNV": ["FLT3 p.V491L"],
+		"CNA": []
+	},
+	{
+		"name": "Node 6",
+		"parent": "Node 1",
+		"SNV": ["IDH2 p.R172K"],
+		"CNA": ["Gain Region_11"]
+	},
+	{
+		"name": "Node 7",
+		"parent": "Node 2",
+		"SNV": ["NRAS p.G12A"],
+		"CNA": []
+	}
+]
+}

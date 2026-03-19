@@ -1,0 +1,30 @@
+digraph G{
+node [color=dimgray fontsize=24 fontcolor=black fontname=Helvetica penwidth=5];
+3 -> 1 [color=dimgray penwidth=4 weight=2];
+3 -> 2 [color=dimgray penwidth=4 weight=2];
+0 -> 3 [color=dimgray penwidth=4 weight=2];
+5 -> 4 [color=dimgray penwidth=4 weight=2];
+2 -> 5 [color=dimgray penwidth=4 weight=2];
+2 -> 6 [color=dimgray penwidth=4 weight=2];
+0[label=< >];
+1[label=<<B>RUNX1 p.D198N(chr1)</B><br/>>];
+2[label=<<B>RUNX1 p.N153fs(chr1)</B><br/><B>Gain Region_11 (chr1)</B><br/>>];
+3[label=<<B>DNMT3A p.R882H(chr1)</B><br/><B>IDH1 p.R132C(chr1)</B><br/>>];
+4[label=<<B>Loss Region_8 (chr1)</B><br/>>];
+5[label=<<B>Gain Region_6 (chr1)</B><br/>>];
+6[label=<<B>Loss Region_6 (chr1)</B><br/><B>Loss Region_8 (chr1)</B><br/><B>Loss Region_9 (chr1)</B><br/>>];
+0 -> 7 [dir=none style=dashed weight=1 penwidth=5 color=lightcoral];
+1 -> 8 [dir=none style=dashed weight=1 penwidth=5 color=skyblue3];
+2 -> 9 [dir=none style=dashed weight=1 penwidth=5 color=sandybrown];
+3 -> 10 [dir=none style=dashed weight=1 penwidth=5 color=paleturquoise3];
+4 -> 11 [dir=none style=dashed weight=1 penwidth=5 color=thistle];
+5 -> 12 [dir=none style=dashed weight=1 penwidth=5 color=darkolivegreen3];
+6 -> 13 [dir=none style=dashed weight=1 penwidth=5 color=lightpink];
+7[label="205 cells\n8\%" style = filled width=0.927638 height=0.927638 color=lightcoral];
+8[label="169 cells\n6\%" style = filled width=0.842258 height=0.842258 color=skyblue3];
+9[label="0 cells\n0\%" style = filled width=0 height=0 color=sandybrown];
+10[label="7 cells\n0\%" style = filled width=0.171416 height=0.171416 color=paleturquoise3];
+11[label="302 cells\n11\%" style = filled width=1.12591 height=1.12591 color=thistle];
+12[label="910 cells\n34\%" style = filled width=1.95444 height=1.95444 color=darkolivegreen3];
+13[label="1054 cells\n40\%" style = filled width=2.1034 height=2.1034 color=lightpink];
+}

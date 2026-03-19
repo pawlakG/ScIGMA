@@ -1,0 +1,22 @@
+digraph G{
+node [color=dimgray fontsize=24 fontcolor=black fontname=Helvetica penwidth=5];
+0 -> 1 [color=dimgray penwidth=4 weight=2];
+3 -> 2 [color=dimgray penwidth=4 weight=2];
+1 -> 3 [color=dimgray penwidth=4 weight=2];
+2 -> 4 [color=dimgray penwidth=4 weight=2];
+0[label=< >];
+1[label=<<B>TP53 p.Y220C(chr1)</B><br/><B>TP53 p.V143M(chr1)</B><br/><B>Loss Region_23 (chr1)</B><br/>>];
+2[label=<<B>PTPN11 p.G503R(chr1)</B><br/>>];
+3[label=<BCOR intronic(chr1)<br/>>];
+4[label=<<B>KRAS p.G13D(chr1)</B><br/>>];
+0 -> 5 [dir=none style=dashed weight=1 penwidth=5 color=lightcoral];
+1 -> 6 [dir=none style=dashed weight=1 penwidth=5 color=skyblue3];
+2 -> 7 [dir=none style=dashed weight=1 penwidth=5 color=sandybrown];
+3 -> 8 [dir=none style=dashed weight=1 penwidth=5 color=paleturquoise3];
+4 -> 9 [dir=none style=dashed weight=1 penwidth=5 color=thistle];
+5[label="471 cells\n11\%" style = filled width=1.12622 height=1.12622 color=lightcoral];
+6[label="448 cells\n11\%" style = filled width=1.09838 height=1.09838 color=skyblue3];
+7[label="319 cells\n8\%" style = filled width=0.92685 height=0.92685 color=sandybrown];
+8[label="2834 cells\n69\%" style = filled width=2.76257 height=2.76257 color=paleturquoise3];
+9[label="54 cells\n1\%" style = filled width=0.381339 height=0.381339 color=thistle];
+}

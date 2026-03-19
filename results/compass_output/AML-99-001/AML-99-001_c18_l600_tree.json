@@ -1,0 +1,70 @@
+{
+"nodes":[
+	{
+		"name": "Node 0",
+		"parent": "-",
+		"SNV": ["RAD21 silent"],
+		"CNA": []
+	},
+	{
+		"name": "Node 1",
+		"parent": "Node 0",
+		"SNV": ["DNMT3A p.R882H"],
+		"CNA": []
+	},
+	{
+		"name": "Node 2",
+		"parent": "Node 6",
+		"SNV": [],
+		"CNA": ["CNLOH Region_29"]
+	},
+	{
+		"name": "Node 3",
+		"parent": "Node 2",
+		"SNV": ["CSF3R p.Q768*"],
+		"CNA": []
+	},
+	{
+		"name": "Node 4",
+		"parent": "Node 2",
+		"SNV": [],
+		"CNA": ["Gain Region_6"]
+	},
+	{
+		"name": "Node 5",
+		"parent": "Node 2",
+		"SNV": [],
+		"CNA": ["Loss Region_6"]
+	},
+	{
+		"name": "Node 6",
+		"parent": "Node 9",
+		"SNV": ["IDH2 p.R140Q"],
+		"CNA": ["Gain Region_11","Gain Region_12"]
+	},
+	{
+		"name": "Node 7",
+		"parent": "Node 3",
+		"SNV": [],
+		"CNA": ["Loss Region_6"]
+	},
+	{
+		"name": "Node 8",
+		"parent": "Node 0",
+		"SNV": [],
+		"CNA": ["Loss Region_6"]
+	},
+	{
+		"name": "Node 9",
+		"parent": "Node 1",
+		"SNV": ["RUNX1 p.R162K"],
+		"CNA": []
+	},
+	{
+		"name": "Node 10",
+		"parent": "Node 3",
+		"SNV": [],
+		"CNA": ["Gain Region_6"]
+	}
+]
+}

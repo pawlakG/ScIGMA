@@ -109,8 +109,8 @@ run_status <- tryCatch({
         locus_regions    = compass_inputs$locus_regions,
         region_matrix    = mat_cna, # UPDATED : Matrice transposée et castée
         output_prefix    = file.path(output_compass_dir, "aml_4_lines_tree"),
-        chains           = 5L,     # Exploite le M4 Pro
-        chain_length     = 5000L, # Convergence longue
+        chains           = 3L,
+        chain_length     = 5L,
         patient_sex      = "female"
     )
 }, error = function(e) {

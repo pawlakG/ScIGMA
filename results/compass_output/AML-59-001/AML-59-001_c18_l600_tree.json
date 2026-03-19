@@ -1,0 +1,52 @@
+{
+"nodes":[
+	{
+		"name": "Node 0",
+		"parent": "-",
+		"SNV": ["TP53 intronic","chr10_5554293 intergenic","chr6_17076840 intergenic"],
+		"CNA": []
+	},
+	{
+		"name": "Node 1",
+		"parent": "Node 2",
+		"SNV": ["RUNX1 p.D198N"],
+		"CNA": []
+	},
+	{
+		"name": "Node 2",
+		"parent": "Node 0",
+		"SNV": ["IDH1 p.R132C","DNMT3A p.R882H"],
+		"CNA": []
+	},
+	{
+		"name": "Node 3",
+		"parent": "Node 2",
+		"SNV": ["RUNX1 p.N153fs"],
+		"CNA": ["Gain Region_11"]
+	},
+	{
+		"name": "Node 4",
+		"parent": "Node 7",
+		"SNV": [],
+		"CNA": ["Loss Region_9"]
+	},
+	{
+		"name": "Node 5",
+		"parent": "Node 1",
+		"SNV": [],
+		"CNA": ["Loss Region_17"]
+	},
+	{
+		"name": "Node 6",
+		"parent": "Node 3",
+		"SNV": [],
+		"CNA": ["Gain Region_6"]
+	},
+	{
+		"name": "Node 7",
+		"parent": "Node 3",
+		"SNV": [],
+		"CNA": ["Loss Region_6","Loss Region_8"]
+	}
+]
+}

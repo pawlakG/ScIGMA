@@ -1,0 +1,40 @@
+{
+"nodes":[
+	{
+		"name": "Node 0",
+		"parent": "-",
+		"SNV": ["EZH2 intronic","TP53 p.V143M","BCOR intronic"],
+		"CNA": []
+	},
+	{
+		"name": "Node 1",
+		"parent": "Node 0",
+		"SNV": ["TP53 p.Y220C"],
+		"CNA": ["Loss Region_10"]
+	},
+	{
+		"name": "Node 2",
+		"parent": "Node 1",
+		"SNV": ["PTPN11 p.G503R"],
+		"CNA": []
+	},
+	{
+		"name": "Node 3",
+		"parent": "Node 4",
+		"SNV": ["KRAS p.G13D"],
+		"CNA": []
+	},
+	{
+		"name": "Node 4",
+		"parent": "Node 1",
+		"SNV": [],
+		"CNA": ["Loss Region_22"]
+	},
+	{
+		"name": "Node 5",
+		"parent": "Node 1",
+		"SNV": [],
+		"CNA": ["Loss Region_23"]
+	}
+]
+}

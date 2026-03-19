@@ -1,0 +1,12 @@
+node	EZH2 intronic	KRAS p.G13D	PTPN11 p.G503R	TP53 p.Y220C	TP53 p.V143M	BCOR intronic
+Node 0	0	0	0	0	0	1
+Node 1	1	0	0	1	1	1
+Node 2	2	0	0	1	1	1
+Node 3	2	1	0	1	1	1
+Node 4	2	0	1	1	1	1
+Node 5	2	0	0	1	1	1
+Node 6	1	0	0	0	0	1
+Node 7	2	0	1	1	1	1
+Node 8	2	0	0	0	2	1
+Node 9	2	0	0	1	1	1
+Node 10	2	0	0	2	0	1

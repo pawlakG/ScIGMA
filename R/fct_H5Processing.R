@@ -713,6 +713,7 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         chrom = .h5read_char(filepath, "/assays/dna_read_counts/ca/CHROM"),
         start_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/start_pos")),
         end_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/end_pos")),
+        # Add here gene info
         row.names = amp_ca_ids
     )
 

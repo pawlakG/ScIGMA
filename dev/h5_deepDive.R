@@ -95,36 +95,43 @@ variant_matrices <- list(
     GT  = mat_gt
 )
 
-message("In-memory matrices formatted (Strict Integer & Loci x Cells). Triggering C++ Engine...")
 
-# 5. Création du dossier de sortie pour l'arbre et les logs
-output_compass_dir <- "results/compass_output"
-dir.create(output_compass_dir, showWarnings = FALSE, recursive = TRUE)
+# 1. Extraction des métadonnées SNV
+snv_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]))
+snv_sub <- snv_rowData[target_variants, ]
 
-t0 <- Sys.time()
-# 6. Exécution Rcpp (Direct RAM to C++)
-run_status <- tryCatch({
-    run_compass_mcmc(
-        variant_matrices = variant_matrices,
-        locus_regions    = compass_inputs$locus_regions,
-        region_matrix    = mat_cna, # UPDATED : Matrice transposée et castée
-        output_prefix    = file.path(output_compass_dir, "aml_4_lines_tree"),
-        chains           = 3L,
-        chain_length     = 5L,
-        patient_sex      = "female"
-    )
-}, error = function(e) {
-    stop(sprintf("Critical failure during MCMC inference: %s", e$message))
-})
+vec_locus_names <- snv_sub$gene        # Ex: "NPM1"
+vec_locus_chrom <- snv_sub$chrom         # Ex: "5" (Le C++ gère le préfixe "chr" en interne)
 
-t1 <- Sys.time()
+# 2. Extraction des métadonnées CNA
+cna_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+# Agrégation Spatiale (Garantir le format CHR_GENE pour le C++)
+# vec_region_names <- paste0(cna_rowData$chrom, "_", cna_rowData$gene) # Ex: "17_TP53"
+vec_region_names <- paste0(cna_rowData$chrom, "_", sapply(cna_rowData$dna_id, \(x) strsplit(x, "_")[[1]][3])) # Ex: "17_TP53"
+vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta matrice C_mat
 
-message(paste0("Runing time: ", format(round(difftime(t1, t0), 2), units = "auto") ))
+prefix_out <- "results/compass_output/aml_4_lines_"
 
-if (run_status) {
-    message("MCMC inference completed successfully.")
-    message("Topological tree and parameters exported to: ", output_compass_dir)
-}
+# 3. L'appel final blindé
+run_compass_mcmc(
+    variant_matrices  = variant_matrices,
+    locus_regions     = compass_inputs$locus_regions,
+    region_matrix     = mat_cna,
+    output_prefix     = prefix_out,
+    locus_names       = vec_locus_names,
+    locus_chromosomes = vec_locus_chrom,
+    region_names      = vec_region_names,
+    chains            = 4L,
+    chain_length      = 1000L,
+    patient_sex       = "female"
+)
+
+
+
+
+
+
+
 
 
 ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,

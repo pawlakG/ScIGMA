@@ -10,13 +10,13 @@
 		"name": "Node 1",
 		"parent": "Node 2",
 		"SNV": ["CSF3R p.Q768*"],
-		"CNA": ["CNLOH Region_29"]
+		"CNA": ["CNLOH 21_RUNX1"]
 	},
 	{
 		"name": "Node 2",
 		"parent": "Node 0",
 		"SNV": ["DNMT3A p.R882H","RUNX1 p.R162K","IDH2 p.R140Q"],
-		"CNA": ["Gain Region_11","Gain Region_12"]
+		"CNA": ["Gain 8_RAD21","Gain 8_MYC"]
 	}
 ]
 }

@@ -152,7 +152,9 @@ int run_compass_inference_cpp(
         Rcpp::IntegerMatrix genotypes,
         Rcpp::IntegerVector locus_region_mapping,
         Rcpp::IntegerMatrix region_counts,
-        Rcpp::StringVector locus_names, // NEW
+        Rcpp::StringVector locus_names,
+        Rcpp::StringVector locus_chromosomes,   // <-- NEW : Chromosomes pour les SNVs
+        Rcpp::StringVector region_names,        // <-- NEW : Noms des régions CNA (ex: 21_RUNX1)
         std::string output_prefix,
         int n_chains = 4,
         int chain_length = 5000,
@@ -163,20 +165,27 @@ int run_compass_inference_cpp(
         init_params();
         parameters.verbose = false;
         data.sex = sex;
-
         int burn_in = chain_length / 2;
 
         ingest_r_data(
-            ref_counts,
-            alt_counts,
-            genotypes,
-            locus_region_mapping,
-            region_counts,
-            locus_names, // NEW
-            use_cna
+            ref_counts, alt_counts, genotypes,
+            locus_region_mapping, region_counts,
+            locus_names, use_cna
         );
 
+        // FIX CRITIQUE : Mimétisme parfait du parser CSV natif
+        // On écrase les valeurs par défaut générées par ingest_r_data
+        data.locus_to_name = Rcpp::as<std::vector<std::string>>(locus_names);
+        data.locus_to_chromosome = Rcpp::as<std::vector<std::string>>(locus_chromosomes);
+        data.region_to_name = Rcpp::as<std::vector<std::string>>(region_names);
+
         double betabin_overdisp = parameters.omega_het;
+
+        parameters.omega_het = std::min(parameters.omega_het, betabin_overdisp);
+        parameters.omega_het_indel = std::min(
+            parameters.omega_het_indel,
+            betabin_overdisp
+        );
         parameters.omega_het = std::min(parameters.omega_het, betabin_overdisp);
         parameters.omega_het_indel = std::min(
             parameters.omega_het_indel,

@@ -10,7 +10,7 @@
 		"name": "Node 1",
 		"parent": "Node 0",
 		"SNV": ["TP53 p.V143M","TP53 p.Y220C"],
-		"CNA": ["Loss Region_23"]
+		"CNA": ["Loss 17_NF1"]
 	},
 	{
 		"name": "Node 2",

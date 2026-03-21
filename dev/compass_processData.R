@@ -1,3 +1,4 @@
+devtools::load_all()
 library(pbapply)
 library(data.table)
 # [ NODE_ACCESS : Process data from COMPASS article ]
@@ -34,7 +35,8 @@ param_grid <- list(
     list(chains = 10L, length = 100L),
     list(chains = 14L, length = 200L),
     list(chains = 16L, length = 400L),
-    list(chains = 18L, length = 600L)
+    list(chains = 18L, length = 600L),
+    list(chains = 4L, length = 5000L)
 )
 
 # 2. Construction du plan d'exécution (4 datasets x 5 configs = 20 jobs)
@@ -82,16 +84,42 @@ results <- parallel::mclapply(
 
         # Barrière tryCatch pour isoler les Segfaults potentiels d'un dataset corrompu
         run_status <- tryCatch({
+            # run_compass_mcmc(
+            #     variant_matrices = compass_inputs$variant_matrices,
+            #     locus_regions    = compass_inputs$locus_regions,
+            #     region_matrix    = compass_inputs$region_matrix,
+            #     output_prefix    = prefix_out,
+            #     chains           = job$chains,
+            #     chain_length     = job$length,
+            #     # Attention : Assure-toi que "female" s'applique à tous les patients de la liste.
+            #     # Sinon, il faudra l'injecter dynamiquement depuis les métadonnées.
+            #     patient_sex      = "female"
+            # )
+
+            vec_locus_names <- rownames(compass_inputs$variant_matrices$REF)
+            vec_locus_chrom <- as.character(compass_inputs$locus_regions)
+
+            # 2. Extraction des métadonnées CNA
+            # cna_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+            # Agrégation Spatiale (Garantir le format CHR_GENE pour le C++)
+            # vec_region_names <- paste0(cna_rowData$chrom, "_", cna_rowData$gene) # Ex: "17_TP53"
+            vec_region_names <- rownames(compass_inputs$region_matrix)
+            vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta matrice C_mat
+
+
+
+
             run_compass_mcmc(
-                variant_matrices = compass_inputs$variant_matrices,
-                locus_regions    = compass_inputs$locus_regions,
-                region_matrix    = compass_inputs$region_matrix,
-                output_prefix    = prefix_out,
-                chains           = job$chains,
-                chain_length     = job$length,
-                # Attention : Assure-toi que "female" s'applique à tous les patients de la liste.
-                # Sinon, il faudra l'injecter dynamiquement depuis les métadonnées.
-                patient_sex      = "female"
+                variant_matrices  = compass_inputs$variant_matrices,
+                locus_regions     = compass_inputs$locus_regions,
+                region_matrix     = compass_inputs$region_matrix,
+                output_prefix     = prefix_out,
+                locus_names       = vec_locus_names,
+                locus_chromosomes = vec_locus_chrom,
+                region_names      = vec_region_names,
+                chains            = job$chains,
+                chain_length      = job$length,
+                patient_sex       = "female"
             )
         }, error = function(e) {
             warning(sprintf("\n[Worker %02d] Échec critique sur %s: %s", i, run_name, e$message))
@@ -122,6 +150,8 @@ print(results_df)
 write.csv(results_df, file = file.path(base_output_dir, "execution_summary.csv"), row.names = FALSE)
 
 
+n_chains <- 2L
+l_chains <- 10L
 
 t0 <- Sys.time()
 # >> AML-59-001 _
@@ -129,9 +159,9 @@ run_compass_mcmc(
     variant_matrices = data_id_processedFiles_compass$`AML-59-001`$variant_matrices,
     locus_regions    = data_id_processedFiles_compass$`AML-59-001`$locus_regions,
     region_matrix    = data_id_processedFiles_compass$`AML-59-001`$region_matrix,
-    output_prefix    = "results/compass_output/AML-59-001/AML-59-001_c10_l500",
-    chains           = 10,
-    chain_length     = 500,
+    output_prefix    = paste0("results/compass_output/AML-59-001/AML-59-001_c", n_chains, "_l", l_chains),
+    chains           = n_chains,
+    chain_length     = l_chains,
     # Attention : Assure-toi que "female" s'applique à tous les patients de la liste.
     # Sinon, il faudra l'injecter dynamiquement depuis les métadonnées.
     patient_sex      = "female"
@@ -139,3 +169,33 @@ run_compass_mcmc(
 
 t1 <- Sys.time()
 message("Inférence de masse terminée. Temps total : ", round(difftime(t1, t0, units = "mins"), 2), " minutes.")
+
+
+n_chains <- 2L
+l_chains <- 10L
+
+t0 <- Sys.time()
+sample_id <- "AML-59-001"
+out_dir <- file.path("results/compass_native", sample_id)
+
+# 1. Export propre depuis ton objet ScIGMA_data
+files <- export_compass_native_csv(
+    obj = ScIGMA_data,
+    selected_variants = target_variants,
+    output_dir = out_dir,
+    sample_name = sample_id
+)
+
+# 2. Inférence MCMC native (Assure-toi que l'exécutable 'compass' est dans ton PATH)
+run_compass_cli(
+    variants_csv  = files$variants,
+    regions_csv   = files$regions,
+    output_prefix = file.path(out_dir, "tree_output"),
+    chains        = 4,
+    chain_length  = 500,
+    sex           = "female"
+    # compass_bin = "/path/to/your/compass/build/compass" # Décommente si non global
+)
+t1 <- Sys.time()
+message("Inférence de masse terminée. Temps total : ", round(difftime(t1, t0, units = "mins"), 2), " minutes.")
+

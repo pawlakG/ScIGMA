@@ -632,43 +632,41 @@ build_compass_matrices <- function(obj, selected_variants) {
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
     if (is.null(genome_v)) genome_v <- "hg19"
 
-    # Annotation des amplicons pour récupérer les Gènes (symbol)
     cnv_annotated <- annotate_genomic_regions(cnv_id_table, build = genome_v)
     cnv_annotated$symbol[is.na(cnv_annotated$symbol)] <- "Unknown"
 
-    # Transposition au standard ML (Cellules x Amplicons)
+    # FIX CRITIQUE : Formatage strict attendu par le C++ (CHR_GENE)
+    cnv_annotated$compass_region <- paste0(cnv_annotated$chrom, "_", cnv_annotated$symbol)
+
     amp_mat <- t(as.matrix(amp_full))
 
-    # Agrégation Spatiale : Amplicons -> Gènes
+    # Agrégation Spatiale sur le nouveau format
     C_mat <- aggregate_matrix_by_mappingTable(
         numeric_matrix = amp_mat,
         mapping_table = cnv_annotated,
         feature_column_name = dna_id,
-        group_column_name = symbol
+        group_column_name = compass_region # <-- CHANGED
     )
 
     # ---- 3. Mapping Topologique (locus_regions) ----
-    # Récupération de l'ID amplicon parent pour chaque variant
     dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
     snv_info <- dna_id_table[selected_variants, , drop = FALSE]
 
-    # Jointure SNV -> Amplicon -> Gène
+    # Jointure sur le nouveau format
     snv_to_gene <- merge(
         x = data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon),
-        y = cnv_annotated[, c("dna_id", "symbol")],
+        y = cnv_annotated[, c("dna_id", "compass_region")], # <-- CHANGED
         by.x = "amplicon",
         by.y = "dna_id",
         all.x = TRUE,
         sort = FALSE
     )
 
-    # Restauration de l'ordre d'origine
     snv_to_gene <- snv_to_gene[match(selected_variants, snv_to_gene$variant_id), ]
-    snv_to_gene$symbol[is.na(snv_to_gene$symbol)] <- "Unknown"
+    snv_to_gene$compass_region[is.na(snv_to_gene$compass_region)] <- "0_Unknown"
 
-    # Dérivation de l'index Base-0 pour le C++
     gene_cols <- colnames(C_mat)
-    locus_regions <- match(snv_to_gene$symbol, gene_cols) - 1
+    locus_regions <- match(snv_to_gene$compass_region, gene_cols) - 1L
 
     # Fail-Fast : Arrêt si un variant tombe dans le vide topologique
     if (any(is.na(locus_regions))) {

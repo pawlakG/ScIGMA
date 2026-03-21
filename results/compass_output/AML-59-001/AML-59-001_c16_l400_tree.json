@@ -16,7 +16,7 @@
 		"name": "Node 2",
 		"parent": "Node 3",
 		"SNV": ["RUNX1 p.N153fs"],
-		"CNA": ["Gain Region_11"]
+		"CNA": ["Gain 11_WT1"]
 	},
 	{
 		"name": "Node 3",
@@ -28,19 +28,19 @@
 		"name": "Node 4",
 		"parent": "Node 5",
 		"SNV": [],
-		"CNA": ["Loss Region_8"]
+		"CNA": ["Loss 7_EZH2"]
 	},
 	{
 		"name": "Node 5",
 		"parent": "Node 2",
 		"SNV": [],
-		"CNA": ["Gain Region_6"]
+		"CNA": ["Gain 5_NPM1"]
 	},
 	{
 		"name": "Node 6",
 		"parent": "Node 2",
 		"SNV": [],
-		"CNA": ["Loss Region_6","Loss Region_8","Loss Region_9"]
+		"CNA": ["Loss 5_NPM1","Loss 7_EZH2","Loss 9_JAK2"]
 	}
 ]
 }

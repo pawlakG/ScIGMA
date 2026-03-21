@@ -25,6 +25,9 @@ run_compass_mcmc <- function(
         locus_regions,
         region_matrix,
         output_prefix,
+        locus_names,           # <-- NEW
+        locus_chromosomes,     # <-- NEW
+        region_names,          # <-- NEW
         chains = 4L,
         chain_length = 5000L,
         patient_sex = "female"
@@ -40,14 +43,16 @@ run_compass_mcmc <- function(
     variant_matrices$ALT[is.na(variant_matrices$ALT)] <- 0L
     variant_matrices$GT[is.na(variant_matrices$GT)] <- 0L
 
-    # NEW : Extraction des noms biologiques canoniques
-    locus_names <- rownames(variant_matrices$REF)
-    if ( is.null(locus_names) ) {
-        locus_names <- paste0("Locus_", seq_len(nrow(variant_matrices$REF)) - 1L)
-    }
-
     message("Initializing COMPASS C++ backend (In-Memory)...")
 
+    print("as.character(locus_names)")
+    print(as.character(locus_names))
+    print("as.integer(locus_regions)")
+    print(as.integer(locus_regions))
+    print("as.character(locus_chromosomes)")
+    print(as.character(locus_chromosomes))
+    print("as.character(region_names)")
+    print(as.character(region_names))
     execution_status <- tryCatch({
         run_compass_inference_cpp(
             ref_counts = variant_matrices$REF,
@@ -55,16 +60,17 @@ run_compass_mcmc <- function(
             genotypes = variant_matrices$GT,
             locus_region_mapping = as.integer(locus_regions),
             region_counts = region_matrix,
-            locus_names = as.character(locus_names), # NEW : Injection vers Rcpp
+            locus_names = as.character(locus_names),
+            locus_chromosomes = as.character(locus_chromosomes),
+            region_names = as.character(region_names),
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),
             use_cna = TRUE,
             sex = patient_sex
         )
-        TRUE
     }, error = function(e) {
-        stop("COMPASS execution failed: ", e$message)
+        stop(sprintf("Fatal C++ error: %s", e$message))
     })
 
     return(execution_status)

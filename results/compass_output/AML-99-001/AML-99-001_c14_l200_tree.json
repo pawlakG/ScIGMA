@@ -10,7 +10,7 @@
 		"name": "Node 1",
 		"parent": "Node 4",
 		"SNV": [],
-		"CNA": ["Gain Region_6"]
+		"CNA": ["Gain 3_GATA2"]
 	},
 	{
 		"name": "Node 2",
@@ -28,19 +28,19 @@
 		"name": "Node 4",
 		"parent": "Node 5",
 		"SNV": [],
-		"CNA": ["CNLOH Region_29"]
+		"CNA": ["CNLOH 21_RUNX1"]
 	},
 	{
 		"name": "Node 5",
 		"parent": "Node 2",
 		"SNV": ["IDH2 p.R140Q","RUNX1 p.R162K"],
-		"CNA": ["Gain Region_12"]
+		"CNA": ["Gain 8_MYC"]
 	},
 	{
 		"name": "Node 6",
 		"parent": "Node 3",
 		"SNV": [],
-		"CNA": ["Gain Region_11"]
+		"CNA": ["Gain 8_RAD21"]
 	},
 	{
 		"name": "Node 7",

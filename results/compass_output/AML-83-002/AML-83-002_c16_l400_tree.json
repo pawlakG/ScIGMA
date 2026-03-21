@@ -34,7 +34,7 @@
 		"name": "Node 5",
 		"parent": "Node 1",
 		"SNV": [],
-		"CNA": ["Gain Region_11","Gain Region_12"]
+		"CNA": ["Gain 8_RAD21","Gain 8_MYC"]
 	}
 ]
 }

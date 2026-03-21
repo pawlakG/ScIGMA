@@ -22,13 +22,13 @@
 		"name": "Node 3",
 		"parent": "Node 4",
 		"SNV": [],
-		"CNA": ["Loss Region_8"]
+		"CNA": ["Loss 7_EZH2"]
 	},
 	{
 		"name": "Node 4",
 		"parent": "Node 1",
 		"SNV": ["IDH1 p.R132C"],
-		"CNA": ["Gain Region_11"]
+		"CNA": ["Gain 11_WT1"]
 	}
 ]
 }

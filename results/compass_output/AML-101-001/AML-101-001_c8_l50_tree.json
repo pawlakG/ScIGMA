@@ -16,19 +16,19 @@
 		"name": "Node 2",
 		"parent": "Node 1",
 		"SNV": ["TP53 p.V143M"],
-		"CNA": ["Loss Region_10"]
+		"CNA": ["Loss 7_EZH2"]
 	},
 	{
 		"name": "Node 3",
 		"parent": "Node 2",
 		"SNV": ["PTPN11 p.G503R"],
-		"CNA": ["Loss Region_21"]
+		"CNA": ["Loss 15_IDH2"]
 	},
 	{
 		"name": "Node 4",
 		"parent": "Node 2",
 		"SNV": [],
-		"CNA": ["Loss Region_6"]
+		"CNA": ["Loss 3_GATA2"]
 	},
 	{
 		"name": "Node 5",

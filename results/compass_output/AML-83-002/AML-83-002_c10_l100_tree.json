@@ -16,7 +16,7 @@
 		"name": "Node 2",
 		"parent": "Node 4",
 		"SNV": [],
-		"CNA": ["Gain Region_5"]
+		"CNA": ["Gain 2_IDH1"]
 	},
 	{
 		"name": "Node 3",
@@ -40,7 +40,7 @@
 		"name": "Node 6",
 		"parent": "Node 1",
 		"SNV": ["IDH2 p.R172K"],
-		"CNA": ["Gain Region_11"]
+		"CNA": ["Gain 8_RAD21"]
 	},
 	{
 		"name": "Node 7",

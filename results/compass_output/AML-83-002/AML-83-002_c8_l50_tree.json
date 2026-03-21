@@ -16,7 +16,7 @@
 		"name": "Node 2",
 		"parent": "Node 4",
 		"SNV": ["FLT3 p.V491L"],
-		"CNA": ["CNLOH Region_2"]
+		"CNA": ["CNLOH 1_NRAS"]
 	},
 	{
 		"name": "Node 3",
@@ -28,7 +28,7 @@
 		"name": "Node 4",
 		"parent": "Node 1",
 		"SNV": [],
-		"CNA": ["Gain Region_11","Gain Region_12"]
+		"CNA": ["Gain 8_RAD21","Gain 8_MYC"]
 	}
 ]
 }

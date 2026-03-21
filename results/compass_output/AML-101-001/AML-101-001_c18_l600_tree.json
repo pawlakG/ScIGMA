@@ -16,7 +16,7 @@
 		"name": "Node 2",
 		"parent": "Node 9",
 		"SNV": [],
-		"CNA": ["Loss Region_6"]
+		"CNA": ["Loss 3_GATA2"]
 	},
 	{
 		"name": "Node 3",
@@ -34,7 +34,7 @@
 		"name": "Node 5",
 		"parent": "Node 2",
 		"SNV": [],
-		"CNA": ["Loss Region_23"]
+		"CNA": ["Loss 17_NF1"]
 	},
 	{
 		"name": "Node 6",
@@ -46,25 +46,25 @@
 		"name": "Node 7",
 		"parent": "Node 4",
 		"SNV": [],
-		"CNA": ["Loss Region_21"]
+		"CNA": ["Loss 15_IDH2"]
 	},
 	{
 		"name": "Node 8",
 		"parent": "Node 5",
 		"SNV": [],
-		"CNA": ["Loss Region_22"]
+		"CNA": ["Loss 17_TP53"]
 	},
 	{
 		"name": "Node 9",
 		"parent": "Node 1",
 		"SNV": [],
-		"CNA": ["Loss Region_10"]
+		"CNA": ["Loss 7_EZH2"]
 	},
 	{
 		"name": "Node 10",
 		"parent": "Node 5",
 		"SNV": [],
-		"CNA": ["Loss Region_22"]
+		"CNA": ["Loss 17_TP53"]
 	}
 ]
 }

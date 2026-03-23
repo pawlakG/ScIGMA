@@ -32,36 +32,42 @@ h5closeAll()
 devtools::load_all()
 
 directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
+directory <- "../inputs/tapestriDatasets/2_PBMC_Mix_KG-1_Spike_In/Sample_Data_Set_2_PBMC_Mix_KG-1_Spike_In.labeled.dna+protein.h5"
 
-# # 1. Chargement Out-of-Core HDF5
-# ScIGMA_data <- loadH5_HDF5_biocond(
-#     filepath = directory, # Assure-toi que la variable directory est bien définie
-#     sample_name = "aml_4_lines",
-#     omic_type = "DNA+protein"
-# )
-#
-# # 2. Filtrage & Annotation (Un seul appel robuste)
-# tryCatch({
-#     # Assure-toi que cfg$paths est disponible dans l'environnement
-#     ScIGMA_data <- filter_and_annotate_variants(
-#         obj = ScIGMA_data,
-#         paths = cfg$paths,
-#         min_dp = 10,
-#         min_gq = 30,
-#         min_cell_pt = 10,
-#         min_mut_cell_pt = 1
-#     )
-# }, error = function(e) {
-#     stop(sprintf("Pipeline failed during filtering/annotation: %s", e$message))
-# })
+# 1. Chargement Out-of-Core HDF5
+ScIGMA_data <- loadH5_HDF5_biocond(
+    filepath = directory, # Assure-toi que la variable directory est bien définie
+    sample_name = "aml_4_lines",
+    omic_type = "DNA+protein"
+)
+
+# 2. Filtrage & Annotation (Un seul appel robuste)
+tryCatch({
+    # Assure-toi que cfg$paths est disponible dans l'environnement
+    ScIGMA_data <- filter_and_annotate_variants(
+        obj = ScIGMA_data,
+        paths = cfg$paths,
+        min_dp = 10,
+        min_gq = 30,
+        min_cell_pt = 10,
+        min_mut_cell_pt = 1
+    )
+}, error = function(e) {
+    stop(sprintf("Pipeline failed during filtering/annotation: %s", e$message))
+})
 # saveRDS(ScIGMA_data, "dev/ScIGMA_data_after_filter_and_annotate_variants.rds")
-ScIGMA_data <- readRDS("dev/ScIGMA_data_after_filter_and_annotate_variants.rds")
+# ScIGMA_data <- readRDS("dev/ScIGMA_data_after_filter_and_annotate_variants.rds")
 # 3. Sélection des cibles (CNA / SNV)
 annotation_df <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]))
 
 # Filtrage sur les variants Pathogènes purs
 pathogenic_variants <- annotation_df[grepl("Pathogenic", annotation_df$clinvar, ignore.case = TRUE), ]
 pathogenic_variants <- pathogenic_variants[order(pathogenic_variants$cell_proportion, decreasing = TRUE), ]
+
+if (nrow(pathogenic_variants) == 0){
+    pathogenic_variants <- annotation_df |> arrange(desc(clinvar))
+    pathogenic_variants <- pathogenic_variants[1:10,]
+}
 
 target_variants <- rownames(pathogenic_variants)[1:min(20, nrow(pathogenic_variants))]
 
@@ -110,7 +116,12 @@ cna_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amp
 vec_region_names <- paste0(cna_rowData$chrom, "_", sapply(cna_rowData$dna_id, \(x) strsplit(x, "_")[[1]][3])) # Ex: "17_TP53"
 vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta matrice C_mat
 
-prefix_out <- "results/compass_output/aml_4_lines_"
+prefix_out <- "results/compass_output/2_PBMC_Mix_KG-1_Spike_In"
+
+# Handle if dim(CNV) ≠ dim(SNV)
+if (any(!dim(variant_matrices$REF) == dim(mat_cna))){
+
+}
 
 # 3. L'appel final blindé
 run_compass_mcmc(

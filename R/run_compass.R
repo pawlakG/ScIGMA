@@ -30,7 +30,8 @@ run_compass_mcmc <- function(
         region_names,          # <-- NEW
         chains = 4L,
         chain_length = 5000L,
-        patient_sex = "female"
+        patient_sex = "female",
+        use_cna = FALSE
 ) {
 
     # Barrière de sécurité stricte
@@ -53,6 +54,8 @@ run_compass_mcmc <- function(
     print(as.character(locus_chromosomes))
     print("as.character(region_names)")
     print(as.character(region_names))
+    print("variant_matrices")
+    print(lapply(variant_matrices, dim))
     execution_status <- tryCatch({
         run_compass_inference_cpp(
             ref_counts = variant_matrices$REF,
@@ -66,7 +69,7 @@ run_compass_mcmc <- function(
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),
-            use_cna = TRUE,
+            use_cna = use_cna,
             sex = patient_sex
         )
     }, error = function(e) {

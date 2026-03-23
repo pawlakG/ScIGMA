@@ -25,13 +25,14 @@ run_compass_mcmc <- function(
         locus_regions,
         region_matrix,
         output_prefix,
-        locus_names,           # <-- NEW
-        locus_chromosomes,     # <-- NEW
-        region_names,          # <-- NEW
+        locus_names,
+        locus_chromosomes,
+        region_names,
+        region_chromosomes,    # <-- NEW : Vecteur des chromosomes CNA
         chains = 4L,
         chain_length = 5000L,
         patient_sex = "female",
-        use_cna = FALSE
+        use_cna = TRUE
 ) {
 
     # Barrière de sécurité stricte
@@ -56,6 +57,7 @@ run_compass_mcmc <- function(
     print(as.character(region_names))
     print("variant_matrices")
     print(lapply(variant_matrices, dim))
+
     execution_status <- tryCatch({
         run_compass_inference_cpp(
             ref_counts = variant_matrices$REF,
@@ -66,6 +68,7 @@ run_compass_mcmc <- function(
             locus_names = as.character(locus_names),
             locus_chromosomes = as.character(locus_chromosomes),
             region_names = as.character(region_names),
+            region_chromosomes = as.character(region_chromosomes), # <-- NEW INJECTION
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),

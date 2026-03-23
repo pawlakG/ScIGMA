@@ -845,3 +845,130 @@ plot_cnv_genome <- function(cnv_matrix,
 
     return(p)
 }
+
+
+get_genes_memory_safe <- function(input_df) {
+    versions <- unique(input_df$genome_version)
+    output_list <- list()
+
+    for (ver in versions) {
+        sub_df <- input_df[input_df$genome_version == ver, ]
+
+        tx_db_pkg <- paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene")
+        if (!requireNamespace(tx_db_pkg, quietly = TRUE)) {
+            warning(paste("Package", tx_db_pkg, "not installed."))
+            next
+        }
+        tx_db <- getExportedValue(tx_db_pkg, tx_db_pkg)
+
+        # Standardize chromosome naming
+        query_gr <- GRanges(
+            seqnames = if_else(grepl("^chr", sub_df$chrom),
+                               sub_df$chrom, paste0("chr", sub_df$chrom)),
+            ranges = IRanges(start = sub_df$start_pos, end = sub_df$end_pos)
+        )
+
+        # Extract genes with complex structure support
+        all_genes <- suppressMessages(
+            genes(tx_db, single.strand.genes.only = FALSE)
+        )
+
+        # Join logic
+        hits <- mergeByOverlaps(query_gr, all_genes)
+
+        if (length(hits) > 0) {
+            res_df <- as.data.frame(hits, row.names = NULL)
+            output_list[[ver]] <- res_df
+        }
+
+        # Purge RAM
+        rm(tx_db, query_gr, hits, all_genes)
+        gc()
+    }
+
+    # NEW: Guard clause for zero results across all versions
+    if (length(output_list) == 0) {
+        message("No genes found in the specified genomic regions.")
+        return(data.frame())
+    }
+
+    final_df <- do.call(rbind, output_list)
+
+    # NEW: Secondary guard clause specifically for mapIds
+    if (nrow(final_df) > 0 && "gene_id" %in% colnames(final_df)) {
+        final_df$Symbol <- mapIds(
+            org.Hs.eg.db,
+            keys = as.character(final_df$gene_id),
+            column = "SYMBOL",
+            keytype = "ENTREZID",
+            multiVals = "first"
+        )
+    } else {
+        final_df$Symbol <- character(0)
+    }
+
+    # FORMATTING (Title_Snake_Case)
+    colnames(final_df) <- gsub("query_gr.", "", colnames(final_df))
+    final_df <- final_df %>%
+        select(seqnames, start, end, gene_id, Symbol) %>%
+        rename(
+            Chromosome = seqnames,
+            Start_Pos = start,
+            End_Pos = end,
+            Entrez_Id = gene_id,
+            Gene_Symbol = Symbol
+        ) %>%
+        distinct()
+
+    return(final_df)
+}
+
+# NEW
+# File: R/annotate_amplicons.R
+
+#' Annotate amplicon rowData with gene information via exact string matching
+#'
+#' @param mae MultiAssayExperiment object
+#' @return MultiAssayExperiment with updated amplicons rowData
+#' @export
+annotate_amplicons_exact <- function(mae) {
+    if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr required")
+
+    cna_se <- mae[["amplicons"]]
+    cna_rd <- as.data.frame(SummarizedExperiment::rowData(cna_se))
+
+    genome_v <- S4Vectors::metadata(mae)$genome_version
+    cna_rd$genome_version <- genome_v
+
+    # Base R paste0 is significantly faster than tidyr::unite for large vectors
+    cna_rd$tmp_key <- paste(cna_rd$chrom, cna_rd$start_pos, cna_rd$end_pos,
+                            sep = "_")
+
+    genes_df <- get_genes_memory_safe(cna_rd)
+    genes_df$Chromosome <- sub("^chr", "", genes_df$Chromosome,
+                               ignore.case = TRUE)
+    genes_df$tmp_key <- paste(genes_df$Chromosome, genes_df$Start_Pos,
+                              genes_df$End_Pos, sep = "_")
+
+    merged_rd <- dplyr::left_join(x = cna_rd, y = genes_df, by = "tmp_key")
+    merged_rd$tmp_key <- NULL
+    print("merged_rd")
+    print(dim(merged_rd))
+    print(merged_rd[duplicated(merged_rd$dna_id) | duplicated(merged_rd$dna_id, fromLast = T),])
+    print(sum(duplicated(merged_rd$dna_id)))
+    if (sum(duplicated(merged_rd$dna_id))>0){
+        # Keep first mapped gene
+        # Maybe, in the future, we should see if gene pattern match with dna_id
+        # and select only gene that match. Problem : How do we deal with
+        # vectorization ?
+        merged_rd <- merged_rd[!duplicated(merged_rd$dna_id) ,]
+    }
+    print("SummarizedExperiment::rowData(mae[['amplicons']])")
+    print(dim(SummarizedExperiment::rowData(mae[["amplicons"]])))
+    print(SummarizedExperiment::rowData(mae[["amplicons"]]))
+
+    # Re-injection in S4 object
+    SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
+
+    return(mae)
+}

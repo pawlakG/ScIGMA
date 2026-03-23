@@ -32,7 +32,7 @@ h5closeAll()
 devtools::load_all()
 
 directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
-directory <- "../inputs/tapestriDatasets/2_PBMC_Mix_KG-1_Spike_In/Sample_Data_Set_2_PBMC_Mix_KG-1_Spike_In.labeled.dna+protein.h5"
+# directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
 
 # 1. Chargement Out-of-Core HDF5
 ScIGMA_data <- loadH5_HDF5_biocond(
@@ -40,6 +40,8 @@ ScIGMA_data <- loadH5_HDF5_biocond(
     sample_name = "aml_4_lines",
     omic_type = "DNA+protein"
 )
+
+
 
 # 2. Filtrage & Annotation (Un seul appel robuste)
 tryCatch({
@@ -111,30 +113,38 @@ vec_locus_chrom <- snv_sub$chrom         # Ex: "5" (Le C++ gère le préfixe "ch
 
 # 2. Extraction des métadonnées CNA
 cna_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+
 # Agrégation Spatiale (Garantir le format CHR_GENE pour le C++)
-# vec_region_names <- paste0(cna_rowData$chrom, "_", cna_rowData$gene) # Ex: "17_TP53"
-vec_region_names <- paste0(cna_rowData$chrom, "_", sapply(cna_rowData$dna_id, \(x) strsplit(x, "_")[[1]][3])) # Ex: "17_TP53"
+vec_region_names <- paste0(cna_rowData$chrom, "_", sapply(cna_rowData$dna_id, \(x) strsplit(x, "_")[[1]][3]))
 vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta matrice C_mat
 
-prefix_out <- "results/compass_output/2_PBMC_Mix_KG-1_Spike_In"
+# NEW : Extraction robuste des chromosomes, strictement alignée sur vec_region_names
+vec_region_chrom <- sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE)
+vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE) # Nettoyage de sécurité
+
+prefix_out <- "results/compass_output/dut_env"
 
 # Handle if dim(CNV) ≠ dim(SNV)
-if (any(!dim(variant_matrices$REF) == dim(mat_cna))){
-
+if (ncol(variant_matrices$REF) != ncol(mat_cna)){
+    use_cna <- FALSE
+} else {
+    use_cna <- TRUE
 }
 
 # 3. L'appel final blindé
 run_compass_mcmc(
-    variant_matrices  = variant_matrices,
-    locus_regions     = compass_inputs$locus_regions,
-    region_matrix     = mat_cna,
-    output_prefix     = prefix_out,
-    locus_names       = vec_locus_names,
-    locus_chromosomes = vec_locus_chrom,
-    region_names      = vec_region_names,
-    chains            = 4L,
-    chain_length      = 1000L,
-    patient_sex       = "female"
+    variant_matrices   = variant_matrices,
+    locus_regions      = compass_inputs$locus_regions,
+    region_matrix      = mat_cna,
+    output_prefix      = prefix_out,
+    locus_names        = vec_locus_names,
+    locus_chromosomes  = vec_locus_chrom,
+    region_names       = vec_region_names,
+    region_chromosomes = vec_region_chrom, # <-- NEW INJECTION
+    chains             = 4L,
+    chain_length       = 300L,
+    patient_sex        = "female",
+    use_cna            = use_cna
 )
 
 

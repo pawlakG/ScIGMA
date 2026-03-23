@@ -153,8 +153,9 @@ int run_compass_inference_cpp(
         Rcpp::IntegerVector locus_region_mapping,
         Rcpp::IntegerMatrix region_counts,
         Rcpp::StringVector locus_names,
-        Rcpp::StringVector locus_chromosomes,   // <-- NEW : Chromosomes pour les SNVs
-        Rcpp::StringVector region_names,        // <-- NEW : Noms des régions CNA (ex: 21_RUNX1)
+        Rcpp::StringVector locus_chromosomes,
+        Rcpp::StringVector region_names,
+        Rcpp::StringVector region_chromosomes,  // <-- NEW : Chromosomes pour les CNAs
         std::string output_prefix,
         int n_chains = 4,
         int chain_length = 5000,
@@ -173,11 +174,13 @@ int run_compass_inference_cpp(
             locus_names, use_cna
         );
 
-        // FIX CRITIQUE : Mimétisme parfait du parser CSV natif
-        // On écrase les valeurs par défaut générées par ingest_r_data
+        // FIX CRITIQUE : Injection symétrique des métadonnées
         data.locus_to_name = Rcpp::as<std::vector<std::string>>(locus_names);
         data.locus_to_chromosome = Rcpp::as<std::vector<std::string>>(locus_chromosomes);
         data.region_to_name = Rcpp::as<std::vector<std::string>>(region_names);
+
+        // NEW : L'arbre lira les vrais chromosomes ici pour les CNAs
+        data.region_to_chromosome = Rcpp::as<std::vector<std::string>>(region_chromosomes);
 
         double betabin_overdisp = parameters.omega_het;
 

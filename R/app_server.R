@@ -100,4 +100,12 @@ app_server <- function(input, output, session) {
     # >> Download data _
     mod_download_panel_server("download_panel_1", ScIGMA_data)
 
+    # [ NODE_ACCESS : HELP ]
+    # ----------------------------------------------------- _
+    mod_help_panel_server("help_panel_1", ScIGMA_data)
+
+    # [ NODE_ACCESS : ABOUT ]
+    # ----------------------------------------------------- _
+    mod_about_panel_server("about_panel_1", ScIGMA_data)
+
 }

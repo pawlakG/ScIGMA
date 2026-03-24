@@ -22,7 +22,7 @@ app_ui <- function(request) {
             # sans casser la hiérarchie visuelle de Lux.
             theme = bs_theme(
                 bootswatch = "lux",
-                font_scale = 1.1 # Augmente la taille globale de 10% (ajustez selon besoin)
+                font_scale = 1 # Augmente la taille globale de 10% (ajustez selon besoin)
             ),
 
             # 2. NETTOYAGE
@@ -79,9 +79,19 @@ app_ui <- function(request) {
                 )
             ),
             nav_panel(
-                title = HTML("Download data"),
-                value = "welcome_tab",
+                title = HTML("Download"),
+                value = "download_tab",
                 mod_download_panel_ui("download_panel_1")
+            ),
+            nav_panel(
+                title = HTML("Help"),
+                value = "help_tab",
+                mod_help_panel_ui("help_panel_1")
+            ),
+            nav_panel(
+                title = HTML("About"),
+                value = "about_tab",
+                mod_about_panel_ui("about_panel_1")
             )
         )
     )

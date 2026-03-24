@@ -1,7 +1,0 @@
-node	KIT	KIT	JAK2	CBL	MYH11	RAD21	RAD21	MYH11	DNMT3A	DNMT3A
-Node 0	0	0	0	1	0	0	0	1	1	1
-Node 1	0	0	0	1	0	1	0	1	1	1
-Node 2	0	1	0	1	0	1	0	1	1	1
-Node 3	0	0	1	1	0	0	1	1	1	1
-Node 4	1	0	0	1	1	0	0	1	1	1
-Node 5	0	0	0	1	0	0	1	1	1	1

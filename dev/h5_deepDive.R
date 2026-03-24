@@ -123,7 +123,7 @@ vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta 
 vec_region_chrom <- sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE)
 vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE) # Nettoyage de sécurité
 
-prefix_out <- "results/compass_output/M35macouille_"
+prefix_out <- "results/compass_output/tmp_"
 
 # Handle if dim(CNV) ≠ dim(SNV)
 if (ncol(variant_matrices$REF) != ncol(mat_cna)){

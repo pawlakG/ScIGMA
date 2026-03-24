@@ -569,6 +569,8 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 #' @importFrom dplyr filter distinct
 #' @importFrom ensembldb genes
 annotate_genomic_regions <- function(region_data, build = "hg38") {
+    print("build")
+    print(build)
     # Selection logic for the local Ensembl database object
     # Ensures zero network latency for reactive Shiny environments
     if (build == "hg38") {
@@ -578,6 +580,8 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     } else {
         stop("Invalid build. Please use 'hg19' or 'hg38'.")
     }
+    print("region_data")
+    print(head(region_data))
 
     # Conversion to GRanges for high-performance spatial overlaps
     # This step leverages C-level optimization for genomic arithmetic
@@ -598,6 +602,23 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
     # C-optimized spatial join via findOverlaps
     overlaps <- findOverlaps(query_gr, target_genes)
+    hits <- GenomicRanges::findOverlaps(query_gr, target_genes, select = "first")
+
+    region_data$symbol <- "Unknown"
+    valid <- !is.na(hits)
+    region_data$symbol[valid] <- target_genes$symbol[hits[valid]]
+
+
+
+    print("overlaps")
+    print(overlaps)
+    print("hits <- GenomicRanges::findOverlaps(query_gr, target_genes, select = 'first'')")
+    # print(GenomicRanges::findOverlaps(query_gr, target_genes, select = "first"))
+    print(GenomicRanges::findOverlaps(query_gr, target_genes))
+    print("target_genes[hits]")
+    # print(target_genes$symbol[GenomicRanges::findOverlaps(query_gr, target_genes, select = "first")])
+    print(target_genes$symbol[subjectHits(GenomicRanges::findOverlaps(query_gr, target_genes))])
+    print(head(region_data))
 
     # Construct the result set using fast indexing
     # Prioritizing protein-coding genes for biological relevance in oncology
@@ -620,7 +641,8 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     #     distinct()
 
 
-    return(result_df)
+    # return(result_df)
+    return(region_data)
 }
 
 
@@ -971,4 +993,52 @@ annotate_amplicons_exact <- function(mae) {
     SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
 
     return(mae)
+}
+
+
+#' Reconstruct imputed single-cell genotypes from COMPASS outputs
+#'
+#' @param prefix_out Character. Le chemin et préfixe utilisé dans run_compass_mcmc
+#' @return Une matrice [Cellules x Locus] de type Integer (0 = REF, 1 = HET, 2 = HOM_ALT)
+#' @export
+get_imputed_genotypes <- function(prefix_out) {
+
+    # 1. Localisation des artefacts du C++
+    nodes_gt_file <- paste0(prefix_out, "_nodes_genotypes.tsv")
+    cell_assign_file <- paste0(prefix_out, "_cellAssignments.tsv")
+
+    if (!file.exists(nodes_gt_file) || !file.exists(cell_assign_file)) {
+        stop(sprintf("Fichiers introuvables pour le préfixe : %s. L'inférence a-t-elle convergé ?", prefix_out))
+    }
+
+    # 2. Chargement en RAM
+    nodes_gt <- read.delim(nodes_gt_file, stringsAsFactors = FALSE)
+    cell_assign <- read.delim(cell_assign_file, stringsAsFactors = FALSE)
+
+    # 3. Filtrage stricte des doublets
+    # COMPASS gère les doublets en créant des nœuds virtuels. Leurs génotypes ne sont
+    # pas dans nodes_gt. On les exclut pour ne garder que la pureté clonale.
+    singlets <- cell_assign[cell_assign$doublet == "no", ]
+
+    if (nrow(singlets) == 0) {
+        stop("Aucun singulet trouvé. Matrice inexploitable.")
+    }
+
+    # 4. Préparation de la clé de jointure
+    # nodes_gt$node est formaté comme "Node 0", "Node 1"...
+    rownames(nodes_gt) <- nodes_gt$node
+    target_nodes <- paste0("Node ", singlets$node)
+
+    # 5. Projection (Broadcasting) de la matrice des nœuds vers les cellules
+    # On exclut la première colonne (qui contient les noms "Node X")
+    imputed_mat <- as.matrix(nodes_gt[target_nodes, -1, drop = FALSE])
+
+    # Rétablissement de l'identité cellulaire
+    rownames(imputed_mat) <- singlets$cell
+    storage.mode(imputed_mat) <- "integer"
+
+    message(sprintf("Matrice imputée reconstruite : %d cellules x %d variants.",
+                    nrow(imputed_mat), ncol(imputed_mat)))
+
+    return(imputed_mat)
 }

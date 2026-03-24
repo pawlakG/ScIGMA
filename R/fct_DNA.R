@@ -652,21 +652,42 @@ build_compass_matrices <- function(obj, selected_variants) {
     dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
     snv_info <- dna_id_table[selected_variants, , drop = FALSE]
 
+    tmp_x <- data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon)
+    tmp_y <- cnv_annotated[, c("dna_id", "compass_region")]
+
     # Jointure sur le nouveau format
     snv_to_gene <- merge(
         x = data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon),
-        y = cnv_annotated[, c("dna_id", "compass_region")], # <-- CHANGED
+        y = cnv_annotated[, c("dna_id", "compass_region")],
         by.x = "amplicon",
         by.y = "dna_id",
         all.x = TRUE,
         sort = FALSE
     )
+    snv_to_gene <- tmp_x
+    print("match(tmp_x$amplicon, tmp_y$dna_id)")
+    print(match(tmp_x$amplicon, tmp_y$dna_id))
+    print("tmp_x$amplicon")
+    print(tmp_x$amplicon)
+    print("head(tmp_y$dna_id)")
+    print(head(tmp_y$dna_id))
+    snv_to_gene$compass_region <- tmp_y$compass_region[match(tmp_x$amplicon, tmp_y$dna_id)]
+
 
     snv_to_gene <- snv_to_gene[match(selected_variants, snv_to_gene$variant_id), ]
+    print("snv_to_gene before replacing NA")
+    print(snv_to_gene)
+    # snv_to_gene$compass_region <- paste(snv_to_gene$)
     snv_to_gene$compass_region[is.na(snv_to_gene$compass_region)] <- "0_Unknown"
 
     gene_cols <- colnames(C_mat)
+    # print("snv_to_gene$compass_region")
+    # print(snv_to_gene)
+    print("gene_cols")
+    print(gene_cols)
     locus_regions <- match(snv_to_gene$compass_region, gene_cols) - 1L
+    print("locus_regions")
+    print(locus_regions)
 
     # Fail-Fast : Arrêt si un variant tombe dans le vide topologique
     if (any(is.na(locus_regions))) {

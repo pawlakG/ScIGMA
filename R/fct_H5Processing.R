@@ -772,3 +772,55 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         filetype = omic_type
     )
 }
+
+#' Sanitize MAE string metadata to remove Windows carriage returns and whitespaces
+#'
+#' @param mae MultiAssayExperiment object
+#' @return Sanitized MultiAssayExperiment
+#' @export
+sanitize_mae_strings <- function(mae) {
+
+    # Fonction interne ultra-rapide pour nettoyer un vecteur
+    clean_char_vector <- function(x) {
+        if (is.character(x)) {
+            # Pulvérise \r et supprime les espaces invisibles aux extrémités
+            return(trimws(gsub("\r", "", x), whitespace = "[\\h\\v]"))
+        }
+        return(x) # Ignore les vecteurs numériques/logiques
+    }
+
+    # Fonction interne pour nettoyer un DataFrame entier
+    clean_df <- function(df) {
+        if (is.null(df) || nrow(df) == 0) return(df)
+
+        # Nettoyage du contenu des colonnes
+        df[] <- lapply(df, clean_char_vector)
+
+        # Nettoyage des index
+        if (!is.null(rownames(df))) rownames(df) <- clean_char_vector(rownames(df))
+        if (!is.null(colnames(df))) colnames(df) <- clean_char_vector(colnames(df))
+
+        return(df)
+    }
+
+    message("Sanitizing MAE object (Removing \\r and phantom whitespaces)...")
+
+    # 1. Purge du colData global (Métadonnées cliniques)
+    SummarizedExperiment::colData(mae) <- clean_df(as.data.frame(SummarizedExperiment::colData(mae)))
+
+    # 2. Purge itérative de chaque modalité (DNA, Protéines, Amplicons)
+    for (exp_name in names(mae)) {
+        se <- mae[[exp_name]]
+
+        # Purge des rowData (là où se trouve ton erreur)
+        SummarizedExperiment::rowData(se) <- clean_df(as.data.frame(SummarizedExperiment::rowData(se)))
+
+        # Purge des rownames/colnames des matrices d'assay
+        rownames(se) <- clean_char_vector(rownames(se))
+        colnames(se) <- clean_char_vector(colnames(se))
+
+        mae[[exp_name]] <- se
+    }
+
+    return(mae)
+}

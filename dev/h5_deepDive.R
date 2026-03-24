@@ -33,6 +33,7 @@ devtools::load_all()
 
 directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
 # directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
+directory <- "../inputs/bPodvinDatasets/LMC/M35.dna+protein.h5"
 
 # 1. Chargement Out-of-Core HDF5
 ScIGMA_data <- loadH5_HDF5_biocond(
@@ -41,7 +42,7 @@ ScIGMA_data <- loadH5_HDF5_biocond(
     omic_type = "DNA+protein"
 )
 
-
+ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
 
 # 2. Filtrage & Annotation (Un seul appel robuste)
 tryCatch({
@@ -122,7 +123,7 @@ vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta 
 vec_region_chrom <- sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE)
 vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE) # Nettoyage de sécurité
 
-prefix_out <- "results/compass_output/dut_env"
+prefix_out <- "results/compass_output/M35macouille_"
 
 # Handle if dim(CNV) ≠ dim(SNV)
 if (ncol(variant_matrices$REF) != ncol(mat_cna)){

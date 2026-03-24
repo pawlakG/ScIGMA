@@ -24,16 +24,25 @@ run_compass_mcmc <- function(
         variant_matrices,
         locus_regions,
         region_matrix,
-        output_prefix,
         locus_names,
         locus_chromosomes,
         region_names,
-        region_chromosomes,    # <-- NEW : Vecteur des chromosomes CNA
+        region_chromosomes,
+        output_prefix = NULL, # <-- CHANGED: Optionnel pour la sécurité
         chains = 4L,
         chain_length = 5000L,
         patient_sex = "female",
         use_cna = TRUE
 ) {
+
+    # 1. BIOCONDUCTOR COMPLIANCE : Gestion automatique et sécurisée du chemin
+    if (is.null(output_prefix)) {
+        output_prefix <- file.path(tempdir(), paste0("compass_", as.integer(Sys.time())))
+        message("No output_prefix provided. Writing to temp directory: ", output_prefix)
+    } else {
+        # Sécurité I/O : Création de l'arborescence parente si elle n'existe pas
+        dir.create(dirname(output_prefix), showWarnings = FALSE, recursive = TRUE)
+    }
 
     # Barrière de sécurité stricte
     if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
@@ -79,5 +88,26 @@ run_compass_mcmc <- function(
         stop(sprintf("Fatal C++ error: %s", e$message))
     })
 
-    return(execution_status)
+    # 2. STANDARD DE PRODUCTION : Retourner les chemins générés
+    # Le C++ génère ces extensions en dur. On les mappe pour l'utilisateur.
+    output_files <- list(
+        tree_dot           = paste0(output_prefix, "_tree.gv"),
+        tree_json          = paste0(output_prefix, "_tree.json"),
+        cell_assignments   = paste0(output_prefix, "_cellAssignments.tsv"),
+        cell_probabilities = paste0(output_prefix, "_cellAssignmentProbs.tsv"),
+        nodes_genotypes    = paste0(output_prefix, "_nodes_genotypes.tsv")
+    )
+
+    if (use_cna) {
+        output_files$nodes_copynumbers <- paste0(output_prefix, "_nodes_copynumbers.tsv")
+    }
+
+    # Vérification silencieuse (Fail-safe)
+    missing_files <- !file.exists(unlist(output_files))
+    if (any(missing_files)) {
+        warning("L'exécution s'est terminée, mais certains fichiers sont absents du disque.")
+    }
+
+    return(output_files)
+
 }

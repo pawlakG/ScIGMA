@@ -39,7 +39,8 @@ directory <- "../inputs/bPodvinDatasets/LMC/M35.dna+protein.h5"
 ScIGMA_data <- loadH5_HDF5_biocond(
     filepath = directory, # Assure-toi que la variable directory est bien définie
     sample_name = "aml_4_lines",
-    omic_type = "DNA+protein"
+    # omic_type = "DNA+protein"
+    omic_type = "DNA"
 )
 
 ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)

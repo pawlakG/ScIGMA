@@ -764,7 +764,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
             protein_meta = protein_read_counts_metadata      # RE-ADDED
         )
     )
-
     # ---- 6. Instanciation R6 ----
     ScIGMA_object$new(
         mae = mae_main,

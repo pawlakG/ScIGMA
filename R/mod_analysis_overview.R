@@ -141,39 +141,47 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             print("ScIGMA_data render UI")
             print(ScIGMA_data)
             message(whereami::whereami())
+
+            has_mae <- !is.null(ScIGMA_data$mae)
+
+            val_cells <- if (has_mae) nrow(SummarizedExperiment::colData(ScIGMA_data$mae)) else "No data loaded"
+            val_dna   <- if (has_mae) nrow(ScIGMA_data$mae[["dna_variants"]]) else "No data loaded"
+            val_cnv   <- if (has_mae) nrow(ScIGMA_data$mae[["amplicons"]]) else "No data loaded"
+
+            # Vérification stricte de l'existence de l'assay 'proteins'
+            val_prot <- if (!has_mae) {
+                "No data loaded"
+            } else if (!("proteins" %in% names(ScIGMA_data$mae))) {
+                "No Protein data"
+            } else {
+                nrow(ScIGMA_data$mae[["proteins"]])
+            }
+
             fluidRow(
                 column(3,
                        card(
                            card_header("Number of cells"),
                            card_body(
-                               # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$cell.ids)),
-                               p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(colData(ScIGMA_data$mae))),
-                                 style="text-align:center")
-                           ))
-                       # summaryBox(title = "Number of cells", value = ifelse(is.null(ScIGMA_data$data),yes = "No data loaded", no = length(ScIGMA_data$data@cell.ids)), icon = icon("credit-card"))
+                               p(val_cells, style = "text-align:center")
+                           )
+                       )
                 ),
                 column(3,
                        card(
                            card_header("DNA variants"),
-                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$variants)),
-                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["dna_variants"]])),
-                             style="text-align:center")
+                           p(val_dna, style = "text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("number of CNVs"),
-                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$amps)),
-                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["amplicons"]])),
-                             style="text-align:center")
+                           p(val_cnv, style = "text-align:center")
                        )
                 ),
                 column(3,
                        card(
                            card_header("Number of proteins"),
-                           # p(ifelse(is.null(ScIGMA_data),yes = "No data loaded", no = length(ScIGMA_data$proteins)),
-                           p(ifelse(is.null(ScIGMA_data$mae),yes = "No data loaded", no = nrow(ScIGMA_data$mae[["proteins"]])),
-                             style="text-align:center")
+                           p(val_prot, style = "text-align:center")
                        )
                 )
             )

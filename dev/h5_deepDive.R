@@ -141,15 +141,20 @@ run_compass_mcmc(
     locus_names        = vec_locus_names,
     locus_chromosomes  = vec_locus_chrom,
     region_names       = vec_region_names,
-    region_chromosomes = vec_region_chrom, # <-- NEW INJECTION
+    region_chromosomes = vec_region_chrom,
     chains             = 4L,
-    chain_length       = 300L,
+    chain_length       = 500L,
     patient_sex        = "female",
     use_cna            = use_cna
 )
 
 
+# Extraction de la matrice imputée (Zéro NA)
+mat_imputed <- get_imputed_genotypes(prefix_out = prefix_out)
 
+# Optionnel : Injection dans ton objet MAE (MultiAssayExperiment)
+# On s'assure d'aligner les cellules si certaines ont été filtrées (ex: doublets)
+cells_to_keep <- rownames(mat_imputed)
 
 
 

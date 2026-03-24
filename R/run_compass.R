@@ -24,16 +24,23 @@ run_compass_mcmc <- function(
         variant_matrices,
         locus_regions,
         region_matrix,
+        output_prefix = NULL,
         locus_names,
         locus_chromosomes,
         region_names,
         region_chromosomes,
-        output_prefix = NULL, # <-- CHANGED: Optionnel pour la sécurité
+        cell_names = NULL,     # <-- NEW
         chains = 4L,
         chain_length = 5000L,
         patient_sex = "female",
         use_cna = TRUE
 ) {
+
+    # 1. Extraction automatique des barcodes si non fournis
+    if (is.null(cell_names)) {
+        cell_names <- colnames(variant_matrices$REF)
+        if (is.null(cell_names)) stop("Les matrices ne contiennent aucun nom de colonne (cellules).")
+    }
 
     # 1. BIOCONDUCTOR COMPLIANCE : Gestion automatique et sécurisée du chemin
     if (is.null(output_prefix)) {
@@ -77,7 +84,8 @@ run_compass_mcmc <- function(
             locus_names = as.character(locus_names),
             locus_chromosomes = as.character(locus_chromosomes),
             region_names = as.character(region_names),
-            region_chromosomes = as.character(region_chromosomes), # <-- NEW INJECTION
+            region_chromosomes = as.character(region_chromosomes),
+            cell_names = as.character(cell_names), # <-- NEW INJECTION
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),

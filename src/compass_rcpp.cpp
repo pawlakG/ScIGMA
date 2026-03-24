@@ -155,7 +155,8 @@ int run_compass_inference_cpp(
         Rcpp::StringVector locus_names,
         Rcpp::StringVector locus_chromosomes,
         Rcpp::StringVector region_names,
-        Rcpp::StringVector region_chromosomes,  // <-- NEW : Chromosomes pour les CNAs
+        Rcpp::StringVector region_chromosomes,
+        Rcpp::StringVector cell_names,          // <-- NEW : Les barcodes des cellules
         std::string output_prefix,
         int n_chains = 4,
         int chain_length = 5000,
@@ -174,13 +175,14 @@ int run_compass_inference_cpp(
             locus_names, use_cna
         );
 
-        // FIX CRITIQUE : Injection symétrique des métadonnées
         data.locus_to_name = Rcpp::as<std::vector<std::string>>(locus_names);
         data.locus_to_chromosome = Rcpp::as<std::vector<std::string>>(locus_chromosomes);
         data.region_to_name = Rcpp::as<std::vector<std::string>>(region_names);
-
-        // NEW : L'arbre lira les vrais chromosomes ici pour les CNAs
         data.region_to_chromosome = Rcpp::as<std::vector<std::string>>(region_chromosomes);
+
+        for (int i = 0; i < n_cells; i++) {
+            cells[i].name = Rcpp::as<std::string>(cell_names[i]);
+        }
 
         double betabin_overdisp = parameters.omega_het;
 

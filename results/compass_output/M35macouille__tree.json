@@ -8,26 +8,26 @@
 	},
 	{
 		"name": "Node 1",
-		"parent": "Node 5",
-		"SNV": ["JAK2"],
-		"CNA": []
-	},
-	{
-		"name": "Node 2",
-		"parent": "Node 5",
-		"SNV": ["KIT","MYH11"],
-		"CNA": []
-	},
-	{
-		"name": "Node 3",
 		"parent": "Node 0",
 		"SNV": ["RAD21"],
 		"CNA": []
 	},
 	{
-		"name": "Node 4",
-		"parent": "Node 3",
+		"name": "Node 2",
+		"parent": "Node 1",
 		"SNV": ["KIT"],
+		"CNA": []
+	},
+	{
+		"name": "Node 3",
+		"parent": "Node 5",
+		"SNV": ["JAK2"],
+		"CNA": []
+	},
+	{
+		"name": "Node 4",
+		"parent": "Node 0",
+		"SNV": ["KIT","MYH11"],
 		"CNA": []
 	},
 	{

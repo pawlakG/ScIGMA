@@ -77,3 +77,47 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
         region_matrix    = cna_mat
     ))
 }
+
+#' Reconstruct imputed single-cell genotypes from COMPASS outputs
+#'
+#' @param prefix_out Character. Le chemin et préfixe utilisé dans run_compass_mcmc
+#' @return Une matrice [Cellules x Locus] de type Integer (0 = REF, 1 = HET, 2 = HOM_ALT)
+#' @export
+get_imputed_genotypes <- function(prefix_out) {
+
+    # 1. Localisation des artefacts générés par le C++
+    nodes_gt_file <- paste0(prefix_out, "_nodes_genotypes.tsv")
+    cell_assign_file <- paste0(prefix_out, "_cellAssignments.tsv")
+
+    if (!file.exists(nodes_gt_file) || !file.exists(cell_assign_file)) {
+        stop(sprintf("Fichiers introuvables pour le préfixe : %s. L'inférence a-t-elle convergé ?", prefix_out))
+    }
+
+    # 2. Chargement en RAM
+    nodes_gt <- read.delim(nodes_gt_file, stringsAsFactors = FALSE)
+    cell_assign <- read.delim(cell_assign_file, stringsAsFactors = FALSE)
+
+    # 3. Filtrage strict des doublets
+    # On exclut les cellules flaggées comme doublets par le modèle pour garantir la pureté clonale
+    singlets <- cell_assign[cell_assign$doublet == "no", ]
+
+    if (nrow(singlets) == 0) {
+        stop("Aucun singulet trouvé. Matrice inexploitable.")
+    }
+
+    # 4. Préparation de la clé de jointure (Format: "Node X")
+    rownames(nodes_gt) <- nodes_gt$node
+    target_nodes <- paste0("Node ", singlets$node)
+
+    # 5. Projection de la matrice des nœuds vers les cellules (Broadcasting)
+    imputed_mat <- as.matrix(nodes_gt[target_nodes, -1, drop = FALSE])
+
+    # 6. Restauration de l'identité et du typage
+    rownames(imputed_mat) <- singlets$cell
+    storage.mode(imputed_mat) <- "integer"
+
+    message(sprintf("Matrice imputée reconstruite : %d cellules x %d variants.",
+                    nrow(imputed_mat), ncol(imputed_mat)))
+
+    return(imputed_mat)
+}

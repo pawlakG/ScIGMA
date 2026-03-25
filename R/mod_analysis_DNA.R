@@ -54,6 +54,28 @@ mod_analysis_DNA_ui <- function(id) {
                         )
                     ),
                 )
+            ),
+            nav_panel(
+                "COMPASS",
+                bslib::card(
+                    bslib::card_header(
+                        shiny::icon("code-branch"),
+                        "COMPASS: Clonal Architecture Inference",
+                        class = "bg-dark text-white" # À adapter selon ton thème ggprism/application
+                    ),
+                    bslib::card_body(
+                        shiny::p(
+                            "COMPASS (COpy number and Mutation Phylogeny from Amplicon Single-cell Sequencing) is a probabilistic framework designed to infer high-resolution clonal architecture from single-cell DNA sequencing."
+                        ),
+                        shiny::p(
+                            "By jointly modeling somatic mutations (SNVs) and copy number alterations (CNAs) through Markov Chain Monte Carlo (MCMC) inference, the algorithm rigorously resolves technical noise and performs probabilistic imputation of allele dropouts (missing data)."
+                        ),
+                        shiny::p(
+                            shiny::strong("Utility in the current pipeline: "),
+                            "This module computes the definitive genetic backbone of the sample. By assigning each individual cell to a mathematically validated clonal lineage, it provides the strict ground truth required to project mutational profiles onto the downstream protein expression space (UMAP), enabling robust genotype-to-phenotype mapping."
+                        )
+                    )
+                )
             )
         )
     )

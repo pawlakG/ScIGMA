@@ -281,32 +281,54 @@ normalize_amplicon_counts <- function(count_matrix,
 }
 
 
+#' Generate Clonal Labels from Single-Cell Genotype Matrix
+#'
+#' Infers clonal cluster assignments for single cells based on their mutational
+#' signatures. Maps short variant IDs from the genotype matrix to full
+#' nomenclature, decodes integer states (WT, HET, HOM, MISS), and aggregates
+#' cells into unique clonal populations.
+#'
+#' @param ngt_matrix Integer matrix. Single-cell genotypes (rows = cells,
+#'   columns = short variant IDs). Expected values: 0 (WT), 1 (HET), 2 (HOM),
+#'   or 3/NA (MISS).
+#' @param target_variants_df Data.frame. Must contain a `variant_id` column
+#'   with full variant nomenclatures (e.g., used as ground truth for labels).
+#' @param ignore_missing Logical. If TRUE, cells with missing genotype data
+#'   (`MISS`) for any target variant are flagged as 'unassigned'. Default FALSE.
+#'
+#' @return A named list containing two elements:
+#'   \item{cell_metadata}{Tibble mapping `cell_barcode` to `clonal_cluster_id`}
+#'   \item{cluster_definitions}{Tibble mapping `clonal_cluster_id` to
+#'   `genotype_signature`}
+#'
+#' @importFrom dplyr select mutate across all_of case_when filter distinct
+#'   arrange left_join row_number
+#' @importFrom tidyr unite
+#' @importFrom stringr str_detect
+#' @importFrom tibble as_tibble
+#' @export
 generate_clonal_labels <- function(ngt_matrix,
                                    target_variants_df,
                                    ignore_missing = FALSE) {
 
-    # 1. Préparation des données et du Mapping
-    # ngt_matrix <- obj$gt.mtx |> as.matrix()
-
-    # Extraction des noms complets (Source de vérité pour l'affichage)
+    # 1. Data preparation and variant mapping
+    # Extract full nomenclature (ground truth for biological labels)
     full_variant_ids <- target_variants_df$variant_id
 
-    # Extraction des noms courts (Pour matcher les colonnes de la matrice)
-    # Note: Assurez-vous que ce regex correspond bien aux colnames de votre ngt_matrix
+    # Extract short IDs to match matrix column names
     short_variant_ids <- sub(x = full_variant_ids, pattern = "^([^:]+:)|^:", "")
 
-    # CRUCIAL : Création du dictionnaire de mapping (Nom Court -> Nom Long)
+    # Define mapping dictionary: short_id -> full_id
     variant_map <- setNames(full_variant_ids, short_variant_ids)
 
-    # 2. Vérification d'intégrité
-    # On vérifie si les noms courts existent dans la matrice
+    # 2. Integrity check
     missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
     if (length(missing_variants) > 0) {
-        stop(paste("Erreur critique : Variants manquants dans la matrice :",
+        stop(paste("Critical error: Missing variants in the genotype matrix:",
                    paste(missing_variants, collapse = ", ")))
     }
 
-    # 3. Fonction locale de décodage
+    # 3. State decoding function
     decode_genotype <- function(x) {
         case_when(
             x == 0 ~ "WT",
@@ -317,22 +339,22 @@ generate_clonal_labels <- function(ngt_matrix,
         )
     }
 
-    # 4. Traitement vectorisé
+    # 4. Vectorized processing
     processed_cells <- as_tibble(ngt_matrix, rownames = "cell_barcode") %>%
         select(cell_barcode, all_of(short_variant_ids)) %>%
 
-        # Étape A : Décodage (0 -> WT)
+        # Step A: Decode integers to character states
         mutate(across(all_of(short_variant_ids), decode_genotype)) %>%
 
-        # Étape B : Préfixage avec le NOM COMPLET via le mapping
-        # MODIFICATION ICI : Au lieu de cur_column() seul, on l'utilise comme clé dans variant_map
+        # Step B: Prefix states with full variant nomenclature via lookup map
         mutate(across(all_of(short_variant_ids),
                       ~ paste0(variant_map[cur_column()], ":", .))) %>%
 
-        # Étape C : Fusion pour signature
-        unite(col = "signature_string", all_of(short_variant_ids), sep = " & ", remove = FALSE)
+        # Step C: Concatenate into a strict clonal signature string
+        unite(col = "signature_string", all_of(short_variant_ids),
+              sep = " & ", remove = FALSE)
 
-    # 5. Filtrage Missing (Optionnel)
+    # 5. Missing data filtering
     if (ignore_missing) {
         processed_cells <- processed_cells %>%
             mutate(is_valid = !str_detect(signature_string, ":MISS"))
@@ -340,24 +362,23 @@ generate_clonal_labels <- function(ngt_matrix,
         processed_cells <- processed_cells %>% mutate(is_valid = TRUE)
     }
 
-    # Debug print (utile pour vérifier)
-    # print(head(processed_cells))
-
-    # 6. Construction de la Lookup Table (Définitions)
+    # 6. Build cluster lookup table (Definitions)
     cluster_definitions <- processed_cells %>%
         filter(is_valid) %>%
         distinct(signature_string) %>%
         arrange(signature_string) %>%
-        # mutate(clonal_cluster_id = paste0("cluster_", row_number())) %>%
-        mutate(clonal_cluster_id =row_number()) %>%
+        mutate(clonal_cluster_id = row_number()) %>%
         select(clonal_cluster_id, genotype_signature = signature_string)
 
-    # 7. Jointure finale
+    # 7. Final assignment via relational join
     final_metadata <- processed_cells %>%
-        left_join(cluster_definitions, by = c("signature_string" = "genotype_signature")) %>%
+        left_join(cluster_definitions,
+                  by = c("signature_string" = "genotype_signature")) %>%
         select(cell_barcode, clonal_cluster_id)
 
-    final_metadata$clonal_cluster_id[is.na(final_metadata$clonal_cluster_id)] <- "unassigned"
+    # Handle unassigned cells (e.g., filtered due to missing data)
+    final_metadata$clonal_cluster_id[is.na(final_metadata$clonal_cluster_id)] <-
+        "unassigned"
 
     return(list(
         cell_metadata = final_metadata,

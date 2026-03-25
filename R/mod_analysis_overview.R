@@ -311,6 +311,9 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             # On transfère le MAE filtré et annoté dans l'objet global
             ScIGMA_data$mae <- temp_scigma_obj$mae
 
+            # >> Sanitize MAE _
+            ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
+
             message(whereami::whereami())
 
             # ---------------------------- #
@@ -368,6 +371,13 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 )
             }
         })
+
+        # [ NODE_ACCESS : RUN COMPASS ]
+        # ----------------------------------------------------- _
+        observeEvent(input$compass_bttn, {
+            req(ScIGMA_data$mae)
+        })
+
     })
 }
 

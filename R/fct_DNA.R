@@ -686,29 +686,16 @@ build_compass_matrices <- function(obj, selected_variants) {
         sort = FALSE
     )
     snv_to_gene <- tmp_x
-    print("match(tmp_x$amplicon, tmp_y$dna_id)")
-    print(match(tmp_x$amplicon, tmp_y$dna_id))
-    print("tmp_x$amplicon")
-    print(tmp_x$amplicon)
-    print("head(tmp_y$dna_id)")
-    print(head(tmp_y$dna_id))
+
     snv_to_gene$compass_region <- tmp_y$compass_region[match(tmp_x$amplicon, tmp_y$dna_id)]
 
 
     snv_to_gene <- snv_to_gene[match(selected_variants, snv_to_gene$variant_id), ]
-    print("snv_to_gene before replacing NA")
-    print(snv_to_gene)
     # snv_to_gene$compass_region <- paste(snv_to_gene$)
     snv_to_gene$compass_region[is.na(snv_to_gene$compass_region)] <- "0_Unknown"
 
     gene_cols <- colnames(C_mat)
-    # print("snv_to_gene$compass_region")
-    # print(snv_to_gene)
-    print("gene_cols")
-    print(gene_cols)
     locus_regions <- match(snv_to_gene$compass_region, gene_cols) - 1L
-    print("locus_regions")
-    print(locus_regions)
 
     # Fail-Fast : Arrêt si un variant tombe dans le vide topologique
     if (any(is.na(locus_regions))) {
@@ -751,7 +738,7 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
         stop("Fatal: input directory not found.")
     }
     dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-    print("test0")
+
     args <- c(
         "--m-ref", file.path(input_dir, "M_ref.tsv"),
         "--m-alt", file.path(input_dir, "M_alt.tsv"),
@@ -763,10 +750,8 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
         "--threads", as.character(threads)
     )
 
-    print("test1")
     message("Spawning COMPASS backend process...")
 
-    print("test2")
     exit_status <- system2(
         command = compass_exec,
         args = args,
@@ -774,10 +759,121 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
         stderr = file.path(output_dir, "compass.err")
     )
 
-    print("test3")
     if (exit_status != 0) {
         stop("Critical: MCMC process crashed. Inspect compass.err.")
     }
 
     invisible(TRUE)
+}
+
+#' Infer Clonal Architecture and Filter Doublets
+#'
+#' Executes COMPASS MCMC inference, imputes missing genotypes, and purges
+#' doublet cells globally from the MultiAssayExperiment object. Results are
+#' stored non-destructively in the MAE metadata slot.
+#'
+#' @param scigma_data List containing a MultiAssayExperiment ('mae').
+#' @param target_variants Character vector. Pathogenic variants to track.
+#' @param chain_length Integer. Number of MCMC iterations.
+#' @param output_dir Character. Directory for temporary files. Defaults to
+#'   tempdir() for strict BioConductor compliance.
+#' @return Updated scigma_data object containing only singlet cells and
+#'   COMPASS results in MAE metadata.
+#' @export
+infer_clonal_architecture <- function(scigma_data, target_variants,
+                                      chain_length = 500L,
+                                      output_dir = tempdir()) {
+
+    # 1. Matrix extraction
+    compass_inputs <- build_compass_matrices(
+        obj = scigma_data,
+        selected_variants = target_variants
+    )
+
+    mat_ref <- t(as.matrix(compass_inputs$M_ref))
+    storage.mode(mat_ref) <- "integer"
+
+    mat_alt <- t(as.matrix(compass_inputs$M_alt))
+    storage.mode(mat_alt) <- "integer"
+
+    mat_cna <- t(as.matrix(compass_inputs$C))
+    storage.mode(mat_cna) <- "integer"
+
+    gt_assay <- SummarizedExperiment::assay(
+        scigma_data$mae[["dna_variants"]], "gt"
+    )
+    # GT extraction already uses the correct order, but ensured here for consistency
+    mat_gt <- as.matrix(gt_assay[target_variants, , drop = FALSE])
+    mat_gt[mat_gt == 3L] <- NA
+    storage.mode(mat_gt) <- "integer"
+
+    variant_matrices <- list(REF = mat_ref, ALT = mat_alt, GT = mat_gt)
+
+    # 2. Metadata extraction
+    dna_se <- scigma_data$mae[["dna_variants"]]
+    snv_row_data <- as.data.frame(SummarizedExperiment::rowData(dna_se))
+    snv_sub <- snv_row_data[target_variants, ]
+
+    vec_locus_names <- snv_sub$gene
+    vec_locus_chrom <- snv_sub$chrom
+
+    amp_se <- scigma_data$mae[["amplicons"]]
+    cna_row_data <- as.data.frame(SummarizedExperiment::rowData(amp_se))
+
+    get_gene <- function(x) strsplit(x, "_")[[1]][3]
+    vec_region_names <- paste0(cna_row_data$chrom, "_",
+                               sapply(cna_row_data$dna_id, get_gene))
+    vec_region_names <- unique(vec_region_names)
+
+    get_chrom <- function(x) strsplit(x, "_")[[1]][1]
+    vec_region_chrom <- sapply(vec_region_names, get_chrom, USE.NAMES = FALSE)
+    vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE)
+
+    # 3. BioConductor compliant I/O
+    prefix_out <- file.path(
+        output_dir, paste0("compass_", as.integer(Sys.time()))
+    )
+
+    use_cna <- if (ncol(variant_matrices$REF) != ncol(mat_cna)) FALSE else TRUE
+
+    # 4. C++ Execution
+    run_compass_mcmc(
+        variant_matrices   = variant_matrices,
+        locus_regions      = compass_inputs$locus_regions,
+        region_matrix      = mat_cna,
+        output_prefix      = prefix_out,
+        locus_names        = vec_locus_names,
+        locus_chromosomes  = vec_locus_chrom,
+        region_names       = vec_region_names,
+        region_chromosomes = vec_region_chrom,
+        chains             = 4L,
+        chain_length       = as.integer(chain_length),
+        patient_sex        = "female",
+        use_cna            = use_cna
+    )
+
+    # 5. Imputation and global filtering
+    mat_imputed <- get_imputed_genotypes(prefix_out = prefix_out)
+    cells_to_keep <- rownames(mat_imputed)
+
+    if (length(cells_to_keep) == 0) {
+        stop("Fatal: No singlet cells returned by COMPASS inference.")
+    }
+
+    # Global MAE subsetting (purges doublets across all assays)
+    scigma_data$mae <- scigma_data$mae[, cells_to_keep, ]
+
+    # Matrix alignment
+    mat_imputed_t <- t(mat_imputed)
+    rownames(mat_imputed_t) <- target_variants
+    colnames(mat_imputed_t) <- cells_to_keep
+
+    # 6. Non-Destructive Storage in S4 metadata
+    S4Vectors::metadata(scigma_data$mae)$compass <- list(
+        imputed_gt = mat_imputed_t,
+        singlet_barcodes = cells_to_keep,
+        target_variants = target_variants
+    )
+
+    return(scigma_data)
 }

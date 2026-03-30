@@ -1,3 +1,5 @@
+future::plan(future::multisession, workers = 4)
+
 #' The application server-side
 #' @param input,output,session Internal parameters for {shiny}.
 #'     DO NOT REMOVE.
@@ -43,7 +45,8 @@ app_server <- function(input, output, session) {
          "CNV_ui_cnv_plot_additionalParameters_rendered",
          "launch_umap",
          "umap_computed",
-         "dna_clones_renamed")
+         "dna_clones_renamed",
+         "compass_completed")
     print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
     # 2. Logique de révélation conditionnelle (GARGOYLE)

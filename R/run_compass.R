@@ -63,17 +63,6 @@ run_compass_mcmc <- function(
 
     message("Initializing COMPASS C++ backend (In-Memory)...")
 
-    print("as.character(locus_names)")
-    print(as.character(locus_names))
-    print("as.integer(locus_regions)")
-    print(as.integer(locus_regions))
-    print("as.character(locus_chromosomes)")
-    print(as.character(locus_chromosomes))
-    print("as.character(region_names)")
-    print(as.character(region_names))
-    print("variant_matrices")
-    print(lapply(variant_matrices, dim))
-
     execution_status <- tryCatch({
         run_compass_inference_cpp(
             ref_counts = variant_matrices$REF,

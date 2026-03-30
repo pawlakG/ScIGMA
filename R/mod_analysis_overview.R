@@ -192,26 +192,27 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         output$preprocess <- renderUI({
             watch("dataLoaded")
             message(whereami::whereami())
-            req(ScIGMA_data$mae)
-            if(!is.null(ScIGMA_data$mae)){
+            if(!is.null(ScIGMA_data)){
                 tagList(
                     fluidRow(
-                        column(6,
-                               card(
-                               fluidRow(
-                                   h5("Filter DNA variants:"),
+                        h5("Filter DNA variants:"),
 
-                                   div(
-                                       HTML("DNA Variant filtering step has two parameters : </br>
-              <b>min.cell.pt</b>	Minimum threshold for cell percentage that has valid variant call (GT = 0, 1 or 2) after
-              applying the filter.</br>
-              </br>
-              <b>min.mut.cell.pt</b>	Minimum threshold for cell percentage that has mutated genotype (GT = 1 or 2) after
-              applying the filter. The default is 1, corresponds to 1%. This filter is used to remove false positives."),
-                                       align = "justify"
-                                   )
+                        div(
+                            HTML("DNA Variant filtering step has two parameters : </br>"),
+                            align = "justify"
+                        )
+                    ),
+                    fluidRow(
+                        column(6,
+                               div(
+                                   HTML("<b>min.cell.pt</b>	Minimum threshold for cell percentage that has valid
+                                   variant call (GT = 0, 1 or 2) after
+              applying the filter. When to change: If the variant of interest is in a high GC content
+              region, then PCR amplification is hard. In such cases, you may choose to decrease the percent to 30 or 40
+              so that your interested variant could come through the filter.</br>"),
+                                   align = "justify"
                                ),
-                               fluidRow(
+                               div(
                                    sliderTextInput(
                                        inputId = ns("overview_preprocess_minCellPt"),
                                        label = "min.cell.pt",
@@ -219,41 +220,38 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                                        grid = TRUE,
                                        selected = 50
                                    ),
-                                   sliderTextInput(
-                                       inputId = ns("overview_preprocess_minMutCellPt"),
-                                       label = "min.mut.cell.pt",
-                                       choices = seq(1, 30, 1),
-                                       grid = TRUE,
-                                       selected = 1
-                                   )
-                               ),
-                               fluidRow(
-                                   actionBttn(
-                                       inputId = ns("dna_variant_filtering"),
-                                       label = "Filter DNA variants",
-                                       color = "primary",
-                                       style = "stretch",
-                                       icon = icon("magnifying-glass-chart"),
-                                       block = TRUE
-                                   )
-                               )
-                        )),
+                                   align = "center")
+                        ),
                         column(6,
-                               card(
-                               fluidRow(
-                                   h5("Run COMPASS"),
-                                   div(HTML("COMPASS description"))
+                               div(
+                                   HTML("<b>min.mut.cell.pt</b>
+                                   Minimum threshold for cell percentage that has mutated genotype (GT = 1 or 2) after
+              applying the filter.
+              When to change: If you know the variant is rare in the data, then you could try lower threshold to try to
+              keep the variant in your dataset."),
+                                   align = "justify"
                                ),
-                               fluidRow(
-                                   actionBttn(
-                                       inputId = ns("compass_bttn"),
-                                       label = "Run COMPASS",
-                                       color = "primary",
-                                       style = "stretch",
-                                       icon = icon("magnifying-glass-chart"),
-                                       block = TRUE
-                                   ))))
+                               div(
+                               sliderTextInput(
+                                   inputId = ns("overview_preprocess_minMutCellPt"),
+                                   label = "min.mut.cell.pt",
+                                   choices = seq(1, 30, 1),
+                                   grid = TRUE,
+                                   selected = 1
+                               ),
+                               align = "center")
+                        )
                     ),
+                    fluidRow(
+                        actionBttn(
+                            inputId = ns("dna_variant_filtering"),
+                            label = "Filter DNA variants",
+                            color = "primary",
+                            style = "stretch",
+                            icon = icon("magnifying-glass-chart"),
+                            block = TRUE
+                        )
+                    )
                 )
             } else {
                 fluidRow(

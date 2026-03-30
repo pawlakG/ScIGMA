@@ -148,27 +148,30 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
 
         # When user change a parameter value
-        observeEvent(eventExpr = input$cnv_filter_button,
-                     ignoreInit = TRUE,
-                     handlerExpr = {
-                         message("Filtering cnv ...")
-                         # Store values
-                         cnv_ampCompleteness <- input$cnv_ampCompleteness
-                         cnv_ampReadDepth <- input$cnv_ampReadDepth
-                         cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
-                         cnv_diploidClone <- input$cnv_diploidClone
+        observeEvent({input$cnv_filter_button
+            watch("dna_clones_renamed")},
+            ignoreInit = TRUE,
+            handlerExpr = {
+                message("Filtering cnv ...")
+                # Store values
+                cnv_ampCompleteness <- input$cnv_ampCompleteness
+                cnv_ampReadDepth <- input$cnv_ampReadDepth
+                cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
 
-                         # Filters
-                         filtered_data <- filter_cnv_profile(ScIGMA_data,
-                                                             ScIGMA_data$dna.clones,
-                                                             amp_completeness = cnv_ampCompleteness,
-                                                             amp_readDepth = cnv_ampReadDepth,
-                                                             amp_meanCellRead = cnv_meanCellReadDepth)
+                print("ScIGMA_data$dna.clones")
+                print(ScIGMA_data$dna.clones)
 
-                         ScIGMA_data$cnv_dp_filtered <- filtered_data
-                         message("Filtering done")
-                         trigger("CNV_filtered")
-                     })
+                # Filters
+                filtered_data <- filter_cnv_profile(ScIGMA_data,
+                                                    ScIGMA_data$dna.clones,
+                                                    amp_completeness = cnv_ampCompleteness,
+                                                    amp_readDepth = cnv_ampReadDepth,
+                                                    amp_meanCellRead = cnv_meanCellReadDepth)
+
+                ScIGMA_data$cnv_dp_filtered <- filtered_data
+                message("Filtering done")
+                trigger("CNV_filtered")
+            })
 
         # Observe event for ploidy computation
         observeEvent(input$cnv_diploidClone,

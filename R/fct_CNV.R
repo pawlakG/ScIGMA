@@ -215,6 +215,9 @@ filter_cnv_matrix_by_completeness <- function(
 
     cell_ampCompleteness_selected <- names(cell_ampCompleteness_filter)[cell_ampCompleteness_filter]
 
+    print("cell_ampCompleteness_selected")
+    print(cell_ampCompleteness_selected)
+
     if (length(cell_ampCompleteness_selected) == 0) {
         warning("No cells passed the amplicon completeness filter. Returning empty results.")
         return(list(
@@ -228,10 +231,10 @@ filter_cnv_matrix_by_completeness <- function(
     tmp_cnv_mtx <- amp_mtx[, cell_ampCompleteness_selected, drop = FALSE]
 
     ## --- Filter according to minimum mean read depth per amplicon ---
-    amplicon_meanCellRead_filter <- rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
+    amplicon_meanCellRead_filter <-  Matrix::rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
     meanCellRead_summary <- table(amplicon_meanCellRead_filter)
 
-    filtered_cnv_mtx <- tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
+    filtered_cnv_mtx <-tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
 
     return(list(
         filtered_cnv_mtx = filtered_cnv_mtx,
@@ -488,9 +491,6 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
     if (is.null(genome_v)) genome_v <- "hg19"
 
-    print("cnv_id_table")
-    print(cnv_id_table)
-
     tmp_var_table <- cnv_id_table |>
         dplyr::filter(dna_id %in% colnames(mat_data)) |>
         dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
@@ -569,8 +569,6 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 #' @importFrom dplyr filter distinct
 #' @importFrom ensembldb genes
 annotate_genomic_regions <- function(region_data, build = "hg38") {
-    print("build")
-    print(build)
     # Selection logic for the local Ensembl database object
     # Ensures zero network latency for reactive Shiny environments
     if (build == "hg38") {
@@ -580,8 +578,6 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     } else {
         stop("Invalid build. Please use 'hg19' or 'hg38'.")
     }
-    print("region_data")
-    print(head(region_data))
 
     # Conversion to GRanges for high-performance spatial overlaps
     # This step leverages C-level optimization for genomic arithmetic
@@ -607,19 +603,6 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     region_data$symbol <- "Unknown"
     valid <- !is.na(hits)
     region_data$symbol[valid] <- target_genes$symbol[hits[valid]]
-
-
-
-    print("overlaps")
-    print(overlaps)
-    print("hits <- GenomicRanges::findOverlaps(query_gr, target_genes, select = 'first'')")
-    # print(GenomicRanges::findOverlaps(query_gr, target_genes, select = "first"))
-    print(GenomicRanges::findOverlaps(query_gr, target_genes))
-    print("target_genes[hits]")
-    # print(target_genes$symbol[GenomicRanges::findOverlaps(query_gr, target_genes, select = "first")])
-    print(target_genes$symbol[subjectHits(GenomicRanges::findOverlaps(query_gr, target_genes))])
-    print(head(region_data))
-
     # Construct the result set using fast indexing
     # Prioritizing protein-coding genes for biological relevance in oncology
     tmp_y <- data.frame(symbol = target_genes$symbol[subjectHits(overlaps)],
@@ -974,10 +957,7 @@ annotate_amplicons_exact <- function(mae) {
 
     merged_rd <- dplyr::left_join(x = cna_rd, y = genes_df, by = "tmp_key")
     merged_rd$tmp_key <- NULL
-    print("merged_rd")
-    print(dim(merged_rd))
-    print(merged_rd[duplicated(merged_rd$dna_id) | duplicated(merged_rd$dna_id, fromLast = T),])
-    print(sum(duplicated(merged_rd$dna_id)))
+
     if (sum(duplicated(merged_rd$dna_id))>0){
         # Keep first mapped gene
         # Maybe, in the future, we should see if gene pattern match with dna_id
@@ -985,60 +965,9 @@ annotate_amplicons_exact <- function(mae) {
         # vectorization ?
         merged_rd <- merged_rd[!duplicated(merged_rd$dna_id) ,]
     }
-    print("SummarizedExperiment::rowData(mae[['amplicons']])")
-    print(dim(SummarizedExperiment::rowData(mae[["amplicons"]])))
-    print(SummarizedExperiment::rowData(mae[["amplicons"]]))
-
     # Re-injection in S4 object
     SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
 
     return(mae)
 }
 
-
-#' Reconstruct imputed single-cell genotypes from COMPASS outputs
-#'
-#' @param prefix_out Character. Le chemin et préfixe utilisé dans run_compass_mcmc
-#' @return Une matrice [Cellules x Locus] de type Integer (0 = REF, 1 = HET, 2 = HOM_ALT)
-#' @export
-get_imputed_genotypes <- function(prefix_out) {
-
-    # 1. Localisation des artefacts du C++
-    nodes_gt_file <- paste0(prefix_out, "_nodes_genotypes.tsv")
-    cell_assign_file <- paste0(prefix_out, "_cellAssignments.tsv")
-
-    if (!file.exists(nodes_gt_file) || !file.exists(cell_assign_file)) {
-        stop(sprintf("Fichiers introuvables pour le préfixe : %s. L'inférence a-t-elle convergé ?", prefix_out))
-    }
-
-    # 2. Chargement en RAM
-    nodes_gt <- read.delim(nodes_gt_file, stringsAsFactors = FALSE)
-    cell_assign <- read.delim(cell_assign_file, stringsAsFactors = FALSE)
-
-    # 3. Filtrage stricte des doublets
-    # COMPASS gère les doublets en créant des nœuds virtuels. Leurs génotypes ne sont
-    # pas dans nodes_gt. On les exclut pour ne garder que la pureté clonale.
-    singlets <- cell_assign[cell_assign$doublet == "no", ]
-
-    if (nrow(singlets) == 0) {
-        stop("Aucun singulet trouvé. Matrice inexploitable.")
-    }
-
-    # 4. Préparation de la clé de jointure
-    # nodes_gt$node est formaté comme "Node 0", "Node 1"...
-    rownames(nodes_gt) <- nodes_gt$node
-    target_nodes <- paste0("Node ", singlets$node)
-
-    # 5. Projection (Broadcasting) de la matrice des nœuds vers les cellules
-    # On exclut la première colonne (qui contient les noms "Node X")
-    imputed_mat <- as.matrix(nodes_gt[target_nodes, -1, drop = FALSE])
-
-    # Rétablissement de l'identité cellulaire
-    rownames(imputed_mat) <- singlets$cell
-    storage.mode(imputed_mat) <- "integer"
-
-    message(sprintf("Matrice imputée reconstruite : %d cellules x %d variants.",
-                    nrow(imputed_mat), ncol(imputed_mat)))
-
-    return(imputed_mat)
-}

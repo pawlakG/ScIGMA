@@ -33,7 +33,8 @@ devtools::load_all()
 
 directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
 # directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
-directory <- "../inputs/bPodvinDatasets/LMC/M35.dna+protein.h5"
+# directory <- "../inputs/bPodvinDatasets/LMC/M35.dna+protein.h5"
+directory <- "../inputs/tapestriDatasets/KG-1-Raji-50-50-Myeloid/KG-1-Raji-50-50-Myeloid.dna.h5"
 
 # 1. Chargement Out-of-Core HDF5
 ScIGMA_data <- loadH5_HDF5_biocond(
@@ -75,90 +76,65 @@ if (nrow(pathogenic_variants) == 0){
 
 target_variants <- rownames(pathogenic_variants)[1:min(20, nrow(pathogenic_variants))]
 
-if (length(target_variants) == 0) stop("Fatal: No pathogenic variants found for COMPASS.")
+# >> CNV _
 
-# 4. Extraction des Matrices depuis le MAE
-compass_inputs <- build_compass_matrices(
+sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+    as.data.frame() |>
+    dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+    dplyr::arrange(desc(cell_proportion), desc(impact))
+
+# Extraction sécurisée des variants sélectionnés
+selected_df <- sorted_annotation[target_variants, , drop = FALSE]
+
+# Mise à jour de l'objet global (au cas où d'autres modules l'utilisent)
+ScIGMA_data$variants.filtered <- selected_df
+
+# Génération de la Heatmap
+ht_res <- generate_dna_variant_heatmap(
     obj = ScIGMA_data,
-    selected_variants = target_variants
+    selected_variants_df = selected_df,
+    heatmap_include_all_samples = TRUE
 )
 
-# EXTRACTION GT: Le nouveau wrapper C++ requiert la matrice de Génotype
-# On extrait, transpose (Cellules x Variants) et on annule les 3 (Missing)
-mat_ref <- as.matrix(t(compass_inputs$M_ref))
-storage.mode(mat_ref) <- "integer"
+ht <- ComplexHeatmap::draw(ht_res$heatmap)
+print("New heatmap rendered")
 
-mat_alt <- as.matrix(t(compass_inputs$M_alt))
-storage.mode(mat_alt) <- "integer"
-
-mat_cna <- as.matrix(t(compass_inputs$C))
-storage.mode(mat_cna) <- "integer"
-
-# EXTRACTION GT : Suppression du t() pour garder nativement [Variants x Cells]
-mat_gt <- as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt")[target_variants, , drop = FALSE])
-mat_gt[mat_gt == 3L] <- NA
-storage.mode(mat_gt) <- "integer"
-
-variant_matrices <- list(
-    REF = mat_ref,
-    ALT = mat_alt,
-    GT  = mat_gt
-)
-
-
-# 1. Extraction des métadonnées SNV
-snv_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]))
-snv_sub <- snv_rowData[target_variants, ]
-
-vec_locus_names <- snv_sub$gene        # Ex: "NPM1"
-vec_locus_chrom <- snv_sub$chrom         # Ex: "5" (Le C++ gère le préfixe "chr" en interne)
-
-# 2. Extraction des métadonnées CNA
-cna_rowData <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-
-# Agrégation Spatiale (Garantir le format CHR_GENE pour le C++)
-vec_region_names <- paste0(cna_rowData$chrom, "_", sapply(cna_rowData$dna_id, \(x) strsplit(x, "_")[[1]][3]))
-vec_region_names <- unique(vec_region_names) # Alignés avec les colonnes de ta matrice C_mat
-
-# NEW : Extraction robuste des chromosomes, strictement alignée sur vec_region_names
-vec_region_chrom <- sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE)
-vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE) # Nettoyage de sécurité
-
-prefix_out <- "results/compass_output/tmp_"
-
-# Handle if dim(CNV) ≠ dim(SNV)
-if (ncol(variant_matrices$REF) != ncol(mat_cna)){
-    use_cna <- FALSE
-} else {
-    use_cna <- TRUE
+# Gestion des clones
+if (is.null(ScIGMA_data$dna_clones_renamed)) {
+    ScIGMA_data$dna.clones <- ht_res$clones
 }
 
-# 3. L'appel final blindé
-run_compass_mcmc(
-    variant_matrices   = variant_matrices,
-    locus_regions      = compass_inputs$locus_regions,
-    region_matrix      = mat_cna,
-    output_prefix      = prefix_out,
-    locus_names        = vec_locus_names,
-    locus_chromosomes  = vec_locus_chrom,
-    region_names       = vec_region_names,
-    region_chromosomes = vec_region_chrom,
-    chains             = 4L,
-    chain_length       = 500L,
-    patient_sex        = "female",
-    use_cna            = use_cna
-)
-
-
-# Extraction de la matrice imputée (Zéro NA)
-mat_imputed <- get_imputed_genotypes(prefix_out = prefix_out)
-
-# Optionnel : Injection dans ton objet MAE (MultiAssayExperiment)
-# On s'assure d'aligner les cellules si certaines ont été filtrées (ex: doublets)
-cells_to_keep <- rownames(mat_imputed)
+filtered_data <- filter_cnv_profile(ScIGMA_data,
+                                    ScIGMA_data$dna.clones,
+                                    amp_completeness = 50,
+                                    amp_readDepth = 10,
+                                    amp_meanCellRead = 10)
 
 
 
+
+ScIGMA_data <- infer_clonal_architecture(scigma_data = ScIGMA_data,
+                                         target_variants = target_variants,
+                                         chain_length = 200)
+
+# [!] Verify if genotype if the same before and after compass
+beforeCompassGT <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt") |> as.matrix()
+afterCompassGT <- ScIGMA_data$mae@metadata$compass$imputed_gt|> as.matrix()
+
+all(colnames(beforeCompassGT) == colnames(afterCompassGT))
+beforeCompassGT_restricted <- beforeCompassGT[rownames(afterCompassGT),colnames(afterCompassGT)]
+
+unique(as.vector(beforeCompassGT_restricted))
+unique(as.vector(afterCompassGT))
+
+missingGT_cells <- beforeCompassGT_restricted==3
+
+beforeCompassGT_restricted[!missingGT_cells]
+afterCompassGT[!missingGT_cells]
+
+sum(!beforeCompassGT_restricted[!missingGT_cells] == afterCompassGT[!missingGT_cells])
+
+sum(beforeCompassGT_restricted[!missingGT_cells] == afterCompassGT[!missingGT_cells])
 
 
 

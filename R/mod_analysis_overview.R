@@ -312,6 +312,15 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             # >> Sanitize MAE _
             ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
 
+
+            # Normalize protein and perform PCA
+            if (ScIGMA_data$filetype == "DNA+protein"){
+                message("Preprocessing protein data ...")
+
+                ScIGMA_data <- normalizeProtein(ScIGMA_data)
+                ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
+            }
+
             message(whereami::whereami())
 
             # ---------------------------- #

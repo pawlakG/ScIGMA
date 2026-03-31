@@ -169,6 +169,16 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
+        # ---------------------------------------------------------
+        # NEW : Contrôleur d'affichage (UI Gatekeeper)
+        # ---------------------------------------------------------
+        output$is_filtered <- shiny::reactive({
+            watch("dnaVariant_filtered")
+            # On vérifie stricto sensu si l'objet R6 a bien reçu les variants filtrés
+            !is.null(ScIGMA_data$variants.filtered)
+        })
+        shiny::outputOptions(output, "is_filtered", suspendWhenHidden = FALSE)
+
         # --- 1. Initialization & State (Bi-plot Logic) ---
 
         # State: Stores indices (pointers) only. Zero data duplication.
@@ -181,8 +191,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # Initialize Inputs & Root Gate from R6 Object
         observeEvent({
-            # watch("dnaVariant_filtered")
-            watch("dataLoaded")
+            watch("dnaVariant_filtered")
+            # watch("dataLoaded")
 
         },{
             req(ScIGMA_data$mae[["proteins"]])
@@ -196,7 +206,18 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             # Initialize Root (All Cells)
             if (is.null(r_state$subsets[["root"]])) {
-                n_cells <- ncol(ScIGMA_data$mae[["proteins"]]) # UPDATED : Cellules = Colonnes
+
+                assay_to_use_state <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+
+                print("assay_to_use_state")
+                print(assay_to_use_state)
+
+                n_cells <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state)) # UPDATED : Cellules = Colonnes
+
+                print("n_cells")
+                print(n_cells)
+
+
                 r_state$subsets[["root"]] <- 1:n_cells
                 r_state$subset_meta[["root"]] <- list(
                     name = "Tout",
@@ -230,11 +251,25 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             print("assay_to_use")
             print(assay_to_use)
 
+            print("current_indices")
+            print(head(current_indices))
+            print(length(current_indices))
+
+            print("input$xvar")
+            print(input$xvar)
+            print(length(input$xvar))
+
+            print("input$yvar")
+            print(input$yvar)
+            print(length(input$yvar))
+
+            print("SummarizedExperiment::assay(ScIGMA_data$mae[['proteins']], assay_to_use)")
+            print(dim(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)))
+
+
             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
             raw_y <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$yvar, current_indices]
-
-            print("test biplot ptn")
 
             plot_df <- data.frame(
                 x = raw_x,
@@ -244,6 +279,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             if (input$logx) plot_df$x <- log1p(plot_df$x)
             if (input$logy) plot_df$y <- log1p(plot_df$y)
+
+            print("plot_df")
+            print(head(plot_df))
 
             plot_ly(
                 data = plot_df,
@@ -261,7 +299,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     yaxis = list(title = input$yvar, range = list(0, max(plot_df$y)+1)),
                     dragmode = "lasso"
                 ) %>%
-                toWebGL() %>%
+                # toWebGL() %>%
                 config(displaylogo = FALSE)
         })
 
@@ -270,12 +308,37 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # Listener
         observeEvent(event_data("plotly_selected", source = ns("gating_plot")), {
             sel <- event_data("plotly_selected", source = ns("gating_plot"))
-            if (is.null(sel) || nrow(sel) == 0) {
+
+            # 1. Le Bouclier Absolu : Intercepte NULL, list(), et dataframes vides
+            if (is.null(sel) || length(sel) == 0 || (is.data.frame(sel) && nrow(sel) == 0)) {
                 r_state$temp_selection <- NULL
-            } else {
-                r_state$temp_selection <- as.numeric(sel$key)
+                return()
             }
-        })
+
+            # 2. Cascade d'extraction
+            extracted_indices <- NULL
+            if ("customdata" %in% colnames(sel)) {
+                extracted_indices <- as.numeric(sel$customdata)
+            } else if ("key" %in% colnames(sel)) {
+                extracted_indices <- as.numeric(sel$key)
+            } else if ("pointNumber" %in% colnames(sel)) {
+                current_indices <- r_state$subsets[[r_state$current_view]]
+                extracted_indices <- current_indices[as.numeric(sel$pointNumber) + 1]
+            }
+
+            # 3. Purge des "Fantômes" (NA générés par le lasso sur le fond du plot)
+            if (!is.null(extracted_indices)) {
+                valid_indices <- extracted_indices[!is.na(extracted_indices)]
+
+                if (length(valid_indices) > 0) {
+                    r_state$temp_selection <- valid_indices
+                } else {
+                    r_state$temp_selection <- NULL
+                }
+            } else {
+                r_state$temp_selection <- NULL
+            }
+        }, ignoreNULL = FALSE, ignoreInit = TRUE)
 
         # Feedback Info
         output$selection_info <- renderText({
@@ -412,14 +475,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # } else {
             #     ScIGMA_data$protein.mtx
             # }
-
-            # Perform PCA
-            if (ScIGMA_data$filetype == "DNA+protein"){
-                message("Preprocessing protein data ...")
-
-                ScIGMA_data <- normalizeProtein(ScIGMA_data)
-                ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
-            }
 
             # Compute UMAP
 

@@ -164,6 +164,7 @@ mod_analysis_Protein_ui <- function(id) {
 #' @importFrom ggprism theme_prism
 #' @importFrom plotly renderPlotly plot_ly layout event_data toWebGL config
 #' @importFrom shiny moduleServer reactiveValues observe req updateSelectInput updateTextInput renderUI renderText actionLink div observeEvent
+#' @importFrom tidyr pivot_longer
 mod_analysis_Protein_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
@@ -232,6 +233,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
             raw_y <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$yvar, current_indices]
+
+            print("test biplot ptn")
 
             plot_df <- data.frame(
                 x = raw_x,

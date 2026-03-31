@@ -32,18 +32,34 @@ mod_analysis_DNA_ui <- function(id) {
                                 plotOutput(ns("dna_variant_heatmap"),
                                            height = "600px", width = "900px"),
                                 align = "center"),
+                            br(),
                             fluidRow(
-                                column(6,
-                                       materialSwitch(
-                                           inputId = ns("heatmap_include_all_samples"),
-                                           label = "Show missings ?",
-                                           value = TRUE,
-                                           status = "success"
-                                       )
+                                column(4,
+                                       div(
+                                           shinyWidgets::materialSwitch(
+                                               inputId = ns("heatmap_include_all_samples"),
+                                               label = "Show missings ?",
+                                               value = TRUE,
+                                               status = "success"
+                                           ),
+                                           align = "center")
                                 ),
-                                column(6,
-                                       actionButton(ns("btn_dna_variant_download"), "Download plot",
-                                                    class = "btn-primary")
+                                column(4,
+                                       div(
+                                           shinyWidgets::materialSwitch(
+                                               inputId = ns("heatmap_use_compass_imputed"),
+                                               label = "Use COMPASS imputed matrix ?",
+                                               value = FALSE,
+                                               # status = "primary"
+                                               status = "success"
+                                           ),
+                                           align = "center")
+                                ),
+                                column(4,
+                                       div(
+                                           actionButton(ns("btn_dna_variant_download"), "Download plot",
+                                                        class = "btn-primary"),
+                                           align = "center")
                                 )
                             )
                         )
@@ -134,6 +150,34 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
         ns <- session$ns
 
+        # ---------------------------------------------------------
+        # NEW : Déplacé ici pour être accessible par tous les observateurs
+        # ---------------------------------------------------------
+        compass_tree_visible <- shiny::reactiveVal(FALSE)
+
+        # ---------------------------------------------------------
+        # NEW : PURGE STRICTE (Invalidation du modèle si les données changent)
+        # ---------------------------------------------------------
+        observeEvent(input$btn_filtrer, {
+            # On ne purge que si COMPASS contient des données obsolètes
+            if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+
+                # 1. Destruction de l'objet mathématique
+                S4Vectors::metadata(ScIGMA_data$mae)$compass <- NULL
+
+                # 2. Destruction des clones CNV purs (s'ils existent dans l'objet R6)
+                if ("cnv.active.clones" %in% names(ScIGMA_data)) {
+                    ScIGMA_data$cnv.active.clones <- NULL
+                }
+
+                # 3. Réinitialisation de l'UI (Désactive le switch et cache l'arbre)
+                shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+                compass_tree_visible(FALSE)
+
+                shiny::showNotification("Variantes modifiées : Le modèle COMPASS précédent a été purgé.", type = "warning")
+            }
+        }, priority = 10, ignoreInit = TRUE) # Priorité haute : s'exécute avant la heatmap
+
         # 1. Render DNA variants dataframe
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
@@ -158,51 +202,56 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         observeEvent({
             input$btn_filtrer
             input$heatmap_include_all_samples
+            input$heatmap_use_compass_imputed # <-- NEW : Écoute du nouvel interrupteur
             watch("dna_clones_renamed")
+            watch("compass_completed")        # <-- NEW : Rafraîchit la heatmap quand COMPASS se termine
         }, {
             print("Rendering DNA heatmap")
             sel_indices <- input$variant_selection_rows_selected
             heatmap_include_all_samples <- input$heatmap_include_all_samples
+            use_imputed <- input$heatmap_use_compass_imputed
 
             if (length(sel_indices) > 0) {
 
-                # RECONSTRUCTION DE LA VUE : Indispensable pour mapper les index de l'UI (sel_indices)
-                # avec les véritables identifiants biologiques, car arrange() a mélangé les lignes.
+                # FIX CRITIQUE : Sécurité UX. Si on demande la matrice imputée mais que COMPASS n'est pas fait
+                if (isTRUE(use_imputed) && is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                    shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "warning")
+
+                    # On repasse l'interrupteur sur OFF silencieusement
+                    shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+                    use_imputed <- FALSE
+                }
+
                 sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                     as.data.frame() |>
                     dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
                     dplyr::arrange(desc(cell_proportion), desc(impact))
 
-                # Extraction sécurisée des variants sélectionnés
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
-
-                # Mise à jour de l'objet global (au cas où d'autres modules l'utilisent)
                 ScIGMA_data$variants.filtered <- selected_df
 
-                # Génération de la Heatmap
+                # Génération de la Heatmap (On passe le nouvel argument)
                 ht_res <- generate_dna_variant_heatmap(
                     obj = ScIGMA_data,
                     selected_variants_df = selected_df,
-                    heatmap_include_all_samples = heatmap_include_all_samples
+                    heatmap_include_all_samples = heatmap_include_all_samples,
+                    use_imputed = use_imputed # <-- NEW : Transmission à la fonction métier
                 )
 
                 ht <- ComplexHeatmap::draw(ht_res$heatmap)
                 print("New heatmap rendered")
 
-                # Gestion des clones
                 if (is.null(ScIGMA_data$dna_clones_renamed)) {
                     ScIGMA_data$dna.clones <- ht_res$clones
                 }
 
-                # Déclenchement des événements avals
                 trigger("dnaVariant_selected")
 
-                # Affichage
                 output$dna_variant_heatmap <- renderPlot({
                     ht
                 })
             }
-        })
+        }, ignoreInit = TRUE)
 
 
         observeEvent(watch("dnaVariant_selected"),
@@ -254,8 +303,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
         # [ NODE_ACCESS : COMPASS ]
         # ----------------------------------------------------- _
-
-        compass_tree_visible <- shiny::reactiveVal(FALSE)
 
         # Rendu dynamique de la carte UI
         output$compass_tree_ui <- shiny::renderUI({
@@ -476,6 +523,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 writeLines(svg_code, file)
             }
         )
+
 
     })
 }

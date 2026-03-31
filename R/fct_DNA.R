@@ -445,7 +445,8 @@ generate_clonal_labels <- function(ngt_matrix,
 generate_dna_variant_heatmap <- function(obj,
                                          selected_variants_df,
                                          min_prop_cluster = 0.01,
-                                         heatmap_include_all_samples = TRUE) {
+                                         heatmap_include_all_samples = TRUE,
+                                         use_imputed = FALSE) { # <-- NEW ARGUMENT
 
     # 1. Extraction des identifiants (La source de vérité)
     target_variants <- selected_variants_df$variant_id
@@ -453,10 +454,29 @@ generate_dna_variant_heatmap <- function(obj,
     # Création des noms courts pour l'affichage et le clustering en aval
     short_variants <- sub(x = target_variants, pattern = "^([^:]+:)|^:", "")
 
-    # 2. Extraction Out-of-Core depuis le MAE (Format natif : Variants x Cells)
-    gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
-    msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
+    # 2. Aiguillage des matrices (Brute vs Imputée par COMPASS)
+    if (isTRUE(use_imputed)) {
+        # Extraction de la matrice parfaite
+        gt_full <- S4Vectors::metadata(obj$mae)$compass$imputed_gt
+        # Sécurité : Vérifier que les variants demandés ont bien été passés dans COMPASS
+        if (!all(short_variants %in% rownames(gt_full))) {
+            stop("Erreur : Certains variants sélectionnés n'ont pas été inclus dans l'inférence COMPASS. Veuillez relancer COMPASS avec ces variants.")
+        }
 
+        # COMPASS a déjà géré le bruit. On génère un masque totalement vierge (0).
+        msk_full <- matrix(0L, nrow = nrow(gt_full), ncol = ncol(gt_full),
+                           dimnames = dimnames(gt_full))
+
+        # Alignement des rownames sur les noms courts pour correspondre à ton code d'extraction original
+        # rownames(gt_full) <- sub(x = rownames(gt_full), pattern = "^([^:]+:)|^:", "")
+        rownames(gt_full) <- rownames(gt_full)
+        rownames(msk_full) <- rownames(gt_full)
+
+    } else {
+        # Extraction Out-of-Core native (Raw data)
+        gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
+        msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
+    }
 
     # 3. Transposition immédiate pour le clustering (Format requis : Cells x Variants)
     gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
@@ -569,6 +589,9 @@ generate_dna_variant_heatmap <- function(obj,
 
     new_colnames <- selected_variants_df$variant_id[idx_colnames]
     new_colnames <- sub(":", "    \n", new_colnames)
+
+    print("dimension : tmp_heamtap_matrix_filtered_complete_ordered")
+    print(dim(tmp_heamtap_matrix_filtered_complete_ordered))
 
     ## Heatmap
     heatmap <- ComplexHeatmap::Heatmap(

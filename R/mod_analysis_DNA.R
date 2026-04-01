@@ -178,17 +178,26 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             }
         }, priority = 10, ignoreInit = TRUE) # Priorité haute : s'exécute avant la heatmap
 
+        observeEvent(watch("dataLoaded"), {
+            # Éteint les interrupteurs
+            shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+            if (exists("compass_tree_visible")) compass_tree_visible(FALSE)
+
+            # Atomise les graphiques
+            output$dna_variant_heatmap <- renderPlot({ NULL })
+            output$rename_cluster_ui <- renderUI({ NULL })
+        }, priority = 20, ignoreInit = TRUE)
+
         # 1. Render DNA variants dataframe
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            req(ScIGMA_data$mae) # Sécurité
+            watch("dataLoaded") # <-- NEW : Force la table à afficher les nouveaux variants bruts
+            req(ScIGMA_data$mae)
 
-            # print("test_renderDT ")
-            # print(SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) )
-            # Extraction et tri (La "Vue")
             tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                 as.data.frame() |>
                 dplyr::select(variant_id, gene, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+                # dplyr::filter(!is.na(variant_id)) |>
                 dplyr::arrange(desc(cell_proportion), desc(impact))
 
             datatable(tmp_variant_annotation,
@@ -229,6 +238,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
                 ScIGMA_data$variants.filtered <- selected_df
+
+                print("selected_df")
+                print(selected_df)
 
                 # Génération de la Heatmap (On passe le nouvel argument)
                 ht_res <- generate_dna_variant_heatmap(

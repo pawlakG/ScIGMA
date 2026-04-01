@@ -1,5 +1,5 @@
 #' @importFrom R6 R6Class
-#' @importFrom MultiAssayExperiment MultiAssayExperiment endoapply
+#' @importFrom MultiAssayExperiment MultiAssayExperiment
 #' @importFrom DelayedArray DelayedArray realize
 #' @importFrom HDF5Array setHDF5DumpDir setHDF5DumpFile
 #' @keywords classes
@@ -46,6 +46,25 @@ ScIGMA_object <- R6::R6Class(
             invisible(self)
         },
 
+        reset_analysis = function() {
+            self$dna.clones <- NULL
+            self$dna_clones_renamed <- NULL
+            self$protein.filtered <- NULL
+            self$variants.filtered <- NULL
+            self$ploidy.mtx <- NULL
+            self$cnv_dp_filtered <- NULL
+            self$seurat_object <- NULL
+            self$protein_gating_tree <- list()
+            self$umaps <- list()
+            self$cnv.active.clones <- NULL
+
+            # Sécurité additionnelle sur les métadonnées
+            if (!is.null(self$mae)) {
+                S4Vectors::metadata(self$mae) <- list()
+            }
+            invisible(self)
+        },
+
         realize_all = function(dir,
                                file = "scigma_store.h5",
                                chunkdim = NULL,
@@ -54,7 +73,7 @@ ScIGMA_object <- R6::R6Class(
             HDF5Array::setHDF5DumpDir(dir)
             HDF5Array::setHDF5DumpFile(file)
 
-            self$mae <- MultiAssayExperiment::endoapply(
+            self$mae <- S4Vectors::endoapply(
                 self$mae,
                 DelayedArray::realize
             )

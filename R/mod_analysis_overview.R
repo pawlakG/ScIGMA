@@ -124,10 +124,18 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             ScIGMA_data$mae <- temp_scigma_obj$mae
             ScIGMA_data$mae_raw <- temp_scigma_obj$mae
             ScIGMA_data$filetype <- temp_scigma_obj$filetype
-            # ScIGMA_data$backing_files <- temp_scigma_obj$backing_files # (Si besoin)
 
-            # ScIGMA_data$filetype <- fileType
-            # remove_modal_spinner()
+            ScIGMA_data$reset_analysis()
+
+            # Remise à zéro des métriques UI locales
+            init_metrics$init_number_cell <- NULL
+            init_metrics$init_number_dna_variant <- NULL
+
+            # Injection des nouvelles données
+            ScIGMA_data$mae <- temp_scigma_obj$mae
+            ScIGMA_data$mae_raw <- temp_scigma_obj$mae
+            ScIGMA_data$filetype <- temp_scigma_obj$filetype
+
             w$hide()
             message(whereami::whereami())
 
@@ -196,7 +204,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             if(!is.null(ScIGMA_data)){
                 tagList(
                     fluidRow(
-                        h5("Filter DNA variants:"),
+                        h5("Filter Cells and DNA variants:"),
 
                         div(
                             HTML("DNA Variant filtering step has two parameters : </br>"),
@@ -246,7 +254,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                     fluidRow(
                         actionBttn(
                             inputId = ns("dna_variant_filtering"),
-                            label = "Filter DNA variants",
+                            label = "Filter Cells and DNA variants",
                             color = "primary",
                             style = "stretch",
                             icon = icon("magnifying-glass-chart"),
@@ -337,6 +345,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         # Render UI after DNA variant filtering
         output$dnaFilterResults <- renderUI({
             watch("dnaVariant_filtered")
+            watch("dataLoaded")
             message(whereami::whereami())
 
             # Sécurité anti-crash

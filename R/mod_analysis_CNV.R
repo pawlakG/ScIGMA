@@ -21,12 +21,13 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
         # Dynamic UI rendering
         output$cnv_processing <- renderUI({
             watch("dnaVariant_selected")
+            watch("dataLoaded") # <-- NEW : Onde de choc réactive
+
             if(is.null(ScIGMA_data$dna.clones)){
                 tagList(
                     br(),
                     fluidRow(h3("Please select DNA variant first."))
                 )
-
             } else {
                 tagList(
                     br(),

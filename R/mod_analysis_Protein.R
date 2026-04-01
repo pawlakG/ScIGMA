@@ -1,7 +1,6 @@
 #' analysis_right_Protein UI Function
 #'
 #' @noRd
-#' @importFrom bslib accordion accordion_panel nav_panel navset_card_underline
 #' @importFrom plotly plotlyOutput
 #' @importFrom shiny NS actionButton checkboxInput column fluidRow h3 h4 hr
 mod_analysis_Protein_ui <- function(id) {
@@ -35,10 +34,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         }, {
             if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
                 is_filtered_flag(TRUE)
-                print(">>> SIGNAL R : UI Générée (Filtrée)")
             } else {
                 is_filtered_flag(FALSE)
-                print(">>> SIGNAL R : UI Bloquée (Non Filtrée)")
             }
         }, ignoreNULL = FALSE, ignoreInit = FALSE)
 
@@ -78,8 +75,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                 grid_card(
                                     area = "sidebar",
                                     h3("Controls"),
-                                    selectInput(ns("xvar"), "Axe X", choices = NULL),
-                                    selectInput(ns("yvar"), "Axe Y", choices = NULL),
+                                    selectInput(ns("xvar"), "Axe X", choices = rownames(ScIGMA_data$mae[["proteins"]])),
+                                    selectInput(ns("yvar"), "Axe Y", choices = rownames(ScIGMA_data$mae[["proteins"]])),
                                     checkboxInput(ns("logx"), "Log X", FALSE),
                                     checkboxInput(ns("logy"), "Log Y", FALSE),
                                     hr(),
@@ -188,31 +185,16 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # Initialize Inputs & Root Gate from R6 Object
         observeEvent({
             watch("dnaVariant_filtered")
-            # watch("dataLoaded")
 
         },{
             req(ScIGMA_data$mae[["proteins"]])
-
-            # UPDATED : Extraction depuis les lignes du MAE
-            ptn_names <- rownames(ScIGMA_data$mae[["proteins"]])
-            print("ptn_names")
-            print(ptn_names)
-            updateSelectInput(session, "xvar", choices = ptn_names, selected = ptn_names[1])
-            updateSelectInput(session, "yvar", choices = ptn_names, selected = ptn_names[2])
 
             # Initialize Root (All Cells)
             if (is.null(r_state$subsets[["root"]])) {
 
                 assay_to_use_state <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
 
-                print("assay_to_use_state")
-                print(assay_to_use_state)
-
                 n_cells <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state)) # UPDATED : Cellules = Colonnes
-
-                print("n_cells")
-                print(n_cells)
-
 
                 r_state$subsets[["root"]] <- 1:n_cells
                 r_state$subset_meta[["root"]] <- list(
@@ -223,8 +205,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             }
             updateSelectInput(
                 session = session,
-                inputId = "protein_umap_markers",
-                choices = c("None", ptn_names),
+                inputId = ns("protein_umap_markers"),
+                choices = c("None", rownames(ScIGMA_data$mae[["proteins"]])),
                 selected = "None"
             )
         })
@@ -244,24 +226,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             # UPDATED : Extraction directe depuis le MAE (Source de vérité unique)
             # On cherche les données CLR en priorité, sinon les counts bruts.
             assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
-            print("assay_to_use")
-            print(assay_to_use)
-
-            print("current_indices")
-            print(head(current_indices))
-            print(length(current_indices))
-
-            print("input$xvar")
-            print(input$xvar)
-            print(length(input$xvar))
-
-            print("input$yvar")
-            print(input$yvar)
-            print(length(input$yvar))
-
-            print("SummarizedExperiment::assay(ScIGMA_data$mae[['proteins']], assay_to_use)")
-            print(dim(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)))
-
 
             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
@@ -276,8 +240,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             if (input$logx) plot_df$x <- log1p(plot_df$x)
             if (input$logy) plot_df$y <- log1p(plot_df$y)
 
-            print("plot_df")
-            print(head(plot_df))
 
             plot_ly(
                 data = plot_df,
@@ -506,8 +468,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                 as.data.frame()
 
-            print(head(umap_cluster))
-
             ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
                 ggplot(aes(x=umap_1, y=umap_2)) +
                 geom_point(size=2) +
@@ -526,9 +486,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                              marker = list(size = 6,  opacity = 1)) %>%
                     layout(xaxis = list(title = "UMAP 1"),
                            yaxis = list(title = "UMAP 2")) %>%
-                    toWebGL() # Toujours optimiser pour le single-cell
+                    toWebGL()
 
-                print("test_2")
                 return(p)
             })
         },ignoreInit = TRUE)
@@ -659,7 +618,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                              assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
 
                              # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
-                             print(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[,1:5])
                              protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |>t()
 
                              ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data,

@@ -478,6 +478,9 @@ generate_dna_variant_heatmap <- function(obj,
         msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
     }
 
+    print("short_variants")
+    print(short_variants)
+
     # 3. Transposition immédiate pour le clustering (Format requis : Cells x Variants)
     gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
     msk <- t(as.matrix(msk_full[short_variants, , drop = FALSE])) != 0

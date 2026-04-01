@@ -5,7 +5,7 @@
 #' @import shiny
 #' @import bslib
 #' @import gridlayout
-#' @import shinyWidgets
+#' @importFrom shinyWidgets radioGroupButtons actionBttn sliderTextInput virtualSelectInput pickerInput pickerOptions
 #' @noRd
 app_ui <- function(request) {
     tagList(

@@ -154,6 +154,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             } else if (!("proteins" %in% names(ScIGMA_data$mae))) {
                 "No Protein data"
             } else {
+                ScIGMA_object$protein.filtered <- TRUE
                 nrow(ScIGMA_data$mae[["proteins"]])
             }
 

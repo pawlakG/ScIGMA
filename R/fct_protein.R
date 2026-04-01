@@ -35,6 +35,9 @@ normalizeProtein <- function(ScIGMA_object) {
     # 5. Mise à jour des métadonnées
     S4Vectors::metadata(ScIGMA_object$mae)$protein_normalize_method <- "CLR normalized"
 
+    # 6. Mise à jour de l'indicateut de filtrage des proteines
+    ScIGMA_object$protein.filtered <- TRUE
+
     return(ScIGMA_object)
 }
 

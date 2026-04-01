@@ -4,156 +4,11 @@
 #' @importFrom bslib accordion accordion_panel nav_panel navset_card_underline
 #' @importFrom plotly plotlyOutput
 #' @importFrom shiny NS actionButton checkboxInput column fluidRow h3 h4 hr
-#' @importFrom shiny selectInput tagList textInput uiOutput verbatimTextOutput
 mod_analysis_Protein_ui <- function(id) {
     ns <- NS(id)
     tagList(
-        navset_card_underline(
-            nav_panel(
-                "Description",
-                accordion(
-                    id = ns("acc_ptn"),
-                    open = FALSE,
-                    accordion_panel(
-                        "Protein ridge plot",
-                        fluidRow(
-                            plotlyOutput(outputId = ns("protein_ridge"))
-                        )
-                    ),
-                    accordion_panel(
-                        "Protein bar plot",
-                        fluidRow(
-                            plotlyOutput(outputId = ns("protein_bar"))
-                        )
-                    )
-                )
-            ),
-            nav_panel(
-                "Bi-plot",
-                fluidRow(
-                    # ---- 1. Contrôles & Axes ----
-                    column(
-                        3,
-                        grid_card(
-                            area = "sidebar",
-                            h3("Controls"),
-                            # Sélection des marqueurs (rempli côté serveur via R6)
-                            selectInput(ns("xvar"), "Axe X", choices = NULL),
-                            selectInput(ns("yvar"), "Axe Y", choices = NULL),
-                            checkboxInput(ns("logx"), "Log X", FALSE),
-                            checkboxInput(ns("logy"), "Log Y", FALSE),
-                            hr(),
-                            h4("Gating"),
-                            textInput(ns("subset_name"), "Gate name", placeholder = "ex: Clone A"),
-                            actionButton(ns("mk_subset"), "Create sub-sample", class = "btn-primary"),
-                            verbatimTextOutput(ns("selection_info"))
-                        )
-                    ),
-                    # ---- 2. Visualisation (Bi-plot) ----
-                    column(
-                        6,
-                        grid_card(
-                            area = "main",
-                            uiOutput(ns("biplot_container"))
-                        )
-                    ),
-                    # ---- 3. Arborescence (Tree) ----
-                    column(
-                        3,
-                        grid_card(
-                            area = "subsets",
-                            h3("Sub-samples"),
-                            uiOutput(ns("subsets_ui")),
-                            hr(),
-                            actionButton(ns("save_to_r6"), "Save for further analysis",
-                                         class = "btn-success",
-                                         style = "margin-bottom: 10px; width: 100%;"),
-                            actionButton(ns("reset_root"), "Reset root", class = "btn-warning")
-                        )
-                    )
-                )
-            ),
-            nav_panel("UMAP",
-                      accordion(
-                          accordion_panel(
-                              "Built UMAP model",
-                              fluidRow(
-                                  # Colonne de Contrôle
-                                  column(3,
-                                         tagList(
-                                             grid_card(
-                                                 area = "umap_accordion_first",
-                                                 h3("UMAP parameters"),
-
-                                                 # Paramètres de la fonction standalone
-                                                 numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
-                                                 numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
-
-                                                 hr(),
-                                                 # actionButton(ns("run_umap_btn"), "Run UMAP", class = "btn-primary", width = "100%"),
-
-                                                 actionBttn(
-                                                     inputId = ns("run_umap_btn"),
-                                                     label = "Run UMAP",
-                                                     style = "unite",
-                                                     color = "primary"
-                                                 ),
-                                                 helpText("The calculation may take a few seconds."),
-                                                 hr(),
-                                                 downloadButton(
-                                                     outputId = ns("protein_umap_download_bttn"),
-                                                     label = "Download UMAP in high resolution."
-                                                 )
-                                             )
-                                         )
-                                  ),
-
-                                  # Colonne de Visualisation
-                                  column(9,
-                                         grid_card(
-                                             area = "main",
-                                             h3("2D Projection"),
-
-                                             plotlyOutput(ns("umap_plot_build"), height = "600px")
-                                         )
-                                  )
-                              )
-                          ),
-                          accordion_panel(
-                              "Markers expression",
-                              uiOutput(ns("markers_umap_panel_ui"))
-                          ),
-                          accordion_panel(
-                              "Unsupervised clustering",
-
-                              fluidRow(
-                                  # Colonne de Contrôle
-                                  column(3,
-                                         tagList(
-                                             grid_card(
-                                                 area = "sidebar",
-                                                 h3("Clustering parameters"),
-
-                                                 # Paramètres de la fonction standalone
-                                                 numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
-                                                 hr(),
-                                                 actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
-                                             )
-                                         )
-                                  ),
-                                  # Colonne de Visualisation
-                                  column(9,
-                                         grid_card(
-                                             area = "main",
-                                             h3("2D Projection"),
-                                             plotlyOutput(ns("umap_clustering_plot"), height = "600px")
-                                         )
-                                  )
-                              )
-                          )
-                      )
-            )
-        )
+        # --- NEW : Réceptacle 100% R ---
+        uiOutput(ns("protein_main_ui"))
     )
 }
 
@@ -170,14 +25,155 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         ns <- session$ns
 
         # ---------------------------------------------------------
-        # NEW : Contrôleur d'affichage (UI Gatekeeper)
+        # NEW : Contrôleur d'affichage 100% R (renderUI)
         # ---------------------------------------------------------
-        output$is_filtered <- shiny::reactive({
+        is_filtered_flag <- shiny::reactiveVal(FALSE)
+
+        observeEvent({
             watch("dnaVariant_filtered")
-            # On vérifie stricto sensu si l'objet R6 a bien reçu les variants filtrés
-            !is.null(ScIGMA_data$variants.filtered)
+            watch("dataLoaded")
+        }, {
+            if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
+                is_filtered_flag(TRUE)
+                print(">>> SIGNAL R : UI Générée (Filtrée)")
+            } else {
+                is_filtered_flag(FALSE)
+                print(">>> SIGNAL R : UI Bloquée (Non Filtrée)")
+            }
+        }, ignoreNULL = FALSE, ignoreInit = FALSE)
+
+        output$protein_main_ui <- shiny::renderUI({
+            if (!isTRUE(is_filtered_flag())) {
+                # Cas 1 : Bloqué
+                card(
+                    br(), br(),
+                    h3("Please filter variant and cells first.",
+                       style = "text-align: center; color: #7f8c8d;"),
+                    br(), br()
+                )
+            } else {
+                # Cas 2 : Autorisé (Injection de l'UI complète)
+                navset_card_underline(
+                    nav_panel(
+                        "Description",
+                        accordion(
+                            id = ns("acc_ptn"),
+                            open = FALSE,
+                            accordion_panel(
+                                "Protein ridge plot",
+                                fluidRow(plotlyOutput(outputId = ns("protein_ridge")))
+                            ),
+                            accordion_panel(
+                                "Protein bar plot",
+                                fluidRow(plotlyOutput(outputId = ns("protein_bar")))
+                            )
+                        )
+                    ),
+                    nav_panel(
+                        "Bi-plot",
+                        fluidRow(
+                            # ---- 1. Contrôles & Axes ----
+                            column(
+                                3,
+                                grid_card(
+                                    area = "sidebar",
+                                    h3("Controls"),
+                                    selectInput(ns("xvar"), "Axe X", choices = NULL),
+                                    selectInput(ns("yvar"), "Axe Y", choices = NULL),
+                                    checkboxInput(ns("logx"), "Log X", FALSE),
+                                    checkboxInput(ns("logy"), "Log Y", FALSE),
+                                    hr(),
+                                    h4("Gating"),
+                                    textInput(ns("subset_name"), "Gate name", placeholder = "ex: Clone A"),
+                                    actionButton(ns("mk_subset"), "Create sub-sample", class = "btn-primary"),
+                                    verbatimTextOutput(ns("selection_info"))
+                                )
+                            ),
+                            # ---- 2. Visualisation (Bi-plot) ----
+                            column(
+                                6,
+                                grid_card(area = "main", uiOutput(ns("biplot_container")))
+                            ),
+                            # ---- 3. Arborescence (Tree) ----
+                            column(
+                                3,
+                                grid_card(
+                                    area = "subsets",
+                                    h3("Sub-samples"),
+                                    uiOutput(ns("subsets_ui")),
+                                    hr(),
+                                    actionButton(ns("save_to_r6"), "Save for further analysis",
+                                                 class = "btn-success", style = "margin-bottom: 10px; width: 100%;"),
+                                    actionButton(ns("reset_root"), "Reset root", class = "btn-warning")
+                                )
+                            )
+                        )
+                    ),
+                    nav_panel("UMAP",
+                              accordion(
+                                  accordion_panel(
+                                      "Built UMAP model",
+                                      fluidRow(
+                                          column(3,
+                                                 tagList(
+                                                     grid_card(
+                                                         area = "umap_accordion_first",
+                                                         h3("UMAP parameters"),
+                                                         numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
+                                                         numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
+                                                         hr(),
+                                                         actionBttn(
+                                                             inputId = ns("run_umap_btn"), label = "Run UMAP",
+                                                             style = "unite", color = "primary"
+                                                         ),
+                                                         helpText("The calculation may take a few seconds."),
+                                                         hr(),
+                                                         downloadButton(
+                                                             outputId = ns("protein_umap_download_bttn"),
+                                                             label = "Download UMAP in high resolution."
+                                                         )
+                                                     )
+                                                 )
+                                          ),
+                                          column(9,
+                                                 grid_card(
+                                                     area = "main", h3("2D Projection"),
+                                                     plotlyOutput(ns("umap_plot_build"), height = "600px")
+                                                 )
+                                          )
+                                      )
+                                  ),
+                                  accordion_panel(
+                                      "Markers expression",
+                                      uiOutput(ns("markers_umap_panel_ui"))
+                                  ),
+                                  accordion_panel(
+                                      "Unsupervised clustering",
+                                      fluidRow(
+                                          column(3,
+                                                 tagList(
+                                                     grid_card(
+                                                         area = "sidebar",
+                                                         h3("Clustering parameters"),
+                                                         numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
+                                                         hr(),
+                                                         actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                                                     )
+                                                 )
+                                          ),
+                                          column(9,
+                                                 grid_card(
+                                                     area = "main", h3("2D Projection"),
+                                                     plotlyOutput(ns("umap_clustering_plot"), height = "600px")
+                                                 )
+                                          )
+                                      )
+                                  )
+                              )
+                    )
+                )
+            }
         })
-        shiny::outputOptions(output, "is_filtered", suspendWhenHidden = FALSE)
 
         # --- 1. Initialization & State (Bi-plot Logic) ---
 
@@ -591,12 +587,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     w$show()
 
                     p <- plot_ly(data = umap_cluster,
-                            x = ~umap_1,
-                            y = ~umap_2,
-                            type = 'scatter',
-                            mode = 'markers',
-                            color = ~cluster,
-                            marker = list(size = 6, opacity = 0.9)) %>%
+                                 x = ~umap_1,
+                                 y = ~umap_2,
+                                 type = 'scatter',
+                                 mode = 'markers',
+                                 color = ~cluster,
+                                 marker = list(size = 6, opacity = 0.9)) %>%
                         layout(
                             # Configuration de l'axe X
                             xaxis = list(

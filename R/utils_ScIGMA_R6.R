@@ -12,6 +12,7 @@ ScIGMA_object <- R6::R6Class(
         filetype = NULL,
         dna.clones = NULL,
         dna_clones_renamed = NULL,
+        protein.filtered = NULL,
         variants.filtered = NULL,
         ploidy.mtx = NULL,
         cnv_dp_filtered = NULL,

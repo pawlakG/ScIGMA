@@ -96,7 +96,7 @@ app_server <- function(input, output, session) {
     mod_analysis_CNV_server("analysis_CNV_1", ScIGMA_data)
 
     # >> MultiOmics _
-    mod_analysis_multiOmics_server("analysis_multiOmics_1", ScIGMA_data)
+    mod_analysis_multiomics_server("analysis_multiomics_1", ScIGMA_data)
 
     # [ NODE_ACCESS : DOWWLOAD ]
     # ----------------------------------------------------- _

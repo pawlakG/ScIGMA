@@ -263,6 +263,11 @@ filter_and_annotate_variants <- function(obj,
         merged_rowdata <- merged_rowdata[variant_ids, ]
         merged_rowdata$query_id <- NULL
 
+        merged_rowdata$variant_id[is.na(merged_rowdata$variant_id)] <- paste0("Unmapped:",rownames(merged_rowdata))[is.na(merged_rowdata$variant_id)]
+
+        print("merged_rowdata")
+        print(merged_rowdata)
+
         # 7. In-place MAE injection
         SummarizedExperiment::rowData(obj$mae[["dna_variants"]]) <- S4Vectors::DataFrame(merged_rowdata)
         message("Annotation matrix successfully integrated into MAE rowData.")

@@ -71,7 +71,7 @@ app_ui <- function(request) {
                                 nav_panel(
                                     title = "Multi-omics",
                                     value = "tab_multi_omics",
-                                    mod_analysis_multiOmics_ui("analysis_multiOmics_1")
+                                    mod_analysis_multiomics_ui("analysis_multiomics_1")
                                 )
                             )
                         )

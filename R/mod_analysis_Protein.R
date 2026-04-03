@@ -23,6 +23,23 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
+        # [ NODE_ACCESS : "Prism-like" Plotly Specification]
+        # ----------------------------------------------------- _
+        prism_axis_style <- list(
+            titlefont = list(size = 16, color = "black", family = "Arial"),
+            tickfont = list(size = 14, color = "black", family = "Arial"),
+            showline = TRUE,
+            linewidth = 2,
+            linecolor = "black",
+            mirror = FALSE,
+            ticks = "outside",
+            tickwidth = 2,
+            ticklen = 6,
+            tickcolor = "black",
+            showgrid = FALSE,
+            zeroline = FALSE
+        )
+
         # ---------------------------------------------------------
         # NEW : Contrôleur d'affichage 100% R (renderUI)
         # ---------------------------------------------------------
@@ -30,7 +47,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         observeEvent({
             list(watch("dnaVariant_filtered"),
-            watch("dataLoaded"))
+                 watch("dataLoaded"))
         }, {
             if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
                 is_filtered_flag(TRUE)
@@ -40,6 +57,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         }, ignoreNULL = FALSE, ignoreInit = FALSE)
 
         output$protein_main_ui <- shiny::renderUI({
+            watch("dnaVariant_filtered")
+            watch("compass_completed")
+
             if (!isTRUE(is_filtered_flag())) {
                 # Cas 1 : Bloqué
                 card(
@@ -75,10 +95,33 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                 grid_card(
                                     area = "sidebar",
                                     h3("Controls"),
-                                    selectInput(ns("xvar"), "Axe X", choices = rownames(ScIGMA_data$mae[["proteins"]])),
-                                    selectInput(ns("yvar"), "Axe Y", choices = rownames(ScIGMA_data$mae[["proteins"]])),
-                                    checkboxInput(ns("logx"), "Log X", FALSE),
-                                    checkboxInput(ns("logy"), "Log Y", FALSE),
+                                    selectInput(ns("xvar"),
+                                                "Axe X",
+                                                choices = rownames(ScIGMA_data$mae[["proteins"]])),
+                                    selectInput(ns("yvar"),
+                                                "Axe Y",
+                                                choices = rownames(ScIGMA_data$mae[["proteins"]])),
+                                    checkboxInput(ns("logx"),
+                                                  "Log X",
+                                                  FALSE),
+                                    checkboxInput(ns("logy"),
+                                                  "Log Y",
+                                                  FALSE),
+                                    selectInput(ns("color_genotype"),
+                                                "Color by Genotype",
+                                                choices = c("None", ScIGMA_data$variants.filtered$variant_id)),
+
+                                    # FIX CRITIQUE : N'affiche l'option que si la matrice imputée existe
+                                    if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                                        shinyWidgets::materialSwitch(
+                                            inputId = ns("use_compass_gt"),
+                                            label = "Use COMPASS imputed data",
+                                            value = FALSE,
+                                            status = "success"
+                                        )
+                                    }
+                                    ,
+
                                     hr(),
                                     h4("Gating"),
                                     textInput(ns("subset_name"), "Gate name", placeholder = "ex: Clone A"),
@@ -194,40 +237,40 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             list(watch("dataLoaded"),
                  watch("dnaVariant_filtered"),
                  input$reset_root
-                 ),
-        {
-            req(ScIGMA_data$mae)
+            ),
+            {
+                req(ScIGMA_data$mae)
 
-            # Sécurité : On s'assure que les protéines sont bien dans le dataset
-            if (!("proteins" %in% names(ScIGMA_data$mae))) return()
+                # Sécurité : On s'assure que les protéines sont bien dans le dataset
+                if (!("proteins" %in% names(ScIGMA_data$mae))) return()
 
-            assay_to_use_state <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
-            n_cells_current <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state))
+                assay_to_use_state <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+                n_cells_current <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state))
 
-            # FIX CRITIQUE : Purge inconditionnelle (Déterministe)
-            r_state$subsets <- list()
-            r_state$subsets[["root"]] <- 1:n_cells_current
+                # FIX CRITIQUE : Purge inconditionnelle (Déterministe)
+                r_state$subsets <- list()
+                r_state$subsets[["root"]] <- 1:n_cells_current
 
-            r_state$subset_meta <- list()
-            r_state$subset_meta[["root"]] <- list(
-                name = "Tout",
-                parent = NA,
-                depth = 0
-            )
+                r_state$subset_meta <- list()
+                r_state$subset_meta[["root"]] <- list(
+                    name = "Tout",
+                    parent = NA,
+                    depth = 0
+                )
 
-            r_state$current_view <- "root"
-            r_state$temp_selection <- NULL
+                r_state$current_view <- "root"
+                r_state$temp_selection <- NULL
 
-            # Atomisation des écouteurs du menu latéral
-            bound_listeners <<- c()
+                # Atomisation des écouteurs du menu latéral
+                bound_listeners <<- c()
 
-            updateSelectInput(
-                session = session,
-                inputId = "protein_umap_markers",
-                choices = c("None", rownames(ScIGMA_data$mae[["proteins"]])),
-                selected = "None"
-            )
-        }, ignoreInit = FALSE)
+                updateSelectInput(
+                    session = session,
+                    inputId = "protein_umap_markers",
+                    choices = c("None", rownames(ScIGMA_data$mae[["proteins"]])),
+                    selected = "None"
+                )
+            }, ignoreInit = FALSE)
 
         # --- 2. Bi-plot Rendering (Optimized) ---
 
@@ -240,42 +283,66 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             req(input$xvar, input$yvar, r_state$current_view)
 
             current_indices <- r_state$subsets[[r_state$current_view]]
-
-            # UPDATED : Extraction directe depuis le MAE (Source de vérité unique)
-            # On cherche les données normalized en priorité, sinon les counts bruts.
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
-            # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
             raw_y <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$yvar, current_indices]
 
             plot_df <- data.frame(
-                x = raw_x,
-                y = raw_y,
-                custom_id = current_indices
+                x = raw_x, y = raw_y, custom_id = current_indices
             )
 
             if (input$logx) plot_df$x <- log1p(plot_df$x)
             if (input$logy) plot_df$y <- log1p(plot_df$y)
+            # --- NEW : Logique de coloration par Génotype ---
+            color_formula <- NULL
+            color_palette <- "#2c3e50"
 
+            if (!is.null(input$color_genotype) && input$color_genotype != "None") {
+                print("input$color_genotype")
+                print(input$color_genotype)
+
+                tmp_gene_genotype <- rownames(ScIGMA_data$variants.filtered[match(input$color_genotype,
+                                                                                  ScIGMA_data$variants.filtered$variant_id),])
+
+                print(rownames(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt")))
+
+                # Extraction des GT (0=WT, 1=Het, 2=Hom, 3=NA)
+                gt_vec <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt")[tmp_gene_genotype, current_indices]
+
+                # Mapping des labels pour la légende
+                gt_labels <- c("0" = "WT", "1" = "Het", "2" = "Hom", "3" = "Missing")
+                plot_df$Genotype <- factor(gt_labels[as.character(gt_vec)],
+                                           levels = c("WT", "Het", "Hom", "Missing"))
+
+                color_formula <- ~Genotype
+                # Palette scientifique contrastée
+                color_palette <- c("WT" = "#bdc3c7", "Het" = "#f39c12", "Hom" = "#e74c3c", "Missing" = "#ecf0f1")
+            }
 
             plot_ly(
                 data = plot_df,
                 x = ~x,
                 y = ~y,
                 key = ~custom_id,
-                type = "scatter",
+                color = color_formula,
+                colors = color_palette,
+                type = "scattergl",
                 mode = "markers",
                 source = ns("gating_plot"),
-                marker = list(size = 5, opacity = 1, color = "#2c3e50")
+                marker = list(size = 5, opacity = 0.8)
             ) %>%
                 layout(
-                    title = paste("Gate:", r_state$subset_meta[[r_state$current_view]]$name),
-                    xaxis = list(title = input$xvar, range = list(0, max(plot_df$x)+1)),
-                    yaxis = list(title = input$yvar, range = list(0, max(plot_df$y)+1)),
-                    dragmode = "lasso"
+                    title = list(text = paste("<b>Gate:</b>", r_state$subset_meta[[r_state$current_view]]$name),
+                                 font = list(family = "Arial", size = 18)),
+                    plot_bgcolor = "white",
+                    paper_bgcolor = "white",
+                    xaxis = c(list(title = paste("<b>", input$xvar, "</b>"), range = list(0, max(plot_df$x)+1)), prism_axis_style),
+                    yaxis = c(list(title = paste("<b>", input$yvar, "</b>"), range = list(0, max(plot_df$y)+1)), prism_axis_style),
+                    dragmode = "lasso",
+                    legend = list(title = list(text = "<b>Genotype</b>")),
+                    margin = list(l = 60, r = 30, b = 60, t = 50)
                 ) %>%
-                # toWebGL() %>%
                 config(displaylogo = FALSE)
         })
 
@@ -523,26 +590,30 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                 as.data.frame()
 
+            # Version Sauvegardée (ggplot2 strict)
             ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
                 ggplot(aes(x=umap_1, y=umap_2)) +
-                geom_point(size=2) +
+                geom_point(size=1.5, color = "#2c3e50", alpha = 0.8) +
                 xlab('UMAP 1') +
                 ylab('UMAP 2') +
-                theme_prism()
+                ggprism::theme_prism(base_size = 14, base_fontface = "bold")
 
-            # 2. Rendering
+            # Version Interactive (Plotly)
             output$umap_plot_build <- renderPlotly({
-
                 p <- plot_ly(data = umap_cluster,
                              x = ~umap_1,
                              y = ~umap_2,
-                             type = 'scatter',
+                             type = 'scattergl',
                              mode = 'markers',
-                             marker = list(size = 6,  opacity = 1)) %>%
-                    layout(xaxis = list(title = "UMAP 1"),
-                           yaxis = list(title = "UMAP 2")) %>%
-                    toWebGL()
-
+                             marker = list(size = 5, opacity = 0.8, color = "#2c3e50")) %>%
+                    layout(
+                        plot_bgcolor = "white",
+                        paper_bgcolor = "white",
+                        xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
+                        yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
+                        margin = list(l = 60, r = 30, b = 60, t = 30)
+                    ) %>%
+                    config(displaylogo = FALSE)
                 return(p)
             })
         },ignoreInit = TRUE)
@@ -593,60 +664,42 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 output$umap_clustering_plot <- renderPlotly({
 
                     w <- Waiter$new(
-                        id = "umap_plot_build",
+                        id = ns("umap_clustering_plot"), # FIX: Utiliser le namespace pour cibler l'ID correct
                         html = spin_3(),
                         color = transparent(0.5)
                     )
-
                     w$show()
+
+                    # Palette Viridis pour variables catégorielles (Clusters)
+                    n_clusters <- length(unique(umap_cluster$cluster))
+                    pal <- viridis::viridis(n_clusters)
 
                     p <- plot_ly(data = umap_cluster,
                                  x = ~umap_1,
                                  y = ~umap_2,
-                                 type = 'scatter',
+                                 type = 'scattergl',
                                  mode = 'markers',
                                  color = ~cluster,
-                                 marker = list(size = 6, opacity = 0.9)) %>%
+                                 colors = pal,
+                                 marker = list(size = 5, opacity = 0.8)) %>%
                         layout(
-                            # Configuration de l'axe X
-                            xaxis = list(
-                                title = list(text = "<b>UMAP 1</b>", font = list(size = 16, color = "black")),
-                                tickfont = list(size = 14, color = "black", family = "Arial"),
-                                showline = TRUE,
-                                linewidth = 2,        # Épaisseur de l'axe (style Prism)
-                                linecolor = "black",
-                                mirror = FALSE,       # Garde l'axe uniquement en bas
-                                ticks = "outside",    # Ticks vers l'extérieur
-                                tickwidth = 2,
-                                gridcolor = 'transparent',
-                                zeroline = FALSE
-                            ),
-                            # Configuration de l'axe Y
-                            yaxis = list(
-                                title = list(text = "<b>UMAP 2</b>", font = list(size = 16, color = "black")),
-                                tickfont = list(size = 14, color = "black", family = "Arial"),
-                                showline = TRUE,
-                                linewidth = 2,        # Épaisseur de l'axe
-                                linecolor = "black",
-                                mirror = FALSE,
-                                ticks = "outside",
-                                tickwidth = 2,
-                                gridcolor = 'transparent',
-                                zeroline = FALSE
-                            ),
-                            # Paramètres généraux
-                            plot_bgcolor = "white",  # Fond blanc
+                            plot_bgcolor = "white",
                             paper_bgcolor = "white",
+                            xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
+                            yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
                             legend = list(
-                                font = list(size = 12, family = "Arial"),
-                                title = list(text = "<b>Cluster</b>")
+                                title = list(text = "<b>Cluster</b>", font = list(family = "Arial", color = "black")),
+                                font = list(family = "Arial", size = 12, color = "black")
                             ),
-                            margin = list(l = 50, r = 50, b = 50, t = 50) # Marges propres
+                            margin = list(l = 60, r = 30, b = 60, t = 30)
                         ) %>%
-                        toWebGL()
+                        config(displaylogo = FALSE)
+
                     w$hide()
                     return(p)
                 })
+
+
 
             },ignoreInit = TRUE)
 
@@ -734,78 +787,138 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # [ NODE_ACCESS : Biplot clones projection ]
         # ----------------------------------------------------- _
-        observeEvent(watch("umap_computed"),
-                     {
-                         req(ScIGMA_data$seurat_object)
+        observeEvent(
+            list(watch("umap_computed"),
+                 input$save_to_r6), # Actualise le menu déroulant quand on sauvegarde de nouveaux clones
+            {
+                req(ScIGMA_data$seurat_object)
 
-                         if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
-                             output$biplotClones_umap_panel_ui <-  renderUI({
-                                 tagList(
-                                     fluidRow(
-                                         h2("Please compute UMAP first")
-                                     )
-                                 )
-                             })
-                         } else {
-                             # >> Add protein marker information to seurat object _
-                             plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
-                                 as.data.frame()
+                if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                    output$biplotClones_umap_panel_ui <- renderUI({
+                        tagList(fluidRow(h2("Please compute UMAP first")))
+                    })
+                    return()
+                }
+
+                # Récupération de l'arbre sauvegardé
+                gating_tree <- ScIGMA_data$protein_gating_tree
+                if (is.null(gating_tree) || length(gating_tree$meta_list) <= 1) {
+                    output$biplotClones_umap_panel_ui <- renderUI({
+                        tagList(fluidRow(h4("No sub-samples saved yet. Please create and save Gates in the Bi-plot tab.", style="color:#7f8c8d; padding:20px;")))
+                    })
+                    return()
+                }
+
+                # Préparation des choix (Exclure la racine "Tout")
+                meta_list <- gating_tree$meta_list
+                valid_ids <- setdiff(names(meta_list), "root")
+
+                # Formatage : Value = ID (ex: sub_123), Name = Nom utilisateur (ex: TOM1)
+                choices_list <- setNames(valid_ids, sapply(valid_ids, function(id) meta_list[[id]]$name))
+
+                output$biplotClones_umap_panel_ui <- renderUI({
+                    fluidRow(
+                        tagList(
+                            column(3,
+                                   grid_card(
+                                       area = "umap_clone_select",
+                                       virtualSelectInput(
+                                           inputId = ns("umap_clones_to_project"),
+                                           label = "Select sub-clones :",
+                                           choices = choices_list,
+                                           multiple = TRUE,
+                                           width = "100%",
+                                           dropboxWrapper = "body"
+                                       ),
+                                       hr(),
+                                       actionBttn(
+                                           inputId = ns("project_clones_btn"),
+                                           label = "Project Clones",
+                                           style = "unite",
+                                           color = "primary"
+                                       ),
+                                       helpText("Child clones are automatically drawn on top of their parents.")
+                                   )
+                            ),
+                            column(9, plotlyOutput(ns("umap_plot_biplot_clones"), height = "600px"))
+                        )
+                    )
+                })
+            }, ignoreInit = TRUE)
+
+        observeEvent(input$project_clones_btn, {
+            req(ScIGMA_data$seurat_object@reductions$umap)
+            req(input$umap_clones_to_project)
+
+            selected_ids <- input$umap_clones_to_project
+            gates_list <- ScIGMA_data$protein_gating_tree$gates_list
+            meta_list <- ScIGMA_data$protein_gating_tree$meta_list
+            all_cell_barcodes <- colnames(ScIGMA_data$mae[["proteins"]])
+
+            # Extraction UMAP
+            umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |> as.data.frame()
+            umap_df$barcode <- rownames(umap_df)
+            umap_df$Clone <- "Background"
+
+            # 1. Tri par profondeur (Depth-First)
+            # Les enfants (depth plus grand) seront traités en dernier pour écraser le label des parents
+            depths <- sapply(selected_ids, function(id) meta_list[[id]]$depth)
+            ordered_ids <- selected_ids[order(depths)]
+
+            # 2. Assignation des labels
+            for (sid in ordered_ids) {
+                cell_indices <- gates_list[[sid]]
+                cell_barcodes <- all_cell_barcodes[cell_indices]
+                valid_barcodes <- intersect(cell_barcodes, umap_df$barcode)
+
+                clone_name <- meta_list[[sid]]$name
+                umap_df[valid_barcodes, "Clone"] <- clone_name
+            }
+
+            # 3. Factorisation stricte pour garantir l'ordre de dessin dans Plotly
+            # On veut que le "Background" soit dessiné en premier (z-index le plus bas)
+            clone_levels <- c("Background", sapply(ordered_ids, function(id) meta_list[[id]]$name))
+            umap_df$Clone <- factor(umap_df$Clone, levels = unique(clone_levels))
+            umap_df <- umap_df[order(umap_df$Clone), ]
+
+            # 4. Palette de couleurs (Gris fixe pour le fond, couleurs discrètes pour les clones)
+            n_clones <- length(unique(clone_levels)) - 1
+            pal <- if(n_clones > 0) scales::hue_pal()(n_clones) else c()
+            color_map <- setNames(c("#e0e0e0", pal), unique(clone_levels))
+
+            # 5. Rendu WebGL
+            p <- plot_ly(
+                data = umap_df,
+                x = ~umap_1,
+                y = ~umap_2,
+                color = ~Clone,
+                colors = color_map,
+                type = 'scattergl',
+                mode = 'markers',
+                marker = list(size = 5, opacity = 0.8),
+                text = ~paste("<b>Barcode:</b>", barcode, "<br><b>Gate:</b>", Clone),
+                hoverinfo = "text"
+            ) %>%
+                layout(
+                    plot_bgcolor = "white",
+                    paper_bgcolor = "white",
+                    xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
+                    yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
+                    legend = list(
+                        title = list(text = "<b>Sub-clones</b>", font = list(family = "Arial", color = "black")),
+                        font = list(family = "Arial", size = 12, color = "black")
+                    ),
+                    margin = list(l = 60, r = 30, b = 60, t = 30)
+                ) %>%
+                config(displaylogo = FALSE)
+
+            output$umap_plot_biplot_clones <- renderPlotly({ p })
+        })
 
 
-                             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
-                             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
-                             protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> t()
-
-
-                             ScIGMA_data$seurat_object@meta.data <- cbind(
-                                 ScIGMA_data$seurat_object@meta.data[intersect(rownames(protein_markers_df),
-                                                                               rownames(ScIGMA_data$seurat_object@meta.data)),],
-                                 # ScIGMA_data$seurat_object@meta.data,
-                                 # protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
-                                 protein_markers_df[intersect(rownames(protein_markers_df),
-                                                              rownames(ScIGMA_data$seurat_object@meta.data)),])
-
-                             output$biplotClones_umap_panel_ui <-  renderUI({
-                                 fluidRow(
-                                     tagList(
-                                         column(3,
-                                                grid_card(
-                                                    area = "umap_marker_select",
-                                                    virtualSelectInput(
-                                                        inputId = ns("protein_umap_markers"),
-                                                        label = "Markers :",
-                                                        choices = colnames(protein_markers_df),
-                                                        multiple = TRUE,
-                                                        width = "100%",
-                                                        dropboxWrapper = "body",
-                                                        selected = "None"
-                                                    ),
-                                                    hr(),
-                                                    actionBttn(
-                                                        inputId = ns("protein_umap_markers_bttn"),
-                                                        label = "Plot markers projections",
-                                                        style = "unite",
-                                                        color = "primary"
-                                                    ),
-                                                    hr(),
-                                                    downloadButton(
-                                                        outputId = ns("protein_umap_markers_download_bttn"),
-                                                        label = "Download UMAPs"
-                                                    )
-
-                                                )
-                                         ),
-                                         column(9,
-                                                plotOutput(ns("umap_plot_markers"), height = "600px"))
-                                     )
-                                 )
-                             })
-                         }
-
-                     })
-
-
+        # [ NODE_ACCESS : PROTEIN MARKERS ]
+        # ----------------------------------------------------- _
 
         observeEvent(input$protein_umap_markers_bttn,{
 
@@ -838,12 +951,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             ScIGMA_data$umaps$umap_protein_markers <- umap_df |>
                 ggplot(aes(x=umap_1, y=umap_2, color=ptn_expression)) +
-                geom_point(size = 1) +
+                geom_point(size = 1.2, alpha = 0.9) +
                 facet_wrap(~marker) +
-                scale_color_viridis_c("inferno") +
+                scale_color_viridis_c("inferno", name = "Expression") +
                 xlab("UMAP 1") +
                 ylab("UMAP 2") +
-                ggprism::theme_prism()
+                ggprism::theme_prism(base_size = 14, base_fontface = "bold")
 
             output$umap_plot_markers <- renderPlot(ScIGMA_data$umaps$umap_protein_markers )
         },ignoreInit = TRUE)

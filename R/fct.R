@@ -76,6 +76,14 @@ protein_run_pca <- function(ScIGMA_data) {
     # 2. Normalisation In-Memory (Sécurisé pour les protéines)
     norm_mat <- normalize_linear_regression(as.matrix(prot_counts), jitter = 0.5)
 
+    # 2.1 Mise à jour des métadonnées
+    S4Vectors::metadata(ScIGMA_data$mae)$protein_normalize_method <- "Normalized"
+
+    # 2.2 Mise à jour de l'indicateut de filtrage des proteines
+    ScIGMA_data$protein.filtered <- TRUE
+
+
+
     # 3. Injection canonique dans le MAE
     SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized") <- norm_mat
 

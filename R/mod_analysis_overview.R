@@ -326,7 +326,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             if (ScIGMA_data$filetype == "DNA+protein"){
                 message("Preprocessing protein data ...")
 
-                ScIGMA_data <- normalizeProtein(ScIGMA_data)
+                #ScIGMA_data <- normalizeProtein(ScIGMA_data)
                 ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
             }
 

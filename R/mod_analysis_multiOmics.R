@@ -146,7 +146,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 color = ~dna_clone,
                 type = 'scattergl',
                 mode = 'markers',
-                marker = list(size = 6, opacity = 0.8),
+                # marker = list(size = 6, opacity = 0.8),
+                marker = list(size = 6, opacity = 1),
                 # FIX : Infobulles Q1
                 text = ~paste("<b>Barcode:</b>", barcode,
                               "<br><b>Protein Phenotype:</b>", ptn_cluster,

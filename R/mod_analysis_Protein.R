@@ -29,8 +29,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         is_filtered_flag <- shiny::reactiveVal(FALSE)
 
         observeEvent({
-            watch("dnaVariant_filtered")
-            watch("dataLoaded")
+            list(watch("dnaVariant_filtered"),
+            watch("dataLoaded"))
         }, {
             if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
                 is_filtered_flag(TRUE)
@@ -145,6 +145,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                       uiOutput(ns("markers_umap_panel_ui"))
                                   ),
                                   accordion_panel(
+                                      "Biplot clones",
+                                      uiOutput(ns("biplotClones_umap_panel_ui"))
+                                  ),
+                                  accordion_panel(
                                       "Unsupervised clustering",
                                       fluidRow(
                                           column(3,
@@ -182,34 +186,48 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             temp_selection = NULL
         )
 
+        # NEW : Déclaré ici pour que la purge puisse le réinitialiser
+        bound_listeners <- c()
+
         # Initialize Inputs & Root Gate from R6 Object
-        observeEvent({
-            watch("dnaVariant_filtered")
+        observeEvent(
+            list(watch("dataLoaded"),
+                 watch("dnaVariant_filtered"),
+                 input$reset_root
+                 ),
+        {
+            req(ScIGMA_data$mae)
 
-        },{
-            req(ScIGMA_data$mae[["proteins"]])
+            # Sécurité : On s'assure que les protéines sont bien dans le dataset
+            if (!("proteins" %in% names(ScIGMA_data$mae))) return()
 
-            # Initialize Root (All Cells)
-            if (is.null(r_state$subsets[["root"]])) {
+            assay_to_use_state <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+            n_cells_current <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state))
 
-                assay_to_use_state <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+            # FIX CRITIQUE : Purge inconditionnelle (Déterministe)
+            r_state$subsets <- list()
+            r_state$subsets[["root"]] <- 1:n_cells_current
 
-                n_cells <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state)) # UPDATED : Cellules = Colonnes
+            r_state$subset_meta <- list()
+            r_state$subset_meta[["root"]] <- list(
+                name = "Tout",
+                parent = NA,
+                depth = 0
+            )
 
-                r_state$subsets[["root"]] <- 1:n_cells
-                r_state$subset_meta[["root"]] <- list(
-                    name = "Tout",
-                    parent = NA,
-                    depth = 0
-                )
-            }
+            r_state$current_view <- "root"
+            r_state$temp_selection <- NULL
+
+            # Atomisation des écouteurs du menu latéral
+            bound_listeners <<- c()
+
             updateSelectInput(
                 session = session,
-                inputId = ns("protein_umap_markers"),
+                inputId = "protein_umap_markers",
                 choices = c("None", rownames(ScIGMA_data$mae[["proteins"]])),
                 selected = "None"
             )
-        })
+        }, ignoreInit = FALSE)
 
         # --- 2. Bi-plot Rendering (Optimized) ---
 
@@ -224,8 +242,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             current_indices <- r_state$subsets[[r_state$current_view]]
 
             # UPDATED : Extraction directe depuis le MAE (Source de vérité unique)
-            # On cherche les données CLR en priorité, sinon les counts bruts.
-            assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+            # On cherche les données normalized en priorité, sinon les counts bruts.
+            assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
             raw_x <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[input$xvar, current_indices]
@@ -334,33 +352,72 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # --- 4. Navigation Tree ---
 
         output$subsets_ui <- renderUI({
-            ids <- names(r_state$subsets)
-            ui_elems <- lapply(ids, function(sid) {
-                meta <- r_state$subset_meta[[sid]]
-                indent <- meta$depth * 15
-                style_str <- paste0("margin-left:", indent, "px;", if(sid == r_state$current_view) "font-weight:bold;" else "")
+            req(length(r_state$subset_meta) > 0)
+            meta_list <- r_state$subset_meta
 
-                div(
-                    actionLink(ns(paste0("go_", sid)), label = paste("•", meta$name), style = style_str)
+            # FIX CRITIQUE : Moteur de rendu récursif (Depth-First Search)
+            # Permet de regrouper visuellement les enfants sous leur VRAI parent
+            build_tree_ui <- function(node_id) {
+                meta <- meta_list[[node_id]]
+                indent <- meta$depth * 15
+
+                # UX : Met en surbrillance bleue le noeud actuellement sélectionné
+                style_str <- paste0(
+                    "margin-left:", indent, "px; ",
+                    "display: block; padding: 2px 0; ",
+                    if(node_id == r_state$current_view) "font-weight:bold; color:#007bff;" else "color:#333;"
                 )
-            })
-            do.call(tagList, ui_elems)
+
+                # 1. Rendu du noeud parent
+                current_ui <- div(
+                    actionLink(ns(paste0("go_", node_id)), label = paste("•", meta$name), style = style_str)
+                )
+
+                # 2. Identification stricte de ses enfants
+                children_ids <- names(meta_list)[sapply(meta_list, function(m) {
+                    !is.na(m$parent) && m$parent == node_id
+                })]
+
+                # 3. Plongée récursive
+                if (length(children_ids) > 0) {
+                    children_ui <- lapply(children_ids, build_tree_ui)
+                    return(tagList(current_ui, do.call(tagList, children_ui)))
+                } else {
+                    return(current_ui)
+                }
+            }
+
+            # Lancement de la construction à partir de la racine
+            if ("root" %in% names(meta_list)) {
+                return(build_tree_ui("root"))
+            } else {
+                return(NULL)
+            }
         })
 
         # Tree Navigation Logic
+        bound_listeners <- c()
+
         observe({
-            lapply(names(r_state$subsets), function(sid) {
+            sids <- names(r_state$subsets)
+
+            # On n'isole que les nouveaux clones qui n'ont pas encore d'écouteur
+            new_sids <- setdiff(sids, bound_listeners)
+
+            lapply(new_sids, function(sid) {
+                # Suppression de once = TRUE. Le clic est permanent.
                 observeEvent(input[[paste0("go_", sid)]], {
                     r_state$current_view <- sid
                     r_state$temp_selection <- NULL
-                }, ignoreInit = TRUE, once = TRUE)
+                }, ignoreInit = TRUE)
             })
+
+            # On met à jour le registre local à la session (<<- pointe vers l'env du module)
+            if (length(new_sids) > 0) {
+                bound_listeners <<- c(bound_listeners, new_sids)
+            }
         })
 
-        observeEvent(input$reset_root, {
-            r_state$current_view <- "root"
-            r_state$temp_selection <- NULL
-        })
 
         # --- 5. ORIGINAL PLOTS (UNCHANGED) ---
         # These blocks are kept exactly as in the original file provided.
@@ -377,24 +434,22 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             req(ScIGMA_data)
 
             # Vérifier qu'il y a quelque chose à sauver
-            if (length(r_state$subsets) <= 1) { # <= 1 car "root" existe toujours
+            if (length(r_state$subsets) <= 1) {
                 showNotification("Aucune sous-population créée à enregistrer.", type = "warning")
                 return()
             }
 
-            # Appel de la méthode R6 définie à l'étape 1
-            # # On passe les indices bruts et les métadonnées
-            # ScIGMA_data$save_gating_tree(
-            #     gates_list = r_state$subsets,
-            #     meta_list = r_state$subset_meta
-            # )
-            ScIGMA_data$protein.gating_tree <- list("gates_list" = r_state$subsets,
+            # FIX CRITIQUE : Alignement strict sur le nom R6 (protein_gating_tree et non protein.gating_tree)
+            # Cela permet à la méthode ScIGMA_data$reset_analysis() de l'effacer proprement
+            ScIGMA_data$protein_gating_tree <- list("gates_list" = r_state$subsets,
                                                     "meta_list" = r_state$subset_meta)
 
             showNotification(
                 paste("Success !", length(r_state$subsets), "populations saved."),
                 type = "message"
             )
+            print("saved  ScIGMA_data$protein_gating_tree")
+            print( ScIGMA_data$protein_gating_tree)
         })
 
         # --- 5. UMAP Calculation ---
@@ -597,6 +652,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
 
 
+        # [ NODE_ACCESS : Markers projection ]
+        # ----------------------------------------------------- _
         observeEvent(watch("umap_computed"),
                      {
                          req(ScIGMA_data$seurat_object)
@@ -615,13 +672,26 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                  as.data.frame()
 
 
-                             assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "clr", "counts")
+                             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
                              # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
-                             protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |>t()
+                             protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> t()
 
-                             ScIGMA_data$seurat_object@meta.data <- cbind(ScIGMA_data$seurat_object@meta.data,
-                                                                          protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
+                             print("assay_to_use")
+                             print(assay_to_use)
+                             print("protein_markers_df")
+                             print(dim(protein_markers_df))
+                             print("rownames(ScIGMA_data$seurat_object@meta.data)")
+                             print(length(rownames(ScIGMA_data$seurat_object@meta.data)))
+
+
+                             ScIGMA_data$seurat_object@meta.data <- cbind(
+                                 ScIGMA_data$seurat_object@meta.data[intersect(rownames(protein_markers_df),
+                                                                               rownames(ScIGMA_data$seurat_object@meta.data)),],
+                                 # ScIGMA_data$seurat_object@meta.data,
+                                 # protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
+                                 protein_markers_df[intersect(rownames(protein_markers_df),
+                                                              rownames(ScIGMA_data$seurat_object@meta.data)),])
 
                              output$markers_umap_panel_ui <-  renderUI({
                                  fluidRow(
@@ -661,6 +731,80 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                          }
 
                      })
+
+        # [ NODE_ACCESS : Biplot clones projection ]
+        # ----------------------------------------------------- _
+        observeEvent(watch("umap_computed"),
+                     {
+                         req(ScIGMA_data$seurat_object)
+
+                         if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                             output$biplotClones_umap_panel_ui <-  renderUI({
+                                 tagList(
+                                     fluidRow(
+                                         h2("Please compute UMAP first")
+                                     )
+                                 )
+                             })
+                         } else {
+                             # >> Add protein marker information to seurat object _
+                             plot_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                                 as.data.frame()
+
+
+                             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+
+                             # Matrice native (Protéines x Cellules) -> On extrait la ligne spécifique (ptn) pour les cellules ciblées
+                             protein_markers_df <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> t()
+
+
+                             ScIGMA_data$seurat_object@meta.data <- cbind(
+                                 ScIGMA_data$seurat_object@meta.data[intersect(rownames(protein_markers_df),
+                                                                               rownames(ScIGMA_data$seurat_object@meta.data)),],
+                                 # ScIGMA_data$seurat_object@meta.data,
+                                 # protein_markers_df[rownames(ScIGMA_data$seurat_object@meta.data),])
+                                 protein_markers_df[intersect(rownames(protein_markers_df),
+                                                              rownames(ScIGMA_data$seurat_object@meta.data)),])
+
+                             output$biplotClones_umap_panel_ui <-  renderUI({
+                                 fluidRow(
+                                     tagList(
+                                         column(3,
+                                                grid_card(
+                                                    area = "umap_marker_select",
+                                                    virtualSelectInput(
+                                                        inputId = ns("protein_umap_markers"),
+                                                        label = "Markers :",
+                                                        choices = colnames(protein_markers_df),
+                                                        multiple = TRUE,
+                                                        width = "100%",
+                                                        dropboxWrapper = "body",
+                                                        selected = "None"
+                                                    ),
+                                                    hr(),
+                                                    actionBttn(
+                                                        inputId = ns("protein_umap_markers_bttn"),
+                                                        label = "Plot markers projections",
+                                                        style = "unite",
+                                                        color = "primary"
+                                                    ),
+                                                    hr(),
+                                                    downloadButton(
+                                                        outputId = ns("protein_umap_markers_download_bttn"),
+                                                        label = "Download UMAPs"
+                                                    )
+
+                                                )
+                                         ),
+                                         column(9,
+                                                plotOutput(ns("umap_plot_markers"), height = "600px"))
+                                     )
+                                 )
+                             })
+                         }
+
+                     })
+
 
 
         observeEvent(input$protein_umap_markers_bttn,{

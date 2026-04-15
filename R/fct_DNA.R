@@ -314,12 +314,20 @@ generate_clonal_labels <- function(ngt_matrix,
     # 1. Data preparation and variant mapping
     # Extract full nomenclature (ground truth for biological labels)
     full_variant_ids <- target_variants_df$variant_id
+    # full_variant_ids <- rownames(target_variants_df)
 
     # Extract short IDs to match matrix column names
     short_variant_ids <- sub(x = full_variant_ids, pattern = "^([^:]+:)|^:", "")
 
     # Define mapping dictionary: short_id -> full_id
     variant_map <- setNames(full_variant_ids, short_variant_ids)
+
+    print("head(colnames(ngt_matrix))")
+    print(head(colnames(ngt_matrix)))
+    print("short_variant_ids")
+    print(head(short_variant_ids))
+    print("short_variant_ids")
+    print(head(target_variants_df$variant_id))
 
     # 2. Integrity check
     missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
@@ -456,21 +464,20 @@ generate_dna_variant_heatmap <- function(obj,
 
     # 2. Aiguillage des matrices (Brute vs Imputée par COMPASS)
     if (isTRUE(use_imputed)) {
-        # Extraction de la matrice parfaite
-        gt_full <- S4Vectors::metadata(obj$mae)$compass$imputed_gt
-        # Sécurité : Vérifier que les variants demandés ont bien été passés dans COMPASS
+
+        if (!"compass_imputed" %in% SummarizedExperiment::assayNames(obj$mae[["dna_variants"]])) {
+            stop("Erreur : L'Assay 'compass_imputed' est introuvable. Veuillez relancer l'inférence COMPASS.")
+        }
+        gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "compass_imputed")
+
+        # Sécurité : Vérifier que les variants existent dans le MAE
         if (!all(short_variants %in% rownames(gt_full))) {
-            stop("Erreur : Certains variants sélectionnés n'ont pas été inclus dans l'inférence COMPASS. Veuillez relancer COMPASS avec ces variants.")
+            stop("Erreur : Certains variants sélectionnés n'existent pas dans la matrice.")
         }
 
-        # COMPASS a déjà géré le bruit. On génère un masque totalement vierge (0).
+        # COMPASS a déjà géré le bruit. On génère un masque totalement vierge (0L).
         msk_full <- matrix(0L, nrow = nrow(gt_full), ncol = ncol(gt_full),
                            dimnames = dimnames(gt_full))
-
-        # Alignement des rownames sur les noms courts pour correspondre à ton code d'extraction original
-        # rownames(gt_full) <- sub(x = rownames(gt_full), pattern = "^([^:]+:)|^:", "")
-        rownames(gt_full) <- rownames(gt_full)
-        rownames(msk_full) <- rownames(gt_full)
 
     } else {
         # Extraction Out-of-Core native (Raw data)
@@ -903,3 +910,4 @@ infer_clonal_architecture <- function(scigma_data, target_variants,
 
     return(scigma_data)
 }
+

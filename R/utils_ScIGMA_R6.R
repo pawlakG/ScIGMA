@@ -21,6 +21,7 @@ ScIGMA_object <- R6::R6Class(
         umaps = list(),
         cnv.active.clones = NULL,
         protein.gating_tree = NULL,
+        dna.clones_pre_compass = NULL,
 
         initialize = function(mae = NULL,
                               mae_raw = NULL,
@@ -48,6 +49,10 @@ ScIGMA_object <- R6::R6Class(
         },
 
         reset_analysis = function() {
+            if (!is.null(self$mae_raw)) {
+                self$mae <- self$mae_raw
+            }
+
             self$dna.clones <- NULL
             self$dna_clones_renamed <- NULL
             self$protein.filtered <- NULL
@@ -58,7 +63,8 @@ ScIGMA_object <- R6::R6Class(
             self$protein_gating_tree <- list()
             self$umaps <- list()
             self$cnv.active.clones <- NULL
-            protein.gating_tree <- NULL
+            self$protein.gating_tree <- NULL
+            dna.clones_pre_compass <- NULL
 
             # Sécurité additionnelle sur les métadonnées
             if (!is.null(self$mae)) {

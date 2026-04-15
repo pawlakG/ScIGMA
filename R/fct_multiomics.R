@@ -1,48 +1,91 @@
-#' Auto-annotate Seurat clusters based on surface markers
-#' @param seurat_obj A Seurat object with protein assay
-#' @param assay Name of the protein assay
-auto_annotate_clusters <- function(seurat_obj, assay = "RNA") {
-    # Dictionnaire standard (À adapter librement selon ton panel de protéines)
-    marker_dict <- list(
-        "T cells" = c("CD3", "CD4", "CD8", "CD3E"),
-        "B cells" = c("CD19", "CD20", "MS4A1"),
-        "Monocytes" = c("CD14", "CD11b", "ITGAM", "CD16", "FCGR3A"),
-        "NK cells" = c("CD56", "NCAM1"),
-        "HSC/Blasts" = c("CD34", "CD117", "KIT"),
-        "Erythroid" = c("CD71", "TFRC", "CD235a", "GYPA"),
-        "Platelets" = c("CD41", "ITGA2B", "CD61", "ITGB3")
-    )
+#' Extract variant genotypes from MultiAssayExperiment or SummarizedExperiment
+#' @param mae_data MultiAssayExperiment or SummarizedExperiment object
+#' @param variant_id Character string of the targeted variant
+#' @param use_compass Logical to select imputed vs raw assay
+#' @return data.frame with Barcode and Variant_Genotype columns
+extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
 
-    # Extraction de l'expression moyenne par cluster
-    # [[1]] permet de gérer dynamiquement le nom de l'assay renvoyé par Seurat
-    cluster_avgs <- Seurat::AverageExpression(seurat_obj, assays = assay)[[1]]
-    available_markers <- rownames(cluster_avgs)
+    if (use_compass) {
+        imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
+        imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
 
-    predicted_labels <- character(ncol(cluster_avgs))
-    names(predicted_labels) <- colnames(cluster_avgs)
+        print("imputed_mtx")
+        print(dim(imputed_mtx))
+        print("rownames(imputed_mtx)")
+        print(head(rownames(imputed_mtx)))
 
-    for (clust in colnames(cluster_avgs)) {
-        best_score <- -Inf
-        best_label <- "Unknown"
-
-        for (cell_type in names(marker_dict)) {
-            intersect_markers <- intersect(marker_dict[[cell_type]], available_markers)
-
-            if (length(intersect_markers) > 0) {
-                # Score = Moyenne de l'expression des marqueurs détectés
-                score <- mean(cluster_avgs[intersect_markers, clust])
-                if (score > best_score && score > 0.5) { # Seuil minimum empirique
-                    best_score <- score
-                    best_label <- cell_type
-                }
-            }
+        if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
+            variant_vector <- imputed_mtx[variant_id, ]
+        } else {
+            # Fallback sur la matrice brute si l'imputation est absente pour ce variant
+            variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
         }
-        predicted_labels[clust] <- best_label
+    } else {
+        # Extraction standard (Raw) depuis le SummarizedExperiment DNA
+        variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
     }
 
-    # Concaténation (ex: "Cluster 0: T cells")
-    final_labels <- paste0("Cluster ", names(predicted_labels), ": ", predicted_labels)
-    names(final_labels) <- names(predicted_labels)
+    extracted_df <- variant_vector |> as.data.frame() |> rownames_to_column("cell_barcode")
 
-    return(final_labels)
+    extracted_df <- extracted_df %>% dplyr::mutate(variant_vector = dplyr::recode(variant_vector,
+                                                                      "0" = "HOM",
+                                                                      "1" = "HET",
+                                                                      "2" = "HOM",
+                                                                      "3" = "Missing/ADO"))
+    colnames(extracted_df)[colnames(extracted_df) == "variant_vector"] <- "Variant_Genotype"
+    colnames(extracted_df)[colnames(extracted_df) == "cell_barcode"] <- "Barcode"
+
+    return(extracted_df)
+}
+
+#' Compute genotype distribution for a specific cell population
+#' @param mae_data MultiAssayExperiment object
+#' @param variant_ids Character vector of targeted variants
+#' @param cell_barcodes Character vector of barcodes in the population
+#' @param use_compass Logical to use imputed data
+#' @export
+compute_population_genotype_distribution <- function(mae_data, variant_ids, cell_barcodes, use_compass) {
+
+    # 1. Sélection de la matrice source
+    if (use_compass) {
+        # Accès direct au slot metadata défini pour COMPASS
+        imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
+        mtx_source <- imputed_mtx_tmp$compass$imputed_gt
+        # mtx_source <- S4Vectors::metadata(mae_data)$compass$imputed_gt
+    } else {
+        mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")
+    }
+
+    # 2. Filtrage et Extraction (Garder uniquement les cellules de la gate)
+    common_cells <- intersect(cell_barcodes, colnames(mtx_source))
+    if (length(common_cells) == 0) return(data.frame())
+
+    sub_mtx <- mtx_source[variant_ids, common_cells, drop = FALSE]
+
+    # 3. Transformation Long-Format pour calcul groupé
+    dist_df <- as.data.frame(as.matrix(sub_mtx)) |>
+        tibble::rownames_to_column("Variant_ID") |>
+        tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code") |>
+        dplyr::mutate(
+            Variant_Genotype = dplyr::recode(as.character(Code),
+                                             "0" = "WT", "1" = "HET",
+                                             "2" = "HOM", "3" = "Missing/ADO")
+        )
+
+    # 4. Agrégation Statistique
+    final_stats <- dist_df |>
+        dplyr::group_by(Variant_ID, Variant_Genotype) |>
+        dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
+        dplyr::group_by(Variant_ID) |>
+        dplyr::mutate(
+            Total_In_Variant = sum(Count),
+            Percentage = (Count / Total_In_Variant) * 100
+        ) |>
+        dplyr::ungroup()
+
+    # Assurer que tous les niveaux de génotypes sont présents pour un plot stable
+    levels_genotypes <- c("WT", "HET", "HOM", "Missing/ADO")
+    final_stats$Variant_Genotype <- factor(final_stats$Variant_Genotype, levels = levels_genotypes)
+
+    return(final_stats)
 }

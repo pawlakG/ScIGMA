@@ -141,7 +141,7 @@ fetch_variants_batch_fields <- function(
 
         res_query <- query_url |>
             httr2::request() |>
-            httr2::req_retry(max_tries = max_retries, backoff = ~ min(60, 2^(.x - 1))) |> # Backoff & retry
+            httr2::req_retry(max_tries = max_retries, backoff = ~ min(60, 2^(.x - 1))) |>
             httr2::req_perform() |>
             httr2::resp_body_json()
 
@@ -150,10 +150,13 @@ fetch_variants_batch_fields <- function(
         tibble::tibble(variant_id = ch) |>
             dplyr::bind_cols(extract_paths(res_query, paths)) |>
             dplyr::mutate("gene_function" = sapply(gene_function, paste0,collapse = ", "),
-                   "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
+                          "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
             dplyr::mutate(
                 chromosome   = purrr::map_chr(chromosome, 1, .default = NA_character_),
                 position     = purrr::map_chr(position, 1, .default = NA_character_),
+                transcript_id   = purrr::map_chr(transcript_id, 1, .default = NA_character_),
+                protein   = purrr::map_chr(protein, 1, .default = NA_character_),
+                cdna   = purrr::map_chr(cdna, 1, .default = NA_character_),
                 ref_allele   = purrr::map_chr(ref_allele, 1, .default = NA_character_),
                 alt_allele   = purrr::map_chr(alt_allele, 1, .default = NA_character_),
                 gene         = purrr::map_chr(gene, 1, .default = NA_character_),
@@ -225,6 +228,8 @@ filter_and_annotate_variants <- function(obj,
         stop(sprintf("API Error during variant annotation: %s", e$message))
     })
 
+    annot_df$impact <- round(annot_df$impact, 2)
+
     if (!is.null(annot_df) && nrow(annot_df) > 0) {
 
         # Robust string cleaning (prevents truncating legitimate IDs)
@@ -233,8 +238,6 @@ filter_and_annotate_variants <- function(obj,
             sub("^[^:]*:", "", annot_df$variant_id),
             annot_df$variant_id
         )
-
-
 
         # 4. Dimensional synchronization
         current_rowdata <- as.data.frame(
@@ -265,9 +268,6 @@ filter_and_annotate_variants <- function(obj,
 
         merged_rowdata$variant_id[is.na(merged_rowdata$variant_id)] <- paste0("Unmapped:",rownames(merged_rowdata))[is.na(merged_rowdata$variant_id)]
 
-        print("merged_rowdata")
-        print(merged_rowdata)
-
         # 7. In-place MAE injection
         SummarizedExperiment::rowData(obj$mae[["dna_variants"]]) <- S4Vectors::DataFrame(merged_rowdata)
         message("Annotation matrix successfully integrated into MAE rowData.")
@@ -289,7 +289,7 @@ filter_and_annotate_variants <- function(obj,
     total_cells <- ncol(vaf_mtx)
 
     # 3. Injection directe et in-place dans le registre d'annotation
-    SummarizedExperiment::rowData(obj$mae[["dna_variants"]])$cell_proportion <- mutated_cells_count / total_cells
+    SummarizedExperiment::rowData(obj$mae[["dna_variants"]])$cell_proportion <- round(mutated_cells_count / total_cells, 2)
 
     message("Cell proportions successfully added to rowData.")
     S4Vectors::metadata(obj$mae)$variant_filter <- "filtered"

@@ -45,7 +45,9 @@ normalizeProtein <- function(ScIGMA_object) {
 #' @export
 render_protein_ridge_plot <- function(obj){
     # On extrait l'assay CLR s'il existe, sinon on fallback sur counts
-    assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
+    # assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
+    assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]),
+                           "normalized", "counts")
 
     # Transposition obligatoire pour ggplot (Cellules en lignes, Protéines en colonnes)
     tmp_data <- t(SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)) |>
@@ -264,4 +266,81 @@ run_umap_protein <- function(expression_matrix,
     rownames(umap_result) <- rownames(mat)
 
     return(umap_result)
+}
+
+
+#' Comprehensive UMAP Evaluation Suite (True Ground Truth)
+#' Computes Exact Trustworthiness, Continuity (Venna & Kaski) and Spearman topology
+#' via stochastic sampling to ensure O(M^2) speed instead of O(N^2).
+#' Fully vectorized to avoid R for-loops.
+#' @param high_dim_mat Original normalized matrix (Cells x Proteins)
+#' @param low_dim_mat UMAP coordinates matrix (Cells x 2)
+#' @param k Number of neighbors for local structure evaluation
+#' @param sample_size Number of cells to sample for exact calculation
+#' @return A list of metric scores
+#' @export
+compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size = 1000) {
+
+    # 1. Alignement strict des matrices
+    common_cells <- intersect(rownames(high_dim_mat), rownames(low_dim_mat))
+
+    if (length(common_cells) < 3) {
+        warning("Not enough common cells to compute UMAP metrics.")
+        return(list(trustworthiness = 0, continuity = 0, global_spearman = 0))
+    }
+
+    high_dim_mat <- high_dim_mat[common_cells, , drop = FALSE]
+    low_dim_mat <- low_dim_mat[common_cells, , drop = FALSE]
+    N <- nrow(high_dim_mat)
+
+    # 2. Échantillonnage stochastique
+    sample_n <- min(sample_size, N)
+    k_safe <- min(k, sample_n - 2)
+
+    idx <- sample(1:N, sample_n)
+    high_sub <- high_dim_mat[idx, , drop = FALSE]
+    low_sub <- low_dim_mat[idx, , drop = FALSE]
+
+    # 3. Matrices de distances
+    d_high <- as.matrix(dist(high_sub))
+    d_low <- as.matrix(dist(low_sub))
+
+    # 4. Corrélation de Spearman (Topologie Globale)
+    if (sd(d_high, na.rm = TRUE) == 0 || sd(d_low, na.rm = TRUE) == 0) {
+        spearman_score <- 0
+    } else {
+        spearman_score <- cor(
+            d_high[lower.tri(d_high)],
+            d_low[lower.tri(d_low)],
+            method = "spearman"
+        )
+    }
+
+    # 5. Formules exactes de Venna & Kaski (2001) - 100% Vectorisé
+    diag(d_high) <- Inf
+    diag(d_low) <- Inf
+
+    r_high <- t(apply(d_high, 1, rank, ties.method = "first"))
+    r_low <- t(apply(d_low, 1, rank, ties.method = "first"))
+
+    denom <- ifelse(k_safe < sample_n / 2,
+                    sample_n * k_safe * (2 * sample_n - 3 * k_safe - 1) / 2,
+                    sample_n * (sample_n - k_safe) * (sample_n - k_safe - 1) / 2)
+    norm_factor <- 1 / denom
+
+    # Extraction par masques booléens (remplace la boucle for)
+    # trust_penalty : On prend les rangs d'origine des K-voisins de l'UMAP
+    trust_penalty <- sum(pmax(0, r_high[r_low <= k_safe] - k_safe))
+
+    # cont_penalty : On prend les rangs UMAP des K-voisins d'origine
+    cont_penalty <- sum(pmax(0, r_low[r_high <= k_safe] - k_safe))
+
+    trustworthiness <- max(0, 1 - (trust_penalty * norm_factor))
+    continuity <- max(0, 1 - (cont_penalty * norm_factor))
+
+    return(list(
+        trustworthiness = trustworthiness,
+        continuity = continuity,
+        global_spearman = spearman_score
+    ))
 }

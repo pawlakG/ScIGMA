@@ -628,7 +628,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                             linecolor = "black"
                         ),
                         angularaxis = list(
-                            # FIX CRITIQUE 2 : Liste 100% nommée pour éviter le crash JSON
                             tickfont = list(family = "Arial", size = 11, color = "black"),
                             linecolor = "black"
                         )

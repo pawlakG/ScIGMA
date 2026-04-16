@@ -358,7 +358,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
                              by = "Variant_ID")
 
-            plot_df_joined$Variant <- paste(plot_df_joined$portein, plot_df_joined$cdna, sep = ", ")
+            plot_df_joined$Variant <- paste(plot_df_joined$protein, plot_df_joined$cdna, sep = ", ")
 
 
             plotly::plot_ly(
@@ -370,7 +370,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 type = 'bar',
                 text = ~paste0(round(Percentage, 1), "% (n=", Count, ")"),
                 textposition = 'outside',
-                textfont = list(size = 14, color = "black", family = "Arial"),
+                textfont = list(size = 15, color = "black", family = "Arial"),
+                constraintext = 'none',
                 hoverinfo = 'text'
             ) |>
                 plotly::layout(

@@ -168,6 +168,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     dplyr::arrange(desc(cell_proportion), desc(impact))
 
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
+                selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
                 ScIGMA_data$variants.filtered <- selected_df
 
                 # Extraction de la matrice brute pour identifier les cellules complètes
@@ -259,6 +260,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     dplyr::arrange(desc(cell_proportion), desc(impact))
 
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
+                selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
                 ScIGMA_data$variants.filtered <- selected_df
 
                 ht_res <- generate_dna_variant_heatmap(

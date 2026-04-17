@@ -6,3 +6,4 @@
 .quarto
 .results
 Trash/
+src/*.o

@@ -77,7 +77,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                                       shinyWidgets::pickerInput(
                                                           inputId = ns("selected_variant"),
                                                           label = "Targeted Variant",
-                                                          choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
+                                                          # choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
+                                                          choices = ScIGMA_data$variants.filtered$label,
                                                           options = list(`live-search` = TRUE)
                                                       ),
                                                       shinyWidgets::materialSwitch(
@@ -163,7 +164,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             list(watch("umap_computed"),
                  watch("dnaVariant_selected")), {
                      output$ptnUMAP_DNA_acc_dnaClones_plot <- renderPlotly({
-
                          w <- Waiter$new(
                              id = ns("ptnUMAP_DNA_acc_dnaClones_plot"),
                              html = spin_3(),
@@ -214,7 +214,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         # [!] Variants _
         observeEvent(watch("dataLoaded"), {
             shiny::req(ScIGMA_data$mae)
-            available_variants <- rownames(ScIGMA_data$mae[["dna_variants"]])
+            print("ScIGMA_data$variants.filtered")
+            print(ScIGMA_data$variants.filtered)
+            # available_variants <- rownames(ScIGMA_data$mae[["dna_variants"]])
+            available_variants <- ScIGMA_data$variants.filtered$label
             shinyWidgets::updatePickerInput(
                 session = session,
                 inputId = "selected_variant",
@@ -238,10 +241,14 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             print("input$use_compass_variant")
             print(input$use_compass_variant)
 
+            # Retrieve variant id
+            tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
+
             # 3. Extraction du génotype
             geno_df <- extract_variant_genotypes(
                 mae_data = ScIGMA_data$mae,
-                variant_id = input$selected_variant,
+                # variant_id = input$selected_variant,
+                variant_id = tmp_selected_variant,
                 use_compass = input$use_compass_variant
             )
             # 4. Jointure asymétrique
@@ -312,16 +319,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
             # Déclencheur : l'onglet doit être actif
             shiny::req(input$selected_biplot_pop, ScIGMA_data$variants.filtered)
-            print("test")
-
-            print("input$selected_biplot_pop")
-            print(input$selected_biplot_pop)
-
-            print("ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]]")
-            print(length(ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]]))
-            print(head(ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]]))
-            print("ScIGMA_data$variants.filtered$variant_id")
-            print(ScIGMA_data$variants.filtered$variant_id)
 
 
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")

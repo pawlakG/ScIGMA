@@ -107,7 +107,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                   FALSE),
                                     selectInput(ns("color_genotype"),
                                                 "Color by Genotype",
-                                                choices = c("None", ScIGMA_data$variants.filtered$variant_id)),
+                                                choices = c("None", ScIGMA_data$variants.filtered$label)),
 
                                     # FIX CRITIQUE : Détection propre du nouvel Assay
                                     if ("compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
@@ -300,10 +300,11 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 # 1. Aiguillage direct vers l'Assay souhaité
                 assay_to_extract <- "gt"
-                if (isTRUE(input$use_compass_gt) && "compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
+                if (input$use_compass_gt && "compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
                     assay_to_extract <- "compass_imputed"
                 }
-                short_genotype_id <- sub(x = input$color_genotype, pattern = "^([^:]+:)|^:", "")
+                # short_genotype_id <- sub(x = input$color_genotype, pattern = "^([^:]+:)|^:", "")
+                short_genotype_id <-  rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$color_genotype]
 
                 # 2. Extraction sécurisée
                 gt_vec <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], assay_to_extract)[short_genotype_id, current_indices]

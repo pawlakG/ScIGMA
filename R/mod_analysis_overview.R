@@ -183,7 +183,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 ),
                 column(3,
                        card(
-                           card_header("number of CNVs"),
+                           card_header("Number of amplicons"),
                            p(val_cnv, style = "text-align:center")
                        )
                 ),

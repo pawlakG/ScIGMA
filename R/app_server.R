@@ -1,3 +1,5 @@
+future::plan(future::multisession, workers = 4)
+
 #' The application server-side
 #' @param input,output,session Internal parameters for {shiny}.
 #'     DO NOT REMOVE.
@@ -5,7 +7,7 @@
 #' @import gargoyle
 #' @import future
 #' @import promises
-#' @import bslib
+# #' @import bslib
 #' @noRd
 app_server <- function(input, output, session) {
     # Your application server logic
@@ -29,7 +31,6 @@ app_server <- function(input, output, session) {
 
     # --------------------------------------------------------------- #
     # Initialize lens object
-    # ScIGMA_data <- ScIGMA_object$new()
     ScIGMA_data <- ScIGMA_object$new()
 
     # --------------------------------------------------------------- #
@@ -44,7 +45,9 @@ app_server <- function(input, output, session) {
          "CNV_ui_cnv_plot_additionalParameters_rendered",
          "launch_umap",
          "umap_computed",
-         "dna_clones_renamed")
+         "dna_clones_renamed",
+         "compass_completed",
+         "multiomics_annotated")
     print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
     # 2. Logique de révélation conditionnelle (GARGOYLE)
@@ -60,6 +63,8 @@ app_server <- function(input, output, session) {
 
         # Placeholder pour la logique :
         show_advanced_tabs <- FALSE
+        print("ScIGMA_data$filetype app_server")
+        print(ScIGMA_data$filetype )
         # Exemple hypothétique basé sur ta demande :
         if (ScIGMA_data$filetype == "DNA+protein") {
                 show_advanced_tabs <- TRUE
@@ -77,26 +82,34 @@ app_server <- function(input, output, session) {
         }
     })
 
-    # --------------------------------------------------------------- #
-    # Analysis
-    # ---------------------------- #
-    # Overview
+    # [ NODE_ACCESS : Analysis ]
+    # ----------------------------------------------------- _
+    # >> Overview _
     mod_analysis_overview_server("analysis_overview_1", ScIGMA_data)
 
-    # ---------------------------- #
-    # Analysis right up
+    # >> DNA _
     mod_analysis_DNA_server("analysis_DNA_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # Protein
+    # >> Protein _
     mod_analysis_Protein_server("analysis_Protein_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # CNV
+    # >> CNV _
     mod_analysis_CNV_server("analysis_CNV_1", ScIGMA_data)
 
-    # --------------------------------------------------------------- #
-    # MultiOmics
-    mod_analysis_multiOmics_server("analysis_multiOmics_1", ScIGMA_data)
+    # >> MultiOmics _
+    mod_analysis_multiomics_server("analysis_multiomics_1", ScIGMA_data)
+
+    # [ NODE_ACCESS : DOWWLOAD ]
+    # ----------------------------------------------------- _
+    # >> Download data _
+    mod_download_panel_server("download_panel_1", ScIGMA_data)
+
+    # [ NODE_ACCESS : HELP ]
+    # ----------------------------------------------------- _
+    mod_help_panel_server("help_panel_1", ScIGMA_data)
+
+    # [ NODE_ACCESS : ABOUT ]
+    # ----------------------------------------------------- _
+    mod_about_panel_server("about_panel_1", ScIGMA_data)
 
 }

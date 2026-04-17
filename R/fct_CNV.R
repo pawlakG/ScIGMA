@@ -186,67 +186,55 @@ filter_cnv_matrix_by_completeness <- function(
         amp_meanCellRead = 10,
         aggregate_fun = aggregate_matrix_by_mappingTable
 ) {
+    # 1. Extraction BioConductor (Lignes = Features, Colonnes = Cellules)
+    amp_mtx <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
+    dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
+    dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
 
-    # Check for required inputs in 'obj'
-    if (!all(c("amp.mtx", "dp.mtx", "dna_id_table") %in% names(obj))) {
-        stop("The 'obj' list must contain 'amp.mtx', 'dp.mtx', and 'dna_id_table'.")
-    }
+    # 2. Transposition pour l'agrégation
+    # aggregate_fun attend : Lignes = Samples (Cells), Colonnes = Features (Variants)
+    tmp_dp_mtx <- t(as.matrix(dp_mtx))
 
-    # Preprocess obj$dp.mtx: convert to matrix.
-    # Note: the original code had a commented out line for column name manipulation,
-    # which is skipped here based on the original uncommented code logic.
-    tmp_dp_mtx <- as.matrix(obj$dp.mtx)
-
-    # Aggregate the read depth matrix by amplicon
-    # We assume 'dna_id' and 'amplicon' columns exist in obj$dna_id_table
-    # The '|>' (pipe) operator requires the magrittr package (or R >= 4.1 for the native pipe).
     tmp_dp_mtx_aggregated <- aggregate_fun(
         numeric_matrix = tmp_dp_mtx,
-        mapping_table = obj$dna_id_table,
-        feature_column_name = dna_id, # Assumed column names for mapping
-        group_column_name = amplicon   # Assumed column names for mapping
-    ) |>
-        as.matrix()
+        mapping_table = dna_id_table,
+        feature_column_name = dna_id,
+        group_column_name = amplicon
+    ) |> as.matrix()
 
-    # Remove columns named "NA" (likely resulting from amplicons not found in the mapping)
     tmp_dp_mtx_aggregated <- tmp_dp_mtx_aggregated[, colnames(tmp_dp_mtx_aggregated) != "NA", drop = FALSE]
 
     ## --- Filter according to amplicon completeness (Cell-level filter) ---
-
-    # Calculate, for each cell (column), the proportion of amplicons with read depth > amp_readDepth
+    # CORRECTION CRITIQUE : tmp_dp_mtx_aggregated est [Cells x Amplicons].
+    # Pour évaluer chaque cellule, on itère sur les LIGNES (MARGIN = 1).
     cell_ampCompleteness_filter <- apply(
         X = tmp_dp_mtx_aggregated,
-        MARGIN = 2, # Apply across columns (cells)
+        MARGIN = 1,
         FUN = function(x) sum(x > amp_readDepth) / length(x)
-    ) >= amp_completeness / 100
+    ) >= (amp_completeness / 100)
 
-    # Select the names of the cells that pass the filter
     cell_ampCompleteness_selected <- names(cell_ampCompleteness_filter)[cell_ampCompleteness_filter]
 
-    # Filter the CNV matrix to keep only selected cells (assuming cells are columns in obj$amp.mtx)
-    # The original code's column access 'obj$amp.mtx[,cell_ampCompleteness_selected]'
-    # implies cells are the columns of 'obj$amp.mtx'.
+    print("cell_ampCompleteness_selected")
+    print(cell_ampCompleteness_selected)
+
     if (length(cell_ampCompleteness_selected) == 0) {
         warning("No cells passed the amplicon completeness filter. Returning empty results.")
         return(list(
-            filtered_cnv_mtx = obj$amp.mtx[0, 0],
+            filtered_cnv_mtx = amp_mtx[0, 0, drop = FALSE],
             cell_selection = character(0),
             amplicon_meanCellRead_summary = NULL
         ))
     }
 
-    tmp_cnv_mtx <- obj$amp.mtx[, cell_ampCompleteness_selected, drop = FALSE]
+    # amp_mtx est [Amplicons x Cells]. On filtre les colonnes.
+    tmp_cnv_mtx <- amp_mtx[, cell_ampCompleteness_selected, drop = FALSE]
 
-    ## --- Filter according to minimum mean read depth per amplicon (Amplicon-level filter) ---
-
-    # Calculate the mean read depth per amplicon (row) across the selected cells
-    amplicon_meanCellRead_filter <- rowMeans(tmp_cnv_mtx) >= amp_meanCellRead
-
-    # Summary of which amplicons pass/fail
+    ## --- Filter according to minimum mean read depth per amplicon ---
+    amplicon_meanCellRead_filter <-  Matrix::rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
     meanCellRead_summary <- table(amplicon_meanCellRead_filter)
 
-    # Filter the CNV matrix to keep only amplicons that pass the mean read depth filter
-    filtered_cnv_mtx <- tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
+    filtered_cnv_mtx <-tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
 
     return(list(
         filtered_cnv_mtx = filtered_cnv_mtx,
@@ -336,7 +324,8 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 
     ## 1. Prepare and normalize the filtered read counts
     # Transpose the matrix to be cells x amplicons for easier column-wise normalization
-    tmp_dna_reandCounts_mtx <- t(as.matrix(filtered_data$filtered_cnv_mtx))
+    # tmp_dna_reandCounts_mtx <- t(as.matrix(filtered_data$filtered_cnv_mtx))
+    tmp_dna_reandCounts_mtx <- as.matrix(filtered_data$filtered_cnv_mtx)
 
     # Keep only cells that were assigned to a clone (clusterised cells)
     cell_barcodes_to_keep <- intersect(colnames(tmp_dna_reandCounts_mtx), names(tmp_clones))
@@ -456,20 +445,21 @@ sort_genomic_chromosomes <- function(chromosome_vector) {
 #'
 render_annotation_table <- function(obj, ploidy_data){
     mat_data <- t(ploidy_data)
-    # --- 1. Reorder according to chromosomal position ---
-    # Note: We can now drop 'dplyr::' because of the @importFrom above
-    tmp_var_table <- obj$cnv_id_table |>
-        filter(dna_id %in% colnames(mat_data)) |>
-        arrange(as.numeric(chrom), as.numeric(start_pos)) |>
-        mutate(chr_lit = paste0("chr", chrom))
 
-    mat_data <- mat_data[, tmp_var_table$dna_id]
+    # Extraction sécurisée des métadonnées
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+    genome_v <- S4Vectors::metadata(obj$mae)$genome_version
+    if (is.null(genome_v)) genome_v <- "hg19"
 
+    tmp_var_table <- cnv_id_table |>
+        dplyr::filter(dna_id %in% colnames(mat_data)) |>
+        dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+        dplyr::mutate(chr_lit = paste0("chr", chrom))
+
+    mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
     tmp_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
 
-    annotate_genomic_regions(region_data = tmp_table,
-                             build = obj$cnv_metadata$genome_version)
-
+    annotate_genomic_regions(region_data = tmp_table, build = genome_v)
 }
 
 #' Plot CNV Heatmap
@@ -496,58 +486,43 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 
     mat_data <- t(ploidy_data)
 
-    # --- 1. Reorder according to chromosomal position ---
-    # Note: We can now drop 'dplyr::' because of the @importFrom above
-    tmp_var_table <- obj$cnv_id_table |>
-        filter(dna_id %in% colnames(mat_data)) |>
-        arrange(as.numeric(chrom), as.numeric(start_pos)) |>
-        mutate(chr_lit = paste0("chr", chrom))
+    # Extraction sécurisée des métadonnées
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+    genome_v <- S4Vectors::metadata(obj$mae)$genome_version
+    if (is.null(genome_v)) genome_v <- "hg19"
 
-    mat_data <- mat_data[, tmp_var_table$dna_id]
+    tmp_var_table <- cnv_id_table |>
+        dplyr::filter(dna_id %in% colnames(mat_data)) |>
+        dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+        dplyr::mutate(chr_lit = paste0("chr", chrom))
 
+    mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
     tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
     sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
-    # ---------------------------- #
-    # If used want gene names add a column with gene annotation
-    # tmp_annotation <- annotate_genomic_regions(region_data = obj$cnv_id_table, build = "hg19")
-    # tmp_var_table <- merge(tmp_var_table, tmp_annotation[,"dna_id","hgnc_symbol"])
 
     if (display_gene){
-
-        tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table,
-                                                  build = obj$cnv_metadata$genome_version)
-        split_vec <- factor(tmp_split_vec$symbol,
-                            levels = unique(tmp_split_vec$symbol))
+        tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
+        split_vec <- factor(tmp_split_vec$symbol, levels = unique(tmp_split_vec$symbol))
     } else {
         split_vec <- factor(tmp_split_table$chr_lit, levels = sorted_gen_levels)
     }
 
-    # --- 2. Color Definition ---
-    col_fun <- colorRamp2(
-        breaks = c(
-            quantile(mat_data, c(0, 0.25)),
-            2,
-            quantile(mat_data, c(0.75, 1))
-        ),
+    col_fun <- circlize::colorRamp2(
+        breaks = c(quantile(mat_data, c(0, 0.25), na.rm=TRUE), 2, quantile(mat_data, c(0.75, 1), na.rm=TRUE)),
         colors = c("black", "#4575B4", "#F0F0F0", "#D73027", "#67001F")
     )
 
-    group_colors <- setNames(
-        viridis(nrow(mat_data)),
-        nm = rownames(mat_data)
-    )
+    group_colors <- setNames(viridis::viridis(nrow(mat_data)), nm = rownames(mat_data))
 
-    # --- 3. Left Annotation ---
-    left_ann <- rowAnnotation(
+    left_ann <- ComplexHeatmap::rowAnnotation(
         df = data.frame(Group = rownames(mat_data)),
         col = list(Group = group_colors),
         show_legend = FALSE,
-        simple_anno_size = unit(1, "cm"),
+        simple_anno_size = grid::unit(1, "cm"),
         show_annotation_name = FALSE
     )
 
-    # --- 4. Heatmap Creation ---
-    Heatmap(
+    ComplexHeatmap::Heatmap(
         mat_data,
         name = "Ploidy",
         col = col_fun,
@@ -558,12 +533,12 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
         show_column_names = FALSE,
         show_row_names = FALSE,
         border = TRUE,
-        row_gap = unit(0, "mm"),
-        column_gap = unit(0, "mm"),
-        border_gp = gpar(col = "black", lwd = 1),
+        row_gap = grid::unit(0, "mm"),
+        column_gap = grid::unit(0, "mm"),
+        border_gp = grid::gpar(col = "black", lwd = 1),
         column_title_side = "bottom",
         column_title_rot = 90,
-        column_title_gp = gpar(fontsize = 10),
+        column_title_gp = grid::gpar(fontsize = 10),
         left_annotation = left_ann
     )
 }
@@ -623,7 +598,11 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
     # C-optimized spatial join via findOverlaps
     overlaps <- findOverlaps(query_gr, target_genes)
+    hits <- GenomicRanges::findOverlaps(query_gr, target_genes, select = "first")
 
+    region_data$symbol <- "Unknown"
+    valid <- !is.na(hits)
+    region_data$symbol[valid] <- target_genes$symbol[hits[valid]]
     # Construct the result set using fast indexing
     # Prioritizing protein-coding genes for biological relevance in oncology
     tmp_y <- data.frame(symbol = target_genes$symbol[subjectHits(overlaps)],
@@ -645,7 +624,8 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     #     distinct()
 
 
-    return(result_df)
+    # return(result_df)
+    return(region_data)
 }
 
 
@@ -870,3 +850,124 @@ plot_cnv_genome <- function(cnv_matrix,
 
     return(p)
 }
+
+
+get_genes_memory_safe <- function(input_df) {
+    versions <- unique(input_df$genome_version)
+    output_list <- list()
+
+    for (ver in versions) {
+        sub_df <- input_df[input_df$genome_version == ver, ]
+
+        tx_db_pkg <- paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene")
+        if (!requireNamespace(tx_db_pkg, quietly = TRUE)) {
+            warning(paste("Package", tx_db_pkg, "not installed."))
+            next
+        }
+        tx_db <- getExportedValue(tx_db_pkg, tx_db_pkg)
+
+        # Standardize chromosome naming
+        query_gr <- GRanges(
+            seqnames = if_else(grepl("^chr", sub_df$chrom),
+                               sub_df$chrom, paste0("chr", sub_df$chrom)),
+            ranges = IRanges(start = sub_df$start_pos, end = sub_df$end_pos)
+        )
+
+        # Extract genes with complex structure support
+        all_genes <- suppressMessages(
+            genes(tx_db, single.strand.genes.only = FALSE)
+        )
+
+        # Join logic
+        hits <- mergeByOverlaps(query_gr, all_genes)
+
+        if (length(hits) > 0) {
+            res_df <- as.data.frame(hits, row.names = NULL)
+            output_list[[ver]] <- res_df
+        }
+
+        # Purge RAM
+        rm(tx_db, query_gr, hits, all_genes)
+        gc()
+    }
+
+    # NEW: Guard clause for zero results across all versions
+    if (length(output_list) == 0) {
+        message("No genes found in the specified genomic regions.")
+        return(data.frame())
+    }
+
+    final_df <- do.call(rbind, output_list)
+
+    # NEW: Secondary guard clause specifically for mapIds
+    if (nrow(final_df) > 0 && "gene_id" %in% colnames(final_df)) {
+        final_df$Symbol <- mapIds(
+            org.Hs.eg.db,
+            keys = as.character(final_df$gene_id),
+            column = "SYMBOL",
+            keytype = "ENTREZID",
+            multiVals = "first"
+        )
+    } else {
+        final_df$Symbol <- character(0)
+    }
+
+    # FORMATTING (Title_Snake_Case)
+    colnames(final_df) <- gsub("query_gr.", "", colnames(final_df))
+    final_df <- final_df %>%
+        select(seqnames, start, end, gene_id, Symbol) %>%
+        rename(
+            Chromosome = seqnames,
+            Start_Pos = start,
+            End_Pos = end,
+            Entrez_Id = gene_id,
+            Gene_Symbol = Symbol
+        ) %>%
+        distinct()
+
+    return(final_df)
+}
+
+# NEW
+# File: R/annotate_amplicons.R
+
+#' Annotate amplicon rowData with gene information via exact string matching
+#'
+#' @param mae MultiAssayExperiment object
+#' @return MultiAssayExperiment with updated amplicons rowData
+#' @export
+annotate_amplicons_exact <- function(mae) {
+    if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr required")
+
+    cna_se <- mae[["amplicons"]]
+    cna_rd <- as.data.frame(SummarizedExperiment::rowData(cna_se))
+
+    genome_v <- S4Vectors::metadata(mae)$genome_version
+    cna_rd$genome_version <- genome_v
+
+    # Base R paste0 is significantly faster than tidyr::unite for large vectors
+    cna_rd$tmp_key <- paste(cna_rd$chrom, cna_rd$start_pos, cna_rd$end_pos,
+                            sep = "_")
+
+    genes_df <- get_genes_memory_safe(cna_rd)
+    genes_df$Chromosome <- sub("^chr", "", genes_df$Chromosome,
+                               ignore.case = TRUE)
+    genes_df$tmp_key <- paste(genes_df$Chromosome, genes_df$Start_Pos,
+                              genes_df$End_Pos, sep = "_")
+
+    merged_rd <- dplyr::left_join(x = cna_rd, y = genes_df, by = "tmp_key")
+    merged_rd$tmp_key <- NULL
+
+    if (sum(duplicated(merged_rd$dna_id))>0){
+        # Keep first mapped gene
+        # Maybe, in the future, we should see if gene pattern match with dna_id
+        # and select only gene that match. Problem : How do we deal with
+        # vectorization ?
+        merged_rd <- merged_rd[!duplicated(merged_rd$dna_id) ,]
+    }
+    # Re-injection in S4 object
+    SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
+
+    return(mae)
+}
+

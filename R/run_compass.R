@@ -1,0 +1,110 @@
+# File: R/run_compass.R
+
+#' @useDynLib ScIGMA, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
+NULL
+
+#' Execute COMPASS MCMC Phylogeny (In-Memory)
+#'
+#' @description
+#' Direct interface to the ETHZ C++ COMPASS backend. Runs natively in R memory.
+#' This function strictly requires Copy Number Alteration (CNA) data.
+#'
+#' @param variant_matrices List. Contains 'REF', 'ALT', and 'GT' matrices.
+#' @param locus_regions Integer vector. Maps each locus to a region index (0-based).
+#' @param region_matrix Integer matrix. Region counts (regions x cells). Required.
+#' @param output_prefix Character. Prefix for output tree and data.
+#' @param chains Integer. Number of MCMC chains.
+#' @param chain_length Integer. Iterations per chain.
+#' @param patient_sex Character. "female" or "male".
+#'
+#' @return Logical TRUE on success.
+#' @export
+run_compass_mcmc <- function(
+        variant_matrices,
+        locus_regions,
+        region_matrix,
+        output_prefix = NULL,
+        locus_names,
+        locus_chromosomes,
+        region_names,
+        region_chromosomes,
+        cell_names = NULL,     # <-- NEW
+        chains = 4L,
+        chain_length = 5000L,
+        patient_sex = "female",
+        use_cna = TRUE
+) {
+
+    # 1. Extraction automatique des barcodes si non fournis
+    if (is.null(cell_names)) {
+        cell_names <- colnames(variant_matrices$REF)
+        if (is.null(cell_names)) stop("Les matrices ne contiennent aucun nom de colonne (cellules).")
+    }
+
+    # 1. BIOCONDUCTOR COMPLIANCE : Gestion automatique et sécurisée du chemin
+    if (is.null(output_prefix)) {
+        output_prefix <- file.path(tempdir(), paste0("compass_", as.integer(Sys.time())))
+        message("No output_prefix provided. Writing to temp directory: ", output_prefix)
+    } else {
+        # Sécurité I/O : Création de l'arborescence parente si elle n'existe pas
+        dir.create(dirname(output_prefix), showWarnings = FALSE, recursive = TRUE)
+    }
+
+    # Barrière de sécurité stricte
+    if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
+        stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
+    }
+
+    # Neutralisation des NAs
+    variant_matrices$REF[is.na(variant_matrices$REF)] <- 0L
+    variant_matrices$ALT[is.na(variant_matrices$ALT)] <- 0L
+    variant_matrices$GT[is.na(variant_matrices$GT)] <- 0L
+
+    message("Initializing COMPASS C++ backend (In-Memory)...")
+
+    execution_status <- tryCatch({
+        run_compass_inference_cpp(
+            ref_counts = variant_matrices$REF,
+            alt_counts = variant_matrices$ALT,
+            genotypes = variant_matrices$GT,
+            locus_region_mapping = as.integer(locus_regions),
+            region_counts = region_matrix,
+            locus_names = as.character(locus_names),
+            locus_chromosomes = as.character(locus_chromosomes),
+            region_names = as.character(region_names),
+            region_chromosomes = as.character(region_chromosomes),
+            cell_names = as.character(cell_names), # <-- NEW INJECTION
+            output_prefix = output_prefix,
+            n_chains = as.integer(chains),
+            chain_length = as.integer(chain_length),
+            use_cna = use_cna,
+            sex = patient_sex
+        )
+    }, error = function(e) {
+        stop(sprintf("Fatal C++ error: %s", e$message))
+    })
+
+    # 2. STANDARD DE PRODUCTION : Retourner les chemins générés
+    # Le C++ génère ces extensions en dur. On les mappe pour l'utilisateur.
+    output_files <- list(
+        tree_dot           = paste0(output_prefix, "_tree.gv"),
+        tree_json          = paste0(output_prefix, "_tree.json"),
+        cell_assignments   = paste0(output_prefix, "_cellAssignments.tsv"),
+        cell_probabilities = paste0(output_prefix, "_cellAssignmentProbs.tsv"),
+        nodes_genotypes    = paste0(output_prefix, "_nodes_genotypes.tsv")
+    )
+
+    if (use_cna) {
+        output_files$nodes_copynumbers <- paste0(output_prefix, "_nodes_copynumbers.tsv")
+    }
+
+    # Vérification silencieuse (Fail-safe)
+    missing_files <- !file.exists(unlist(output_files))
+    if (any(missing_files)) {
+        warning("L'exécution s'est terminée, mais certains fichiers sont absents du disque.")
+    }
+
+    return(output_files)
+
+}

@@ -141,7 +141,7 @@ fetch_variants_batch_fields <- function(
 
         res_query <- query_url |>
             httr2::request() |>
-            httr2::req_retry(max_tries = max_retries, backoff = ~ min(60, 2^(.x - 1))) |> # Backoff & retry
+            httr2::req_retry(max_tries = max_retries, backoff = ~ min(60, 2^(.x - 1))) |>
             httr2::req_perform() |>
             httr2::resp_body_json()
 
@@ -150,10 +150,13 @@ fetch_variants_batch_fields <- function(
         tibble::tibble(variant_id = ch) |>
             dplyr::bind_cols(extract_paths(res_query, paths)) |>
             dplyr::mutate("gene_function" = sapply(gene_function, paste0,collapse = ", "),
-                   "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
+                          "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
             dplyr::mutate(
                 chromosome   = purrr::map_chr(chromosome, 1, .default = NA_character_),
                 position     = purrr::map_chr(position, 1, .default = NA_character_),
+                transcript_id   = purrr::map_chr(transcript_id, 1, .default = NA_character_),
+                protein   = purrr::map_chr(protein, 1, .default = NA_character_),
+                cdna   = purrr::map_chr(cdna, 1, .default = NA_character_),
                 ref_allele   = purrr::map_chr(ref_allele, 1, .default = NA_character_),
                 alt_allele   = purrr::map_chr(alt_allele, 1, .default = NA_character_),
                 gene         = purrr::map_chr(gene, 1, .default = NA_character_),
@@ -164,4 +167,132 @@ fetch_variants_batch_fields <- function(
                 variant_id = paste0(gene,":",sub("^([^-]+)-([^-]+)-([^-]+)-([^-]+)$", "\\1:\\2:\\3/\\4",variant_id))
             )
     })
+}
+
+#' Filter variants and fetch annotations
+#'
+#' @param obj ScIGMA_object instance.
+#' @param paths List of API paths for fetch_variants_batch_fields.
+#' @param min_dp Integer. Minimum depth.
+#' @param min_gq Integer. Minimum genotype quality.
+#' @param vaf_ref Numeric. Maximum VAF for reference call.
+#' @param vaf_hom Numeric. Minimum VAF for homozygous alternate call.
+#' @param vaf_het Numeric. Maximum VAF for heterozygous call.
+#' @param min_cell_pt Numeric. Minimum percentage of cells covering a variant.
+#' @param min_mut_cell_pt Numeric. Minimum percentage of mutated cells.
+#' @param batch_size Integer. Batch size for API calls.
+#' @return Filtered and annotated ScIGMA_object.
+#' @export
+filter_and_annotate_variants <- function(obj,
+                                         paths,
+                                         min_dp = 10,
+                                         min_gq = 30,
+                                         vaf_ref = 5,
+                                         vaf_hom = 95,
+                                         vaf_het = 30,
+                                         min_cell_pt = 10,
+                                         min_mut_cell_pt = 10,
+                                         batch_size = 300) {
+
+    # 1. Pipeline execution: Filtering
+    obj <- filter_variant_ScIGMA_mae(
+        obj = obj,
+        min.dp = min_dp,
+        min.gq = min_gq,
+        vaf.ref = vaf_ref,
+        vaf.hom = vaf_hom,
+        vaf.het = vaf_het,
+        min.cell.pt = min_cell_pt,
+        min.mut.cell.pt = min_mut_cell_pt
+    )
+
+    message("Fetching and injecting annotations...")
+
+    # 2. Strict ID extraction
+    variant_ids <- rownames(obj$mae[["dna_variants"]])
+
+    # Gatekeeper: Do not call API if filtering removed everything
+    if (length(variant_ids) == 0) {
+        warning("No variants left after filtering. Skipping annotation.")
+        return(obj)
+    }
+
+    # 3. Protected API call
+    annot_df <- tryCatch({
+        fetch_variants_batch_fields(
+            variant_ids,
+            batch_size = batch_size,
+            paths = paths
+        )
+    }, error = function(e) {
+        stop(sprintf("API Error during variant annotation: %s", e$message))
+    })
+
+    annot_df$impact <- round(annot_df$impact, 2)
+
+    if (!is.null(annot_df) && nrow(annot_df) > 0) {
+
+        # Robust string cleaning (prevents truncating legitimate IDs)
+        annot_df$query <- ifelse(
+            grepl("^[A-Za-z0-9]+:chr", annot_df$variant_id),
+            sub("^[^:]*:", "", annot_df$variant_id),
+            annot_df$variant_id
+        )
+
+        # 4. Dimensional synchronization
+        current_rowdata <- as.data.frame(
+            SummarizedExperiment::rowData(obj$mae[["dna_variants"]])
+        )
+        current_rowdata$query_id <- rownames(current_rowdata)
+
+        merged_rowdata <- merge(
+            x = current_rowdata,
+            y = annot_df,
+            by.x = "query_id",
+            by.y = "query",
+            all.x = TRUE,
+            sort = FALSE
+        )
+
+        # 5. MAE Topology Guardrail (CRITICAL)
+        # Prevents 1-to-many API mappings from expanding the rowData and crashing the MAE
+        if (nrow(merged_rowdata) > nrow(current_rowdata)) {
+            warning("API returned multiple annotations per variant. Deduplicating to preserve MAE strict dimensions.")
+            merged_rowdata <- merged_rowdata[!duplicated(merged_rowdata$query_id), ]
+        }
+
+        # 6. Canonical order restoration
+        rownames(merged_rowdata) <- merged_rowdata$query_id
+        merged_rowdata <- merged_rowdata[variant_ids, ]
+        merged_rowdata$query_id <- NULL
+
+        merged_rowdata$variant_id[is.na(merged_rowdata$variant_id)] <- paste0("Unmapped:",rownames(merged_rowdata))[is.na(merged_rowdata$variant_id)]
+
+        # 7. In-place MAE injection
+        SummarizedExperiment::rowData(obj$mae[["dna_variants"]]) <- S4Vectors::DataFrame(merged_rowdata)
+        message("Annotation matrix successfully integrated into MAE rowData.")
+
+    } else {
+        warning("API returned an empty object. rowData remains unannotated.")
+    }
+
+    message("Calculating variant cell proportions...")
+
+    # 1. Extraction du pointeur de la matrice (Aucune donnée chargée en RAM)
+    vaf_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
+
+    # 2. Calcul vectorisé Out-Of-Core sur les lignes (Variants)
+    # L'opérateur > 0 exclut nativement les Wild-Type (0) et les génotypes non-fiables (-1)
+    mutated_cells_count <- DelayedMatrixStats::rowSums2(vaf_mtx > 0)
+
+    # Le registre absolu des cellules dicte le dénominateur
+    total_cells <- ncol(vaf_mtx)
+
+    # 3. Injection directe et in-place dans le registre d'annotation
+    SummarizedExperiment::rowData(obj$mae[["dna_variants"]])$cell_proportion <- round(mutated_cells_count / total_cells, 2)
+
+    message("Cell proportions successfully added to rowData.")
+    S4Vectors::metadata(obj$mae)$variant_filter <- "filtered"
+
+    invisible(obj)
 }

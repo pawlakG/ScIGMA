@@ -8,7 +8,8 @@ generate_dna_variant_heatmap(
   obj,
   selected_variants_df,
   min_prop_cluster = 0.01,
-  heatmap_include_all_samples = TRUE
+  heatmap_include_all_samples = TRUE,
+  use_imputed = FALSE
 )
 }
 \arguments{

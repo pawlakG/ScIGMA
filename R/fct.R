@@ -67,28 +67,65 @@ update_cluster_labels = function(new_labels) {
 }
 
 
-protein_run_pca <- function(ScIGMA_data){
+protein_run_pca <- function(ScIGMA_data) {
+    message("Running Protein PCA Pipeline...")
 
-    ScIGMA_data$protein.mtx.filtered.normalized <- normalize_linear_regression(as.matrix(ScIGMA_data$protein.mtx), jitter = 0.5)
+    # 1. Extraction (Protéines x Cellules)
+    prot_counts <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "counts")
 
-    ScIGMA_data$seurat_object <- CreateSeuratObject(counts = t(ScIGMA_data$protein.mtx.filtered.normalized) ,
-                                                    project = "ScIGMA_data",
-                                                    min.cells = 3,
-                                                    min.features = floor(sqrt(ncol(ScIGMA_data$protein.mtx.filtered.normalized))))
+    # 2. Normalisation In-Memory (Sécurisé pour les protéines)
+    norm_mat <- normalize_linear_regression(as.matrix(prot_counts), jitter = 0.5)
 
-    ScIGMA_data$seurat_object@assays$RNA$data <- t(ScIGMA_data$protein.mtx.filtered.normalized)
+    # 2.1 Mise à jour des métadonnées
+    S4Vectors::metadata(ScIGMA_data$mae)$protein_normalize_method <- "Normalized"
 
-    ScIGMA_data$seurat_object <- FindVariableFeatures(ScIGMA_data$seurat_object,
-                                                      selection.method = "vst",
-                                                      nfeatures = nrow(ScIGMA_data$seurat_object))
+    # 2.2 Mise à jour de l'indicateut de filtrage des proteines
+    ScIGMA_data$protein.filtered <- TRUE
 
-    ScIGMA_data$seurat_object <- ScaleData(ScIGMA_data$seurat_object, features = rownames(ScIGMA_data$seurat_object))
-    ScIGMA_data$seurat_object <- RunPCA(ScIGMA_data$seurat_object,
-                                        features = VariableFeatures(object = ScIGMA_data$seurat_object),
-                                        npcs = nrow(ScIGMA_data$seurat_object)-2)
 
-    ScIGMA_data$seurat_object <- FindNeighbors(ScIGMA_data$seurat_object, dims = 1:(nrow(ScIGMA_data$seurat_object)-2))
-    return(ScIGMA_data)
+
+    # 3. Injection canonique dans le MAE
+    SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized") <- norm_mat
+
+    # 4. Construction de l'objet Seurat (AUCUNE TRANSPOSITION REQUISE)
+    min_features_threshold <- floor(sqrt(nrow(norm_mat))) # nrow = nb protéines
+
+    seurat_obj <- Seurat::CreateSeuratObject(
+        counts = norm_mat,
+        project = "ScIGMA_proteins",
+        min.cells = 3,
+        min.features = min_features_threshold
+    )
+
+    # Assigne les données normalisées au slot "data" (Standard Seurat v4/v5)
+    seurat_obj <- Seurat::SetAssayData(seurat_obj, layer = "data", new.data = norm_mat)
+
+    # 5. Pipeline Dimensionnel
+    seurat_obj <- Seurat::FindVariableFeatures(
+        seurat_obj,
+        selection.method = "vst",
+        nfeatures = nrow(seurat_obj)
+    )
+
+    seurat_obj <- Seurat::ScaleData(seurat_obj, features = rownames(seurat_obj))
+
+    # Sécurité algorithmique : Les PC max ne peuvent pas excéder le nombre de protéines
+    max_npcs <- min(nrow(seurat_obj) - 1, ncol(seurat_obj) - 1, 50)
+
+    seurat_obj <- Seurat::RunPCA(
+        seurat_obj,
+        features = Seurat::VariableFeatures(object = seurat_obj),
+        npcs = max_npcs,
+        verbose = FALSE
+    )
+
+    seurat_obj <- Seurat::FindNeighbors(
+        seurat_obj,
+        dims = 1:max_npcs,
+        verbose = FALSE
+    )
+
+    invisible(seurat_obj)
 }
 
 

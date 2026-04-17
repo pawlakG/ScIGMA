@@ -23,175 +23,136 @@ h5f$assays$protein_read_counts$ra$sample_name
 h5closeAll()
 
 
-# --------------------------------------------------------------- #
-#
+# [ NODE_ACCESS : Test MAE pipeline ]
+# ----------------------------------------------------- _
+# ========================================================================= #
+# Pipeline d'Inférence Phylogénétique COMPASS (In-Memory Rcpp)
+# ========================================================================= #
 
-obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA+protein")
+devtools::load_all()
 
+directory <- "../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
+# directory <- "../inputs/bPodvinDatasets/Dut_Ev/Dut_Ev_Rec.dna+protein.h5"
+# directory <- "../inputs/bPodvinDatasets/LMC/M35.dna+protein.h5"
+# directory <- "../inputs/tapestriDatasets/KG-1-Raji-50-50-Myeloid/KG-1-Raji-50-50-Myeloid.dna.h5"
 
-obj <- loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA")
+# 1. Chargement Out-of-Core HDF5
+ScIGMA_data <- loadH5_HDF5_biocond(
+    filepath = directory, # Assure-toi que la variable directory est bien définie
+    sample_name = "aml_4_lines",
+    omic_type = "DNA+protein"
+    # omic_type = "DNA"
+)
 
-obj <- loadH5_dir_HDF5(directory, omic.type = "DNA+protein",feature_policy = "intersect")
+ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
 
-bench::mark(loadH5_HDF5(directory, sample.name = "SampleA", omic.type = "DNA+protein"), iterations = 10)
-
-file.exists("../inputs/bPodvinDatasets/")
-
-# --------------------------------------------------------------- #
-# More than one  h5
-
-# obj <- loadH5_dir_HDF5("../inputs/bPodvinDatasets/all/", feature_policy = "intersect", omic.type = )
-# obj$realize_all(dir = "store", file = "ScIGMA_merged.h5", chunkdim = c(1024,512), level = 6)
-
-# --------------------------------------------------------------- #
-# DEBUG
-
-library(bench)
-
-obj <- filter_variant_ScIGMA(obj = obj,
-                             min.dp = 10,
-                             min.gq = 30,
-                             vaf.ref = 5,
-                             vaf.hom = 95,
-                             vaf.het = 30,
-                             min.cell.pt = 10,
-                             min.mut.cell.pt = 10)
-
-obj$variant.annotation <- tryCatch(
-    fetch_variants_batch_fields(obj$variants.filtered,
-                                batch_size = 300,
-                                paths = cfg$paths)
-    , error = function(e){
-        remove_modal_spinner()
-        message(warning("Error during variant annotation: "),
-                stop(e$message))
-    })
-# Add info about proportion of mutated cells per variants
-obj$variant.annotation$probe <- gsub("^[^:]*:", "", obj$variant.annotation$variant_id)
-obj$variant.annotation$cell_proportion <- apply(as.matrix(obj$vaf.mtx.filtered)[,obj$variant.annotation$probe], 2, \(x){
-    sum(x != 0) / nrow(obj$vaf.mtx.filtered)
+# 2. Filtrage & Annotation (Un seul appel robuste)
+tryCatch({
+    # Assure-toi que cfg$paths est disponible dans l'environnement
+    ScIGMA_data <- filter_and_annotate_variants(
+        obj = ScIGMA_data,
+        paths = cfg$paths,
+        min_dp = 10,
+        min_gq = 30,
+        min_cell_pt = 10,
+        min_mut_cell_pt = 1
+    )
+}, error = function(e) {
+    stop(sprintf("Pipeline failed during filtering/annotation: %s", e$message))
 })
+# saveRDS(ScIGMA_data, "dev/ScIGMA_data_after_filter_and_annotate_variants.rds")
+# ScIGMA_data <- readRDS("dev/ScIGMA_data_after_filter_and_annotate_variants.rds")
+# 3. Sélection des cibles (CNA / SNV)
+annotation_df <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]))
 
 
-obj <- protein_run_pca(obj)
+
+# Filtrage sur les variants Pathogènes purs
+pathogenic_variants <- annotation_df[grepl("Pathogenic", annotation_df$clinvar, ignore.case = TRUE), ]
+pathogenic_variants <- pathogenic_variants[order(pathogenic_variants$cell_proportion, decreasing = TRUE), ]
+
+if (nrow(pathogenic_variants) == 0){
+    pathogenic_variants <- annotation_df |> arrange(desc(clinvar))
+    pathogenic_variants <- pathogenic_variants[1:10,]
+}
+
+target_variants <- rownames(pathogenic_variants)[1:min(20, nrow(pathogenic_variants))]
+
+# >> CNV _
+
+sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+    as.data.frame() |>
+    dplyr::select(variant_id, gene, transcript_id, protein, cdna, variant_type, gene_function, impact, clinvar, cell_proportion) |>
+    dplyr::arrange(desc(cell_proportion), desc(impact))
+
+# Extraction sécurisée des variants sélectionnés
+selected_df <- sorted_annotation[target_variants, , drop = FALSE]
+
+# Mise à jour de l'objet global (au cas où d'autres modules l'utilisent)
+ScIGMA_data$variants.filtered <- selected_df
+
+# Génération de la Heatmap
+ht_res <- generate_dna_variant_heatmap(
+    obj = ScIGMA_data,
+    selected_variants_df = selected_df,
+    heatmap_include_all_samples = TRUE
+)
+
+ht <- ComplexHeatmap::draw(ht_res$heatmap)
+print("New heatmap rendered")
 
 
-obj$seurat_object <- RunUMAP(obj$seurat_object,
-                                     dims = 1:(nrow(obj$seurat_object)-2),
+
+# Gestion des clones
+if (is.null(ScIGMA_data$dna_clones_renamed)) {
+    ScIGMA_data$dna.clones <- ht_res$clones
+}
+
+filtered_data <- filter_cnv_profile(ScIGMA_data,
+                                    ScIGMA_data$dna.clones,
+                                    amp_completeness = 50,
+                                    amp_readDepth = 10,
+                                    amp_meanCellRead = 10)
+
+
+
+
+ScIGMA_data <- infer_clonal_architecture(scigma_data = ScIGMA_data,
+                                         target_variants = target_variants,
+                                         chain_length = 200)
+
+
+ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
+
+
+
+ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
+                                     dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
                                      min.dist = 0.15,
                                      n.neighbors = 30,
                                      future.seed=TRUE)
 
+ScIGMA_data$seurat_object <- FindNeighbors(
+    ScIGMA_data$seurat_object,
+    features = rownames(ScIGMA_data$seurat_object),
+    dims = 1:ncol(ScIGMA_data$seurat_object@reductions$pca@cell.embeddings)
+)
+
+ScIGMA_data$seurat_object <- FindClusters(
+    ScIGMA_data$seurat_object,
+    resolution = 0.15
+)
+
+# Get dna clones from compass mtx
+extracted_variant_genotypes <- extract_variant_genotypes(mae_data = ScIGMA_data$mae,
+                                                         variant_id = rownames(ScIGMA_data$variants.filtered)[1], use_compass = T)
+
+extracted_variant_genotypes_df_plot <- extracted_variant_genotypes |> t() |> as.data.frame() |> select(1) |> rownames_to_column("cell_barcode")
+ref_umap <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings) |> rownames_to_column("cell_barcode")
+extracted_variant_genotypes_df_plot <- merge(extracted_variant_genotypes_df_plot, ref_umap) |> column_to_rownames("cell_barcode")
 
 
-# [ NODE_ACCESS : TRY BITSC2 ]
-# ----------------------------------------------------- _
 
 
 
-library(hdf5r)
 
-library(rhdf5)
-
-# prepare_bitsc2_input: Extracts and transforms H5 layers for BiTSC2
-prepare_bitsc2_input <- function(file_path) {
-    # Define internal paths within the Tapestri H5 structure
-    assay_path <- "/assays/dna_variants/"
-    layer_path <- paste0(assay_path, "layers/")
-
-    # Read AF (Allele Frequency) and DP (Total Depth)
-    # rhdf5 reads dimensions in the order they are stored in H5
-    af_matrix <- rhdf5::h5read(file_path, paste0(layer_path, "AF"))
-    af_matrix_init <- af_matrix
-    af_matrix <- af_matrix/100
-    dp_matrix <- rhdf5::h5read(file_path, paste0(layer_path, "DP"))
-
-    # Retrieve metadata for identification
-    variant_ids <- rhdf5::h5read(file_path, paste0(assay_path, "ca/id"))
-    cell_barcodes <- rhdf5::h5read(file_path, paste0(assay_path, "ra/barcode"))
-
-    # Close all open H5 handles to prevent file locking
-    rhdf5::h5closeAll()
-
-    # Reconstruct alternate allele counts: A = AF * DP
-    # We use round() to ensure integer values for the binomial likelihood
-    alt_counts <- round(af_matrix * dp_matrix)
-
-    # BiTSC2 requires the matrix shape: variants (rows) x cells (columns)
-    # Note: verify dimensions as rhdf5 might transpose depending on H5 layout
-    if (nrow(alt_counts) != length(variant_ids)) {
-        alt_counts <- t(alt_counts)
-        dp_matrix <- t(dp_matrix)
-    }
-
-    rownames(alt_counts) <- variant_ids
-    colnames(alt_counts) <- cell_barcodes
-    rownames(dp_matrix) <- variant_ids
-    colnames(dp_matrix) <- cell_barcodes
-
-    return(list(
-        af_matrix_init = af_matrix_init,
-        alternate_counts = alt_counts,
-        total_depth = dp_matrix
-    ))
-}
-
-
-library(rhdf5)
-
-# extract_clean_bitsc2_data: Filters out low-quality genotypes before BiTSC2
-extract_clean_bitsc2_data <- function(file_path, gq_threshold = 30) {
-    # Load layers using rhdf5
-    assay_path <- "/assays/dna_variants/"
-    layer_path <- paste0(assay_path, "layers/")
-    af_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/AF")
-    af_matrix <- af_matrix/100
-    dp_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/DP")
-    gq_matrix <- rhdf5::h5read(file_path, "/assays/dna_variants/layers/GQ")
-
-    # Retrieve metadata for identification
-    variant_ids <- rhdf5::h5read(file_path, paste0(assay_path, "ca/id"))
-    cell_barcodes <- rhdf5::h5read(file_path, paste0(assay_path, "ra/barcode"))
-
-    # Close all open H5 handles to prevent file locking
-    rhdf5::h5closeAll()
-
-    # Reconstruct alternate allele counts: A = AF * DP
-    # We use round() to ensure integer values for the binomial likelihood
-    alt_counts <- round(af_matrix * dp_matrix)
-
-    # BiTSC2 requires the matrix shape: variants (rows) x cells (columns)
-    # Note: verify dimensions as rhdf5 might transpose depending on H5 layout
-    if (nrow(alt_counts) != length(variant_ids)) {
-        alt_counts <- t(alt_counts)
-        dp_matrix <- t(dp_matrix)
-    }
-
-    rownames(alt_counts) <- variant_ids
-    colnames(alt_counts) <- cell_barcodes
-    rownames(dp_matrix) <- variant_ids
-    colnames(dp_matrix) <- cell_barcodes
-
-    # Identify low quality calls (GQ < threshold)
-    # These should be treated as 'Missing' (NA) rather than Wild Type (0)
-    low_quality_mask <- gq_matrix < gq_threshold
-
-    # Apply mask: setting AF to NA for low quality entries
-    # This forces BiTSC2 to rely on the clonal structure (imputation)
-    af_matrix[low_quality_mask] <- NA
-
-    # Final count reconstruction
-    # A = round(AF * DP)
-    alt_counts <- round(af_matrix * dp_matrix)
-
-    rhdf5::h5closeAll()
-
-    return(list(
-        A = t(alt_counts),
-        D = t(dp_matrix)
-    ))
-}
-
-test <- extract_clean_bitsc2_data(directory)
-
-saveRDS(test, "../../extract_clean_bitsc2_data.rds")

@@ -1,5 +1,8 @@
 default:
   paths:
+    transcript_id: "annotations.transcript_id.value"
+    protein: "annotations.protein.value"
+    cdna: "annotations.cdna.value"
     chromosome: "chromosome"
     position: "position"
     ref_allele: "ref_allele"

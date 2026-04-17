@@ -29,6 +29,9 @@ golem::add_module(name = "analysis_right_DNA_down", with_test = TRUE) # Name of 
 golem::add_module(name = "analysis_right_CNV", with_test = TRUE) # Name of the module
 golem::add_module(name = "analysis_right_Protein", with_test = TRUE) # Name of the module
 golem::add_module(name = "analysis_right_multiOmics", with_test = TRUE) # Name of the module
+golem::add_module(name = "download_panel", with_test = TRUE) # Name of the module
+golem::add_module(name = "help_panel", with_test = FALSE) # Name of the module
+golem::add_module(name = "about_panel", with_test = FALSE) # Name of the module
 
 ## Add packages ----
 usethis::use_package("bslib")
@@ -61,6 +64,8 @@ usethis::use_data_raw(name = "my_dataset", open = FALSE)
 ## Tests ----
 ## Add one line by test you want to create
 usethis::use_test("app")
+usethis::use_test("compass")
+usethis::use_test("test_dimensions_scigma")
 
 # Documentation
 

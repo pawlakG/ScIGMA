@@ -307,7 +307,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 
     dna_id_table <- data.frame(dna_id  = dna_id,
                                amplicon = .h5read_char(filepath, "/assays/dna_variants/ca/amplicon"),
-                               chrom = .h5read_char(filepath, "/assays/dna_variants/ca/CHROM"),
+                               chrom = .h5read_char(filepath, "/assays/dna_variants/ ca/CHROM"),
                                pos = .h5read_char(filepath, "/assays/dna_variants/ca/POS"),
                                ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"),
                                ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),
@@ -352,7 +352,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 
     # ---- Variant filter mask ----
     cnv_metadata <- list("genome_version" = .h5read_char(filepath, "/assays/dna_read_counts/metadata/genome_version")
-                         )
+    )
 
     # ---- Variant filter mask ----
     variant.filter.mask <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK"))
@@ -579,4 +579,247 @@ loadH5_dir_HDF5 <- function(dir,
         protein.mtx.cells = prot_cells,
         backing_files = list(original = files)
     )
+}
+
+
+loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protein", "DNA"), block.size = 100e6){
+    omic_type <- match.arg(omic_type)
+    stopifnot(file.exists(filepath))
+
+    options(DelayedArray.block.size = block.size)
+
+    if (omic_type == "DNA+protein"){
+        proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
+
+        # SUPPRESSION de t() : la matrice sort nativement en Features x Cells
+        protein_mtx <- .h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts")
+
+        if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")){
+            protein_samples <- "/assays/protein_read_counts/ra/label"
+        } else {
+            protein_samples <- "/assays/protein_read_counts/ra/sample_name"
+        }
+        protein_id_path <- "/assays/protein_read_counts/ra/barcode"
+        protein_barcodes <- .h5read_char(filepath, protein_id_path)
+        pr_ra_names <- .h5read_char(filepath, protein_samples)
+
+        # INVERSION STRICTE : Lignes = Protéines, Colonnes = Cellules
+        if (length(proteins) > 0 && length(protein_barcodes) > 0) {
+            dimnames(protein_mtx) <- list(proteins, protein_barcodes)
+        }
+
+        protein.normalize.method <- "unnormalized"
+        protein.cells <- setNames(pr_ra_names, nm = protein_barcodes)
+    } else {
+        message("DNA only: skip protein matrix")
+        proteins <- "non-protein"
+        protein.normalize.method <- "non-protein"
+        protein_mtx <- NULL
+        protein.cells <- character()
+    }
+
+    # ---- Check if label information exists ----
+    ## dna_read_counts
+    if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")){
+        dna_read_count_samples <- "/assays/dna_read_counts/ra/label"
+    } else {
+        dna_read_count_samples <- "/assays/dna_read_counts/ra/sample_name"
+    }
+
+    amp_sample_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode") # Sample barcode
+    amp_ca_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ca/id") # Amplicon ids
+    amp_sample_names <- setNames(amp_sample_ids, nm = .h5read_char(filepath, dna_read_count_samples))# Samples human readable names
+
+    ## dna_variants
+    if (.h5_has_path(filepath, "/assays/dna_variants/ra/label")){
+        dna_variants_samples <- "/assays/dna_variants/ra/label"
+    } else {
+        dna_variants_samples <- "/assays/dna_variants/ra/sample_name"
+    }
+    dna_sample_name <- .h5read_char(filepath, dna_variants_samples)
+    dna_sample_ids <- .h5read_char(filepath, "/assays/dna_variants/ra/barcode")
+    dna_id <- .h5read_char(filepath, "/assays/dna_variants/ca/id")
+
+    # ---- 1. Extraction et Forçage Dimensionnel (Features x Cells) ----
+    # Tapestri stocke souvent en Cellules x Variants. t() transpose en Variants x Cellules.
+
+    vaf_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/AF")
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) dimnames(vaf_mtx) <- list(dna_id, dna_sample_ids)
+
+    gt_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/NGT")
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
+        dimnames(gt_mtx) <- list(dna_id, dna_sample_ids)
+    }
+
+    dp_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/DP")
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
+        dimnames(dp_mtx) <- list(dna_id, dna_sample_ids)
+    }
+
+    gq_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/GQ")
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
+        dimnames(gq_mtx) <- list(dna_id, dna_sample_ids)
+    }
+
+    variant_filter_mask <- .h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK")
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
+        dimnames(variant_filter_mask) <- list(dna_id, dna_sample_ids)
+    }
+
+    # Assurez-vous que amp_mtx est bien extrait avant cette ligne si ce n'est pas déjà le cas
+    amp_mtx <- .h5_delayed(filepath, "/assays/dna_read_counts/layers/read_counts")
+    if (length(amp_ca_ids) > 0 && length(amp_sample_ids) > 0) dimnames(amp_mtx) <- list(amp_ca_ids, amp_sample_ids)
+
+    # ---- 2. Validation stricte des dimensions ----
+    expected_dim <- c(length(dna_id), length(dna_sample_ids))
+    raw_assays <- list(
+        vaf = vaf_mtx,
+        gt = gt_mtx,
+        dp = dp_mtx,
+        gq = gq_mtx,
+        variant_filter_mask = variant_filter_mask
+    )
+
+    assays_list <- Filter(
+        function(x) {
+            !is.null(x) && dim(x)[1] == expected_dim[1] && dim(x)[2] == expected_dim[2]
+        },
+        raw_assays
+    )
+
+    if (length(assays_list) == 0) stop("Critical failure: DNA assays dimension mismatch.")
+
+    # ---- 3. Tables S4Vectors (Lignes = Identifiants de la dimension) ----
+    dna_id_table <- S4Vectors::DataFrame(
+        dna_id = dna_id,
+        amplicon = .h5read_char(filepath, "/assays/dna_variants/ca/amplicon"),
+        chrom = .h5read_char(filepath, "/assays/dna_variants/ca/CHROM"),
+        pos = .h5read_char(filepath, "/assays/dna_variants/ca/POS"),
+        ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"), # RE-ADDED : Métrique QC
+        ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),         # RE-ADDED : Métrique QC
+        filtered = .h5read_char(filepath, "/assays/dna_variants/ca/filtered"),
+        row.names = dna_id
+    )
+
+    dna_cell_table <- S4Vectors::DataFrame(
+        dna_barcode = .h5read_char(filepath, "/assays/dna_variants/ra/barcode"),
+        dna_filtered = .h5read_char(filepath, "/assays/dna_variants/ra/filtered"),
+        dna_sample_name = dna_sample_name, # FIX : Utilise la variable extraite du H5, pas l'argument global
+        row.names = dna_sample_ids
+    )
+
+    cnv_id_table <- S4Vectors::DataFrame(
+        dna_id = amp_ca_ids,
+        chrom = .h5read_char(filepath, "/assays/dna_read_counts/ca/CHROM"),
+        start_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/start_pos")),
+        end_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/end_pos")),
+        # Add here gene info
+        row.names = amp_ca_ids
+    )
+
+    genome_v <- .h5read_char(filepath, "/assays/dna_read_counts/metadata/genome_version")
+    if (length(genome_v) == 0) genome_v <- "hg19"
+
+    # RE-ADDED : Extraction des métadonnées de pipeline (Tapestri, etc.)
+    dna_variant_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_variants/metadata")
+    dna_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_read_counts/metadata")
+
+    if (omic_type == "DNA+protein" && .h5_has_path(filepath, "/assays/protein_read_counts/metadata")) {
+        protein_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/protein_read_counts/metadata")
+    } else {
+        protein_read_counts_metadata <- list()
+    }
+
+    # ---- 4. Assemblage BioConductor ----
+    sce_variants <- SingleCellExperiment::SingleCellExperiment(
+        assays = assays_list,
+        rowData = dna_id_table
+    )
+
+    experiment_list <- list(dna_variants = sce_variants)
+
+    if (!is.null(amp_mtx)) {
+        experiment_list$amplicons <- SummarizedExperiment::SummarizedExperiment(
+            assays = list(counts = amp_mtx),
+            rowData = cnv_id_table
+        )
+    }
+
+    if (omic_type == "DNA+protein" && exists("protein_mtx") && !is.null(protein_mtx)) {
+        experiment_list$proteins <- SummarizedExperiment::SummarizedExperiment(
+            assays = list(counts = protein_mtx)
+        )
+    }
+
+    # ---- 5. Fédérateur MAE ----
+    mae_main <- MultiAssayExperiment::MultiAssayExperiment(
+        experiments = experiment_list,
+        colData = dna_cell_table,
+        metadata = list(
+            name = sample_name,
+            variant_filter = "unfiltered",
+            genome_version = genome_v,
+            dna_variant_meta = dna_variant_metadata,         # RE-ADDED
+            dna_read_counts_meta = dna_read_counts_metadata, # RE-ADDED
+            protein_meta = protein_read_counts_metadata      # RE-ADDED
+        )
+    )
+    # ---- 6. Instanciation R6 ----
+    ScIGMA_object$new(
+        mae = mae_main,
+        backing_files = list(original = filepath),
+        filetype = omic_type
+    )
+}
+
+#' Sanitize MAE string metadata to remove Windows carriage returns and whitespaces
+#'
+#' @param mae MultiAssayExperiment object
+#' @return Sanitized MultiAssayExperiment
+#' @export
+sanitize_mae_strings <- function(mae) {
+
+    # Fonction interne ultra-rapide pour nettoyer un vecteur
+    clean_char_vector <- function(x) {
+        if (is.character(x)) {
+            # Pulvérise \r et supprime les espaces invisibles aux extrémités
+            return(trimws(gsub("\r", "", x), whitespace = "[\\h\\v]"))
+        }
+        return(x) # Ignore les vecteurs numériques/logiques
+    }
+
+    # Fonction interne pour nettoyer un DataFrame entier
+    clean_df <- function(df) {
+        if (is.null(df) || nrow(df) == 0) return(df)
+
+        # Nettoyage du contenu des colonnes
+        df[] <- lapply(df, clean_char_vector)
+
+        # Nettoyage des index
+        if (!is.null(rownames(df))) rownames(df) <- clean_char_vector(rownames(df))
+        if (!is.null(colnames(df))) colnames(df) <- clean_char_vector(colnames(df))
+
+        return(df)
+    }
+
+    message("Sanitizing MAE object (Removing \\r and phantom whitespaces)...")
+
+    # 1. Purge du colData global (Métadonnées cliniques)
+    SummarizedExperiment::colData(mae) <- clean_df(as.data.frame(SummarizedExperiment::colData(mae)))
+
+    # 2. Purge itérative de chaque modalité (DNA, Protéines, Amplicons)
+    for (exp_name in names(mae)) {
+        se <- mae[[exp_name]]
+
+        # Purge des rowData (là où se trouve ton erreur)
+        SummarizedExperiment::rowData(se) <- clean_df(as.data.frame(SummarizedExperiment::rowData(se)))
+
+        # Purge des rownames/colnames des matrices d'assay
+        rownames(se) <- clean_char_vector(rownames(se))
+        colnames(se) <- clean_char_vector(colnames(se))
+
+        mae[[exp_name]] <- se
+    }
+
+    return(mae)
 }

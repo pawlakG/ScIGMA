@@ -29,6 +29,7 @@ Imports:
     promises,
     purrr,
     R6,
+    Rcpp,
     rhdf5,
     shiny,
     shinybusy,
@@ -40,6 +41,11 @@ Imports:
     tibble,
     tools,
     whereami
+LinkingTo: 
+    Rcpp
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

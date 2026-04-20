@@ -195,13 +195,13 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                              layout(
                                  plot_bgcolor = "white",
                                  paper_bgcolor = "white",
-                                 xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
-                                 yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
+                                 xaxis = list(visible = FALSE),
+                                 yaxis = list(visible = FALSE),
                                  legend = list(
                                      title = list(text = "<b>Cluster</b>", font = list(family = "Arial", color = "black")),
                                      font = list(family = "Arial", size = 12, color = "black")
                                  ),
-                                 margin = list(l = 60, r = 30, b = 60, t = 30)
+                                 margin = list(l = 60, r = 30, b = 10, t = 30)
                              ) %>%
                              config(displaylogo = FALSE)
 
@@ -298,14 +298,13 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 plotly::layout(
                     plot_bgcolor = "white",
                     paper_bgcolor = "white",
-                    # Recyclage de ton objet prism_axis_style défini plus haut dans le module
-                    xaxis = c(list(title = "<b>UMAP 1 (A.U.)</b>"), prism_axis_style),
-                    yaxis = c(list(title = "<b>UMAP 2 (A.U.)</b>"), prism_axis_style),
+                    xaxis = list(visible = FALSE),
+                    yaxis = list(visible = FALSE),
                     legend = list(
                         title = list(text = "<b>Genotype</b>", font = list(family = "Arial", color = "black")),
                         font = list(family = "Arial", size = 12, color = "black")
                     ),
-                    margin = list(l = 60, r = 30, b = 60, t = 30)
+                    margin = list(l = 60, r = 30, b = 10, t = 30)
                 ) |>
                 plotly::config(displaylogo = FALSE)
 

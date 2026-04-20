@@ -173,16 +173,20 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
                          # [!] Set parameters
                          # Clones
-                         dna_clones <- ScIGMA_data$dna.clones
+                         # dna_clones <- ScIGMA_data$dna.clones
                          # Colors
-                         n_clusters <- length(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]))
-                         dna_clones_colors <- setNames(c(viridis::viridis(n_clusters), NA, "grey"),
-                                                       nm = c(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]),
-                                                              "Missing", "small"))
+                         # n_clusters <- length(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]))
+                         # dna_clones_colors <- setNames(c(viridis::viridis(n_clusters), NA, "grey"),
+                         #                               nm = c(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]),
+                         #                                      "Missing", "small"))
                          # [!] Set df
                          ptnUmap_dna_df <-ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                              as.data.frame()
                          ptnUmap_dna_df$dna_clones = ScIGMA_data$dna.clones[rownames(ptnUmap_dna_df)]
+
+                         print("multiomic umap clones: ScIGMA_data$dna_clone_colors")
+                         print(ScIGMA_data$dna_clone_colors)
+                         dna_clones_colors <- ScIGMA_data$dna_clone_colors
 
                          p <- plot_ly(data = ptnUmap_dna_df,
                                       x = ~umap_1,

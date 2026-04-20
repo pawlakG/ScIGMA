@@ -911,3 +911,34 @@ infer_clonal_architecture <- function(scigma_data, target_variants,
     return(scigma_data)
 }
 
+#' Generate stable color palette for DNA clones
+#' @param clone_levels Character vector or factor of clone names
+#' @return Named character vector of hex colors
+#' @importFrom viridisLite turbo
+generate_clone_palette <- function(clone_levels) {
+    unique_clones <- unique(as.character(clone_levels))
+    unique_clones <- unique_clones[!is.na(unique_clones)]
+
+    # Identification des catégories de données manquantes
+    missing_tags <- c("Missing", "Missing/ADO", "NA", "Unknown", "missing")
+    is_missing <- unique_clones %in% missing_tags
+
+    base_clones <- sort(unique_clones[!is_missing])
+
+    # Attribution des couleurs (Turbo pour un contraste maximal)
+    clone_colors <- c()
+    if (length(base_clones) > 0) {
+        clone_colors <- viridisLite::turbo(n = length(base_clones))
+        names(clone_colors) <- base_clones
+    }
+
+    # Forcer le gris pour les dropouts/données manquantes
+    missing_clones <- unique_clones[is_missing]
+    if (length(missing_clones) > 0) {
+        missing_colors <- rep("#e0e0e0", length(missing_clones))
+        names(missing_colors) <- missing_clones
+        clone_colors <- c(clone_colors, missing_colors)
+    }
+
+    return(clone_colors)
+}

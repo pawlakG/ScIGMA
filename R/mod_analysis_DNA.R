@@ -187,6 +187,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                         as.factor(res_raw$cell_metadata$clonal_cluster_id),
                         res_raw$cell_metadata$cell_barcode
                     )
+                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
                 }
             }
 
@@ -275,6 +276,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 if (is.null(ScIGMA_data$dna_clones_renamed)) {
                     ScIGMA_data$dna.clones <- ht_res$clones
+                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
                 }
 
                 trigger("dnaVariant_selected")
@@ -321,15 +323,34 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
         observeEvent(input$btn_update_cluster_labels,
                      {
-                         req(ScIGMA_data$dna.clones)
+                         req(ScIGMA_data$dna.clones,
+                             input$rename_cluster_ui_oldName,
+                             input$rename_cluster_ui_newName)
                          # update dna.clones labels
-                         oldName <- input$rename_cluster_ui_oldName
-                         newName <- input$rename_cluster_ui_newName
-                         levels <- oldName
-                         names(levels) <- newName
-                         # ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, newName = oldName)
-                         ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, !!!levels)
-                         ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
+                         # oldName <- input$rename_cluster_ui_oldName
+                         # newName <- input$rename_cluster_ui_newName
+                         # levels <- oldName
+                         # names(levels) <- newName
+
+                         print("input$rename_cluster_ui_oldName")
+                         print(input$rename_cluster_ui_oldName)
+                         print("input$rename_cluster_ui_newName")
+                         print(input$rename_cluster_ui_newName)
+
+                         ScIGMA_data$update_dna_clone_names(
+                             old_name = input$rename_cluster_ui_oldName,
+                             new_name = input$rename_cluster_ui_newName
+                         )
+
+
+                         # ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, !!!levels)
+                         # ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
+
+                         output$rename_cluster_ui <- renderUI({
+                             # (Ré-exécution du code renderUI existant pour rafraîchir le pickerInput)
+                         })
+
+
                          trigger("dna_clones_renamed")
                      })
 
@@ -399,11 +420,28 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             }
         )
 
-
         observeEvent(input$btn_run_compass, {
             req(ScIGMA_data$mae)
-            req(input$run_compass_length_chains)
 
+            shinyWidgets::confirmSweetAlert(
+                session = session,
+                inputId = ns("confirm_run_compass"),
+                type = "warning",
+                title = "MCMC Inference Initialization",
+                text = shiny::HTML("<b>Warning:</b> Running COMPASS will completely recalculate the clonal architecture.<br><br>Any custom clone names you have defined will be <b>permanently erased and reset</b>.<br><br>Do you want to proceed?"),
+                html = TRUE,
+                btn_labels = c("Cancel", "Run COMPASS"),
+                btn_colors = c("#d3d3d3", "#007bff")
+            )
+        }, ignoreInit = TRUE)
+
+        # 2. Exécution : Lancement réel si l'utilisateur valide
+        observeEvent(input$confirm_run_compass, {
+            # On stoppe tout si l'utilisateur a cliqué sur "Cancel" (FALSE)
+            req(isTRUE(input$confirm_run_compass))
+
+            req(ScIGMA_data$mae)
+            req(input$run_compass_length_chains)
 
             compass_tree_visible(TRUE)
 
@@ -413,11 +451,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                                     duration = NULL,
                                     type = "message")
 
-            print("ScIGMA_data$variants.filtered")
-            print(ScIGMA_data$variants.filtered)
-
-            # 2. EXTRACTION SYNCHRONE (Thread Principal)
-            # Opération vitale : on lit le HDF5 ici, on ne passe que des objets RAM au worker
+            # --- DÉBUT DU CODE EXISTANT POUR COMPASS ---
             if (is.null(ScIGMA_data$variants.filtered)){
                 target_vars <- rownames(ScIGMA_data$mae[["dna_variants"]])
             } else {
@@ -442,9 +476,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             storage.mode(mat_cna) <- "integer"
             storage.mode(mat_gt)  <- "integer"
 
-
-            print("test_4")
-
             variant_matrices <- list(REF = mat_ref, ALT = mat_alt, GT = mat_gt)
 
             # Métadonnées
@@ -462,7 +493,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
             vec_locus_regions <- as.integer(compass_inputs$locus_regions)
 
-            # La SEULE notification 2/2 qui doit rester (avec l'ID en dur)
             shiny::showNotification(
                 "2/2 - MCMC en arrière-plan. La session est débloquée, vous pouvez lancer d'autres analyses.",
                 id = "compass_notif",
@@ -476,7 +506,86 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 vec_locus_names, vec_locus_chrom,
                 vec_region_names, vec_region_chrom, use_cna, target_vars
             )
-        })
+            # --- FIN DU CODE EXISTANT POUR COMPASS ---
+        }, ignoreInit = TRUE)
+
+
+        # observeEvent(input$btn_run_compass, {
+        #     req(ScIGMA_data$mae)
+        #
+        #
+        #     compass_tree_visible(TRUE)
+        #
+        #     shinyjs::disable("btn_run_compass")
+        #     shiny::showNotification("1/2 - Extraction HDF5 et préparation des matrices...",
+        #                             id = "compass_notif",
+        #                             duration = NULL,
+        #                             type = "message")
+        #
+        #     print("ScIGMA_data$variants.filtered")
+        #     print(ScIGMA_data$variants.filtered)
+        #
+        #     # 2. EXTRACTION SYNCHRONE (Thread Principal)
+        #     # Opération vitale : on lit le HDF5 ici, on ne passe que des objets RAM au worker
+        #     if (is.null(ScIGMA_data$variants.filtered)){
+        #         target_vars <- rownames(ScIGMA_data$mae[["dna_variants"]])
+        #     } else {
+        #         target_vars <- rownames(ScIGMA_data$variants.filtered)
+        #     }
+        #
+        #     compass_length_chains <- input$run_compass_length_chains
+        #
+        #     compass_inputs <- build_compass_matrices(obj = ScIGMA_data, selected_variants = target_vars)
+        #
+        #     # Conversion en matrices denses + Transposition
+        #     mat_ref <- t(as.matrix(compass_inputs$M_ref))
+        #     mat_alt <- t(as.matrix(compass_inputs$M_alt))
+        #     mat_cna <- t(as.matrix(compass_inputs$C))
+        #
+        #     gt_assay <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt")
+        #     mat_gt <- as.matrix(gt_assay[target_vars, , drop = FALSE])
+        #     mat_gt[mat_gt == 3L] <- NA
+        #
+        #     storage.mode(mat_ref) <- "integer"
+        #     storage.mode(mat_alt) <- "integer"
+        #     storage.mode(mat_cna) <- "integer"
+        #     storage.mode(mat_gt)  <- "integer"
+        #
+        #
+        #     print("test_4")
+        #
+        #     variant_matrices <- list(REF = mat_ref, ALT = mat_alt, GT = mat_gt)
+        #
+        #     # Métadonnées
+        #     dna_se <- ScIGMA_data$mae[["dna_variants"]]
+        #     snv_sub <- as.data.frame(SummarizedExperiment::rowData(dna_se))[target_vars, ]
+        #     vec_locus_names <- snv_sub$gene
+        #     vec_locus_chrom <- snv_sub$chrom
+        #
+        #     amp_se <- ScIGMA_data$mae[["amplicons"]]
+        #     cna_row_data <- as.data.frame(SummarizedExperiment::rowData(amp_se))
+        #     vec_region_names <- unique(paste0(cna_row_data$chrom, "_", sapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3])))
+        #     vec_region_chrom <- sub("^chr", "", sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE), ignore.case = TRUE)
+        #
+        #     use_cna <- if (ncol(variant_matrices$REF) != ncol(mat_cna)) FALSE else TRUE
+        #
+        #     vec_locus_regions <- as.integer(compass_inputs$locus_regions)
+        #
+        #     # La SEULE notification 2/2 qui doit rester (avec l'ID en dur)
+        #     shiny::showNotification(
+        #         "2/2 - MCMC en arrière-plan. La session est débloquée, vous pouvez lancer d'autres analyses.",
+        #         id = "compass_notif",
+        #         type = "warning",
+        #         duration = NULL
+        #     )
+        #
+        #     # L'appel magique : Lance le calcul et LIBÈRE IMMÉDIATEMENT la session UI
+        #     compass_task$invoke(
+        #         compass_length_chains, variant_matrices, vec_locus_regions, mat_cna,
+        #         vec_locus_names, vec_locus_chrom,
+        #         vec_region_names, vec_region_chrom, use_cna, target_vars
+        #     )
+        # })
 
         # 3. LE RÉCEPTEUR SILENCIEUX
         observeEvent(compass_task$status(), {
@@ -544,6 +653,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     as.factor(clustering_res$cell_metadata$clonal_cluster_id),
                     clustering_res$cell_metadata$cell_barcode
                 )
+
+                ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
 
                 # Synchronisation UI
                 shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = TRUE)

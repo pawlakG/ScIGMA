@@ -22,6 +22,29 @@ ScIGMA_object <- R6::R6Class(
         cnv.active.clones = NULL,
         protein.gating_tree = NULL,
         dna.clones_pre_compass = NULL,
+        dna_clone_colors = NULL,
+
+
+        #' @description
+        #' Renomme un clone et synchronise sa couleur
+        update_dna_clone_names = function(old_name, new_name) {
+            # 1. Mise à jour des niveaux du facteur dna.clones
+            if (!is.null(self$dna.clones)) {
+                levels(self$dna.clones)[levels(self$dna.clones) == old_name] <- new_name
+                self$dna_clones_renamed <- self$dna.clones
+            }
+
+            # 2. Mise à jour de la palette de couleurs
+            # FIX CRITIQUE : Suppression de la double référence (self$self)
+            if (!is.null(self$dna_clone_colors)) {
+                names(self$dna_clone_colors)[names(self$dna_clone_colors) == old_name] <- new_name
+            }
+
+            # Signal de mise à jour pour les graphiques réactifs
+            gargoyle::trigger("dna_clones_renamed")
+            invisible(self)
+        },
+
 
         initialize = function(mae = NULL,
                               mae_raw = NULL,
@@ -65,6 +88,7 @@ ScIGMA_object <- R6::R6Class(
             self$cnv.active.clones <- NULL
             self$protein.gating_tree <- NULL
             dna.clones_pre_compass <- NULL
+            self$dna_clone_colors <- NULL
 
             # Sécurité additionnelle sur les métadonnées
             if (!is.null(self$mae)) {

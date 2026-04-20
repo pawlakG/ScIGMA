@@ -107,7 +107,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                   FALSE),
                                     selectInput(ns("color_genotype"),
                                                 "Color by Genotype",
-                                                choices = c("None", ScIGMA_data$variants.filtered$label)),
+                                                # choices = c("None", ScIGMA_data$variants.filtered$label)),
+                                                choices = c("None", levels(ScIGMA_data$dna.clones))),
 
                                     # FIX CRITIQUE : Détection propre du nouvel Assay
                                     if ("compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
@@ -293,36 +294,35 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             if (input$logx) plot_df$x <- log1p(plot_df$x)
             if (input$logy) plot_df$y <- log1p(plot_df$y)
+
+            # Configuration par défaut (Aucune coloration)
             color_formula <- NULL
-            color_palette <- "#2c3e50"
+            color_palette <- NULL
+            marker_config <- list(size = 5, opacity = 0.8, color = "#2c3e50")
 
             if (!is.null(input$color_genotype) && input$color_genotype != "None") {
 
-                # 1. Aiguillage direct vers l'Assay souhaité
-                assay_to_extract <- "gt"
-                if (input$use_compass_gt && "compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
-                    assay_to_extract <- "compass_imputed"
-                }
-                # short_genotype_id <- sub(x = input$color_genotype, pattern = "^([^:]+:)|^:", "")
-                short_genotype_id <-  rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$color_genotype]
+                # 1. Mappage strict du clone pour chaque cellule
+                plot_df$Genotype <- as.character(ScIGMA_data$dna.clones[rownames(plot_df)])
 
-                # 2. Extraction sécurisée
-                gt_vec <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], assay_to_extract)[short_genotype_id, current_indices]
+                # 2. Isolement du clone cible, tout le reste devient "Other"
+                plot_df$Genotype <- ifelse(plot_df$Genotype %in% input$color_genotype, plot_df$Genotype, "Other")
 
-                # 3. Sécurité Dropouts : Si des NA se glissent, ils redeviennent 3L
-                gt_vec[is.na(gt_vec)] <- 3L
-
-                # Mapping des labels pour la légende
-                gt_labels <- c("0" = "WT", "1" = "Het", "2" = "Hom", "3" = "Missing")
-                plot_df$Genotype <- factor(gt_labels[as.character(gt_vec)],
-                                           levels = c("WT", "Het", "Hom", "Missing"))
+                # 3. Verrouillage factoriel (Z-Indexing)
+                # En mettant "Other" en premier, Plotly va dessiner le nuage gris au fond,
+                # et le clone coloré par-dessus.
+                plot_df$Genotype <- factor(plot_df$Genotype, levels = c("Other", input$color_genotype))
 
                 color_formula <- ~Genotype
-                # Palette scientifique contrastée
-                color_palette <- c("WT" = "#bdc3c7", "Het" = "#f39c12", "Hom" = "#e74c3c", "Missing" = "#ecf0f1")
+
+                # 4. Injection de la transparence via le canal Alpha Hexadécimal (33 = 20%)
+                color_palette <- c(ScIGMA_data$dna_clone_colors, "Other" = "#e0e0e033")
+
+                # 5. On retire l'opacité et la couleur forcées pour laisser la palette agir
+                marker_config <- list(size = 5)
             }
 
-            plot_ly(
+            plotly::plot_ly(
                 data = plot_df,
                 x = ~x,
                 y = ~y,
@@ -332,9 +332,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 type = "scattergl",
                 mode = "markers",
                 source = ns("gating_plot"),
-                marker = list(size = 5, opacity = 0.8)
+                marker = marker_config
             ) %>%
-                layout(
+                plotly::layout(
                     title = list(text = paste("<b>Gate:</b>", r_state$subset_meta[[r_state$current_view]]$name),
                                  font = list(family = "Arial", size = 18)),
                     plot_bgcolor = "white",
@@ -345,7 +345,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     legend = list(title = list(text = "<b>Genotype</b>")),
                     margin = list(l = 60, r = 30, b = 60, t = 50)
                 ) %>%
-                config(displaylogo = FALSE)
+                plotly::config(displaylogo = FALSE)
         })
 
         # --- 3. Selection & Gating Logic ---

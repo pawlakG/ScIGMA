@@ -279,6 +279,35 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             plotlyOutput(ns("biplot"), height = "600px")
         })
 
+        shiny::observeEvent(
+            list(
+                watch("dnaVariant_selected"),  # Quand une heatmap est générée
+                watch("dna_clones_renamed"),   # Quand tu renommes manuellement
+                watch("compass_completed")     # Quand COMPASS recalcule l'architecture
+            ),
+            {
+                # Sécurité : on ne fait rien si les clones n'existent pas encore
+                shiny::req(ScIGMA_data$dna.clones)
+
+                # 1. Extraction brute : on contourne les bugs liés aux "Factors" en R
+                current_clones <- unique(as.character(ScIGMA_data$dna.clones))
+
+                # 2. Nettoyage strict : on vire le bruit technique de la liste déroulante
+                current_clones <- setdiff(current_clones, c("Missing", "Missing/ADO", "small", "NA", "Unknown"))
+
+                # 3. Tri propre
+                current_clones <- sort(current_clones)
+
+                # 4. Injection dans l'interface
+                shiny::updateSelectInput(
+                    session = session,
+                    inputId = "color_genotype",  # CRITIQUE : Jamais de ns() dans le serveur pour un update
+                    choices = c("None", current_clones)
+                )
+            },
+            ignoreInit = TRUE
+        )
+
         output$biplot <- renderPlotly({
             req(input$xvar, input$yvar, r_state$current_view)
 

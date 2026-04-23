@@ -322,13 +322,6 @@ generate_clonal_labels <- function(ngt_matrix,
     # Define mapping dictionary: short_id -> full_id
     variant_map <- setNames(full_variant_ids, short_variant_ids)
 
-    print("head(colnames(ngt_matrix))")
-    print(head(colnames(ngt_matrix)))
-    print("short_variant_ids")
-    print(head(short_variant_ids))
-    print("short_variant_ids")
-    print(head(target_variants_df$variant_id))
-
     # 2. Integrity check
     missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
     if (length(missing_variants) > 0) {
@@ -485,9 +478,6 @@ generate_dna_variant_heatmap <- function(obj,
         msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
     }
 
-    print("short_variants")
-    print(short_variants)
-
     # 3. Transposition immédiate pour le clustering (Format requis : Cells x Variants)
     gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
     msk <- t(as.matrix(msk_full[short_variants, , drop = FALSE])) != 0
@@ -599,9 +589,6 @@ generate_dna_variant_heatmap <- function(obj,
 
     new_colnames <- selected_variants_df$variant_id[idx_colnames]
     new_colnames <- sub(":", "    \n", new_colnames)
-
-    print("dimension : tmp_heamtap_matrix_filtered_complete_ordered")
-    print(dim(tmp_heamtap_matrix_filtered_complete_ordered))
 
     ## Heatmap
     heatmap <- ComplexHeatmap::Heatmap(
@@ -932,13 +919,10 @@ generate_clone_palette <- function(clone_levels) {
         names(clone_colors) <- base_clones
     }
 
-    # Forcer le gris pour les dropouts/données manquantes
-    missing_clones <- unique_clones[is_missing]
-    if (length(missing_clones) > 0) {
-        missing_colors <- rep("#e0e0e0", length(missing_clones))
-        names(missing_colors) <- missing_clones
-        clone_colors <- c(clone_colors, missing_colors)
-    }
+    missing_colors <- c("Missing" = "#e0e0e0")
+    clone_colors <- c(clone_colors, missing_colors)
+    small_color <- c("small" = "#00000019")
+    clone_colors <- c(clone_colors, small_color)
 
     return(clone_colors)
 }

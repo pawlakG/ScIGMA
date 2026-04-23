@@ -162,64 +162,64 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         # [!] Clones
         observeEvent(
             list(watch("umap_computed"),
-                 watch("dnaVariant_selected")), {
+                 watch("dna_clones_renamed"),
+                 watch("compass_completed")), {
+
                      output$ptnUMAP_DNA_acc_dnaClones_plot <- renderPlotly({
-                         w <- Waiter$new(
-                             id = ns("ptnUMAP_DNA_acc_dnaClones_plot"),
-                             html = spin_3(),
-                             color = transparent(0.5)
-                         )
+                         w <- Waiter$new(id = ns("ptnUMAP_DNA_acc_dnaClones_plot"), html = spin_3(), color = transparent(0.5))
                          w$show()
 
-                         # [!] Set parameters
-                         # Clones
-                         # dna_clones <- ScIGMA_data$dna.clones
-                         # Colors
-                         # n_clusters <- length(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]))
-                         # dna_clones_colors <- setNames(c(viridis::viridis(n_clusters), NA, "grey"),
-                         #                               nm = c(unique(ScIGMA_data$dna.clones[!ScIGMA_data$dna.clones %in% c("Missing","small")]),
-                         #                                      "Missing", "small"))
-                         # [!] Set df
-                         ptnUmap_dna_df <-ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
-                             as.data.frame()
-                         ptnUmap_dna_df$dna_clones = ScIGMA_data$dna.clones[rownames(ptnUmap_dna_df)]
+                         # 1. Sélection dynamique du vecteur selon le slider
+                         use_compass <- isTRUE(input$ptnUMAP_DNA_acc_gtMtx_choice)
 
-                         print("multiomic umap clones: ScIGMA_data$dna_clone_colors")
-                         print(ScIGMA_data$dna_clone_colors)
-                         dna_clones_colors <- ScIGMA_data$dna_clone_colors
+                         print("ScIGMA_data$dna.clones_pre_compass")
+                         print(table(ScIGMA_data$dna.clones_pre_compass))
+                         print("dna_clones_to_use <- ScIGMA_data$dna.clones")
+                         print(table(dna_clones_to_use <- ScIGMA_data$dna.clones))
 
+                         if (use_compass) {
+                             # Sécurité : si COMPASS n'a pas été lancé, on force le retour au brut
+                             if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                                 shiny::showNotification("COMPASS non exécuté. Affichage des clones bruts.", type = "warning")
+                                 print("using pre-compass clones")
+                                 dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+                             } else {
+                                 print("using post-compass clones")
+                                 dna_clones_to_use <- ScIGMA_data$dna.clones
+                             }
+                         } else {
+                             print("using pre-compass clones")
+                             dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+                         }
+
+                         shiny::req(dna_clones_to_use)
+
+                         # 2. Préparation du DataFrame
+                         ptnUmap_dna_df <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings)
+                         ptnUmap_dna_df$dna_clones <- as.character(dna_clones_to_use[rownames(ptnUmap_dna_df)])
+                         ptnUmap_dna_df$dna_clones[is.na(ptnUmap_dna_df$dna_clones)] <- "Missing"
+
+                         # 3. Rendu avec palette synchronisée
                          p <- plot_ly(data = ptnUmap_dna_df,
-                                      x = ~umap_1,
-                                      y = ~umap_2,
-                                      type = 'scattergl',
-                                      mode = 'markers',
+                                      x = ~umap_1, y = ~umap_2,
+                                      type = 'scattergl', mode = 'markers',
                                       color = ~dna_clones,
-                                      colors = dna_clones_colors,
+                                      colors = ScIGMA_data$dna_clone_colors, # Utilisation de la palette R6
                                       marker = list(size = 5, opacity = 0.8)) %>%
                              layout(
-                                 plot_bgcolor = "white",
-                                 paper_bgcolor = "white",
-                                 xaxis = list(visible = FALSE),
-                                 yaxis = list(visible = FALSE),
-                                 legend = list(
-                                     title = list(text = "<b>Cluster</b>", font = list(family = "Arial", color = "black")),
-                                     font = list(family = "Arial", size = 12, color = "black")
-                                 ),
-                                 margin = list(l = 60, r = 30, b = 10, t = 30)
+                                 xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
+                                 yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
+                                 legend = list(title = list(text = "<b>Clones</b>"))
                              ) %>%
                              config(displaylogo = FALSE)
 
                          w$hide()
                          return(p)
                      })
-
-                 },
-            ignoreInit = TRUE)
+                 }, ignoreInit = TRUE)
         # [!] Variants _
         observeEvent(watch("dataLoaded"), {
             shiny::req(ScIGMA_data$mae)
-            print("ScIGMA_data$variants.filtered")
-            print(ScIGMA_data$variants.filtered)
             # available_variants <- rownames(ScIGMA_data$mae[["dna_variants"]])
             available_variants <- ScIGMA_data$variants.filtered$label
             shinyWidgets::updatePickerInput(
@@ -239,11 +239,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             # 2. Extraction des coordonnées
             umap_df <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings)
             umap_df$Barcode <- rownames(umap_df)
-
-            print("input$selected_variant")
-            print(input$selected_variant)
-            print("input$use_compass_variant")
-            print(input$use_compass_variant)
 
             # Retrieve variant id
             tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
@@ -329,16 +324,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             assay_colnames <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> colnames()
             cel_barcode <- assay_colnames[ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]]]
 
-            print("cel_barcode")
-            print(length(cel_barcode))
-            print(head(cel_barcode))
-
             # Extraction des données via le helper
             plot_df <- compute_population_genotype_distribution(
                 mae_data = ScIGMA_data$mae,
-                # variant_ids = ScIGMA_data$variants.filtered$variant_id,
                 variant_ids = rownames(ScIGMA_data$variants.filtered),
-                # cell_barcodes = ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]],
                 cell_barcodes = cel_barcode,
                 use_compass = input$use_compass_biplot
             ) |> as.data.frame()
@@ -349,17 +338,17 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 "HOM" = "#fde725", "Missing/ADO" = "#e0e0e0"
             )
 
-
             # Merge plot_df with variant ScIGMA_data$variants.filtered
 
-            variants.filtered_tmp <- ScIGMA_data$variants.filtered |> select(-variant_id) |>
+            variants.filtered_tmp <- ScIGMA_data$variants.filtered |>
+                select(-variant_id) |>
                 rownames_to_column("Variant_ID")
 
             plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
                              by = "Variant_ID")
 
-            plot_df_joined$Variant <- paste(plot_df_joined$protein, plot_df_joined$cdna, sep = ", ")
-
+            plot_df_joined$Variant <- paste(plot_df_joined$protein,
+                                            plot_df_joined$cdna, sep = ", ")
 
             plotly::plot_ly(
                 data = plot_df_joined,
@@ -368,18 +357,18 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 color = ~Variant_Genotype,
                 colors = variant_colors,
                 type = 'bar',
-                text = ~paste0(round(Percentage, 1), "% (n=", Count, ")"),
+                text = ~paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
                 textposition = 'outside',
-                textfont = list(size = 15, color = "black", family = "Arial"),
+                textfont = list(size = 12, color = "black", family = "Arial"),
                 constraintext = 'none',
                 hoverinfo = 'text'
             ) |>
                 plotly::layout(
                     barmode = 'group',
                     xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
-                    yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 115)), prism_axis_style),
+                    yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
                     legend = list(title = list(text = "<b>Genotype</b>")),
-                    margin = list(b = 100)
+                    margin = list(b = 100, t = 50)
                 ) |>
                 plotly::config(displaylogo = FALSE)
         })

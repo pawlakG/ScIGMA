@@ -9,11 +9,6 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
         imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
         imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
 
-        print("imputed_mtx")
-        print(dim(imputed_mtx))
-        print("rownames(imputed_mtx)")
-        print(head(rownames(imputed_mtx)))
-
         if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
             variant_vector <- imputed_mtx[variant_id, ]
         } else {
@@ -48,10 +43,7 @@ compute_population_genotype_distribution <- function(mae_data, variant_ids, cell
 
     # 1. Sélection de la matrice source
     if (use_compass) {
-        # Accès direct au slot metadata défini pour COMPASS
-        imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
-        mtx_source <- imputed_mtx_tmp$compass$imputed_gt
-        # mtx_source <- S4Vectors::metadata(mae_data)$compass$imputed_gt
+        mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
     } else {
         mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")
     }

@@ -4,10 +4,10 @@
 #' @param use_compass Logical to select imputed vs raw assay
 #' @return data.frame with Barcode and Variant_Genotype columns
 extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
-
     if (use_compass) {
-        imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
-        imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
+        # imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
+        # imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
+        imputed_mtx <-  SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
 
         if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
             variant_vector <- imputed_mtx[variant_id, ]

@@ -338,87 +338,100 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         }, ignoreInit = TRUE)
 
 
-        output$ptnUMAP_DNA_acc_dnaVariants_plot <- plotly::renderPlotly({
-            print("ptnUMAP_DNA_acc_dnaVariants_plot : input$use_compass_variant")
-            print(input$use_compass_variant)
-            # 1. Évaluation paresseuse stricte
-            shiny::req("DNA Variants" %in% input$ptnUMAP_DNA_acc)
-            watch("umap_computed")
-            shiny::req(ScIGMA_data$seurat_object, input$selected_variant)
+        observeEvent(
+            list(watch("umap_computed"),
+                 watch("dna_clones_renamed"),
+                 watch("compass_completed")), {
+                     output$ptnUMAP_DNA_acc_dnaVariants_plot <- plotly::renderPlotly({
 
-            # 2. Extraction des coordonnées
-            umap_df <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings)
-            umap_df$Barcode <- rownames(umap_df)
+                         w <- Waiter$new(id = ns("ptnUMAP_DNA_acc_dnaVariants_plot"), html = spin_3(), color = transparent(0.5))
+                         w$show()
 
-            # Retrieve variant id
-            tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
 
-            # 3. Extraction du génotype
-            geno_df <- extract_variant_genotypes(
-                mae_data = ScIGMA_data$mae,
-                # variant_id = input$selected_variant,
-                variant_id = tmp_selected_variant,
-                use_compass = input$use_compass_variant
-            )
-            # 4. Jointure asymétrique
-            plot_df <- merge(umap_df, geno_df, by = "Barcode", all.x = TRUE)
+                         print("ptnUMAP_DNA_acc_dnaVariants_plot : input$use_compass_variant")
+                         print(input$use_compass_variant)
+                         # 1. Évaluation paresseuse stricte
+                         shiny::req("DNA Variants" %in% input$ptnUMAP_DNA_acc)
+                         watch("umap_computed")
+                         shiny::req(ScIGMA_data$seurat_object, input$selected_variant)
 
-            # 5. Nomenclature clinique
-            geno_map <- c(
-                "0" = "WT",
-                "1" = "HET",
-                "2" = "HOM",
-                "3" = "Missing/ADO",
-                "Missing/ADO" = "Missing/ADO"
-            )
+                         # 2. Extraction des coordonnées
+                         umap_df <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings)
+                         umap_df$Barcode <- rownames(umap_df)
 
-            # plot_df$Variant_Genotype <- geno_map[as.character(plot_df$Variant_Genotype)]
-            plot_df$Variant_Genotype[is.na(plot_df$Variant_Genotype)] <- "Unknown"
+                         # Retrieve variant id
+                         tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
 
-            plot_df$Variant_Genotype <- factor(
-                plot_df$Variant_Genotype,
-                levels = c("WT", "HET", "HOM", "Missing/ADO", "Unknown")
-            )
+                         # 3. Extraction du génotype
+                         print("ScIGMA_data$mae")
+                         print(ScIGMA_data$mae)
+                         geno_df <- extract_variant_genotypes(
+                             mae_data = ScIGMA_data$mae,
+                             # variant_id = input$selected_variant,
+                             variant_id = tmp_selected_variant,
+                             use_compass = input$use_compass_variant
+                         )
+                         # 4. Jointure asymétrique
+                         plot_df <- merge(umap_df, geno_df, by = "Barcode", all.x = TRUE)
 
-            # 6. Verrouillage strict de la palette colorimétrique (Inspirée de Viridis)
-            # Permet de figer les couleurs indépendamment des dropouts présents dans le lot
-            variant_colors <- c(
-                "WT" = "#440154",          # Violet profond
-                "HET" = "#21918c",         # Sarcelle
-                "HOM" = "#fde725",         # Jaune brillant
-                "Missing/ADO" = "#e0e0e0", # Gris clair (Inerte)
-                "Unknown" = "#000000"      # Noir (Anomalie)
-            )
+                         # 5. Nomenclature clinique
+                         geno_map <- c(
+                             "0" = "WT",
+                             "1" = "HET",
+                             "2" = "HOM",
+                             "3" = "Missing/ADO",
+                             "Missing/ADO" = "Missing/ADO"
+                         )
 
-            # 7. Rendu Plotly (Hardware Accelerated via scattergl)
-            p <- plotly::plot_ly(
-                data = plot_df,
-                x = ~umap_1,
-                y = ~umap_2,
-                type = 'scattergl', # CRITIQUE : Performance Single-Cell
-                mode = 'markers',
-                color = ~Variant_Genotype,
-                colors = variant_colors,
-                marker = list(size = 5, opacity = 0.8),
-                # Tooltip interactif propre
-                text = ~paste("Barcode:", Barcode, "<br>Genotype:", Variant_Genotype),
-                hoverinfo = "text"
-            ) |>
-                plotly::layout(
-                    plot_bgcolor = "white",
-                    paper_bgcolor = "white",
-                    xaxis = list(visible = FALSE),
-                    yaxis = list(visible = FALSE),
-                    legend = list(
-                        title = list(text = "<b>Genotype</b>", font = list(family = "Arial", color = "black")),
-                        font = list(family = "Arial", size = 12, color = "black")
-                    ),
-                    margin = list(l = 60, r = 30, b = 10, t = 30)
-                ) |>
-                plotly::config(displaylogo = FALSE)
+                         # plot_df$Variant_Genotype <- geno_map[as.character(plot_df$Variant_Genotype)]
+                         plot_df$Variant_Genotype[is.na(plot_df$Variant_Genotype)] <- "Unknown"
 
-            return(p)
-        })
+                         plot_df$Variant_Genotype <- factor(
+                             plot_df$Variant_Genotype,
+                             levels = c("WT", "HET", "HOM", "Missing/ADO", "Unknown")
+                         )
+
+                         # 6. Verrouillage strict de la palette colorimétrique (Inspirée de Viridis)
+                         # Permet de figer les couleurs indépendamment des dropouts présents dans le lot
+                         variant_colors <- c(
+                             "WT" = "#440154",          # Violet profond
+                             "HET" = "#21918c",         # Sarcelle
+                             "HOM" = "#fde725",         # Jaune brillant
+                             "Missing/ADO" = "#e0e0e0", # Gris clair (Inerte)
+                             "Unknown" = "#000000"      # Noir (Anomalie)
+                         )
+
+                         # 7. Rendu Plotly (Hardware Accelerated via scattergl)
+                         p <- plotly::plot_ly(
+                             data = plot_df,
+                             x = ~umap_1,
+                             y = ~umap_2,
+                             type = 'scattergl', # CRITIQUE : Performance Single-Cell
+                             mode = 'markers',
+                             color = ~Variant_Genotype,
+                             colors = variant_colors,
+                             marker = list(size = 5, opacity = 0.8),
+                             # Tooltip interactif propre
+                             text = ~paste("Barcode:", Barcode, "<br>Genotype:", Variant_Genotype),
+                             hoverinfo = "text"
+                         ) |>
+                             plotly::layout(
+                                 plot_bgcolor = "white",
+                                 paper_bgcolor = "white",
+                                 xaxis = list(visible = FALSE),
+                                 yaxis = list(visible = FALSE),
+                                 legend = list(
+                                     title = list(text = "<b>Genotype</b>", font = list(family = "Arial", color = "black")),
+                                     font = list(family = "Arial", size = 12, color = "black")
+                                 ),
+                                 margin = list(l = 60, r = 30, b = 10, t = 30)
+                             ) |>
+                             plotly::config(displaylogo = FALSE)
+
+                         w$hide()
+                         return(p)
+                     })
+                 }, ignoreInit = TRUE)
 
         # >> UMAP Unsupervised Clusters x DNA _
         # observeEvent({})

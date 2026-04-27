@@ -47,7 +47,9 @@ app_server <- function(input, output, session) {
          "umap_computed",
          "dna_clones_renamed",
          "compass_completed",
-         "multiomics_annotated")
+         "multiomics_annotated",
+         "clusters_computed",
+         "gating_updated")
     print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
     # 2. Logique de révélation conditionnelle (GARGOYLE)

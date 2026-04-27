@@ -546,8 +546,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 paste("Success !", length(r_state$subsets), "populations saved."),
                 type = "message"
             )
-            print("saved  ScIGMA_data$protein_gating_tree")
-            print( ScIGMA_data$protein_gating_tree)
+
+            trigger("gating_updated")
         })
 
         # --- 5. UMAP Calculation ---
@@ -815,7 +815,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     return(p)
                 })
 
-
+                trigger("clusters_computed")
 
             },ignoreInit = TRUE)
 

@@ -34,126 +34,234 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         # [ NODE_ACCESS : UI GENERATION ]
         # ----------------------------------------------------- _
         output$multiomics_main_ui <- shiny::renderUI({
+            # 1. Écoute active des signaux (Gargoyle)
             watch("umap_computed")
-            # Check if UMAP has been calculated
-            is_umap_ready <- !is.null(ScIGMA_data$seurat_object) && !is.null(ScIGMA_data$seurat_object[["umap"]])
-            bslib::navset_card_underline(
-                bslib::nav_panel(
-                    "Protein UMAP x DNA",
-                    if (any(!is_umap_ready, is.null(ScIGMA_data$dna.clones))){
-                        tagList(fluidRow(h2("Please compute UMAP and DNA clones first")))
-                    } else {
-                        accordion(
-                            id = ns("ptnUMAP_DNA_acc"),
-                            open = FALSE,
-                            accordion_panel(
-                                "DNA clones",
-                                shiny::fluidRow(
-                                    shiny::column(3,
-                                                  bslib::card(
-                                                      shiny::h3("Projection Controls"),
-                                                      shinyWidgets::materialSwitch(
-                                                          inputId = ns("ptnUMAP_DNA_acc_gtMtx_choice"),
-                                                          label = "Use COMPASS imputation",
-                                                          value = FALSE,
-                                                          status = "success"
-                                                      )
-                                                  )
-                                    ),
-                                    shiny::column(9,
-                                                  bslib::card(
-                                                      shiny::h3("Orthogonal Projection"),
-                                                      plotlyOutput(ns("ptnUMAP_DNA_acc_dnaClones_plot"), height = "600px")
-                                                  )
-                                    )
-                                )
-                            ),
-                            accordion_panel(
-                                "DNA Variants",
-                                shiny::fluidRow(
-                                    shiny::column(3,
-                                                  bslib::card(
-                                                      shiny::h4("Variant Projection"),
-                                                      shinyWidgets::pickerInput(
-                                                          inputId = ns("selected_variant"),
-                                                          label = "Targeted Variant",
-                                                          # choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
-                                                          choices = ScIGMA_data$variants.filtered$label,
-                                                          options = list(`live-search` = TRUE)
-                                                      ),
-                                                      shinyWidgets::materialSwitch(
-                                                          inputId = ns("use_compass_variant"),
-                                                          label = "Use COMPASS imputation",
-                                                          value = FALSE,
-                                                          status = "success"
-                                                      )
-                                                  )
-                                    ),
-                                    shiny::column(9,
-                                                  bslib::card(
-                                                      plotly::plotlyOutput(ns("ptnUMAP_DNA_acc_dnaVariants_plot"), height = "600px")
-                                                  )
-                                    )
-                                )
-                            )
-                        )
-                    }
-                ),
-                bslib::nav_panel(
-                    "UMAP Unsupervised Clusters x DNA",
-                    if (any(!is_umap_ready, !"seurat_clusters" %in% colnames(ScIGMA_data$seurat_object@meta.data))){
-                        tagList(fluidRow(h2("Please compute UMAP unsupervised clusters and DNA clones first")))
-                    } else {
-                        accordion(
-                            id = ns("UMAPclusters_DNA_acc"),
-                            open = FALSE,
-                            accordion_panel(
-                                "DNA clones",
-                                bslib::card(
-                                    shiny::plotOutput(ns("UMAPclusters_DNAclones_acc_barplot"), height = "600px")
-                                )
-                            ),
-                            accordion_panel(
-                                "DNA Variants",
-                                bslib::card(
-                                    shiny::plotOutput(ns("UMAPclusters_DNAvariants_acc_barplot"), height = "600px")
-                                )
-                            )
-                        )
-                    }
-                ),
-                bslib::nav_panel(
-                    "Bi-plot Gates x DNA",
-                    if (length(ScIGMA_data$protein_gating_tree) == 0) {
-                        shiny::tagList(shiny::fluidRow(shiny::h2("Please define Biplot gates first")))
-                    } else {
-                        shiny::fluidRow(
-                            shiny::column(3,
-                                          bslib::card(
-                                              shiny::h4("Population Profiling"),
-                                              shinyWidgets::pickerInput(
-                                                  inputId = ns("selected_biplot_pop"),
-                                                  label = "Target Population",
-                                                  choices = names(ScIGMA_data$protein_gating_tree$gates_list),
-                                                  options = list(`live-search` = TRUE)
-                                              ),
-                                              shinyWidgets::materialSwitch(
-                                                  inputId = ns("use_compass_biplot"),
-                                                  label = "Use COMPASS imputation",
-                                                  value = FALSE,
-                                                  status = "success"
-                                              )
-                                          )
-                            ),
-                            shiny::column(9,
-                                          bslib::card(
-                                              plotly::plotlyOutput(ns("biplot_dna_distribution_plot"), height = "600px")
-                                          )
-                            )
-                        )
-                    }
+            watch("dnaVariant_selected")
+            watch("dna_clones_renamed")
+            watch("compass_completed")
+            # Ajoute ces signaux s'ils existent dans tes modules Protéines
+            watch("clusters_computed")
+            watch("gating_updated")
+
+            # 2. Vérification stricte des états (Ground Truth)
+            # A. Les clones ADN existent-ils ?
+            has_dna <- !is.null(ScIGMA_data$dna.clones_pre_compass) || !is.null(ScIGMA_data$dna.clones)
+
+            # B. La UMAP protéique est-elle faite ?
+            has_umap <- !is.null(ScIGMA_data$seurat_object) && !is.null(ScIGMA_data$seurat_object@reductions$umap)
+
+            # C. Le clustering non-supervisé est-il fait ?
+            # Vérifie si la colonne des clusters existe dans les métadonnées (adapte "seurat_clusters" si tu l'as nommée autrement)
+            has_clusters <- has_umap && ("seurat_clusters" %in% colnames(ScIGMA_data$seurat_object@meta.data))
+
+            # D. Le gating manuel est-il fait ?
+            # Vérifie que la liste des sous-populations (gates) n'est pas vide
+            has_gates <- !is.null(ScIGMA_data$protein_gating_tree) && (length(ScIGMA_data$protein_gating_tree) > 0)
+
+            # 3. Condition par défaut : Aucun pré-requis n'est rempli
+            if (!has_dna || (!has_umap && !has_clusters && !has_gates)) {
+                return(
+                    shiny::div(class = "text-center mt-5",
+                               shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
+                    )
                 )
-            )
+            }
+
+            # 4. Construction dynamique des onglets
+            tabs <- list()
+
+            compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
+            print("compass_exists")
+            print(compass_exists)
+
+            # Panel 1 : Protein UMAP x DNA
+            if (has_dna && has_umap) {
+                # 2. Construction conditionnelle de l'interrupteur
+                compass_switch_ui_ptnUMAP_DNA <- shinyWidgets::materialSwitch(
+                    inputId = ns("ptnUMAP_DNA_acc_gtMtx_choice"),
+                    label = if(compass_exists) {
+                        "Use COMPASS imputed matrix ?"
+                    } else {
+                        "Run MCMC first"
+                    },
+                    value = compass_exists,
+                    status = "success"
+                )
+
+                compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants <- shinyWidgets::materialSwitch(
+                    inputId =  ns("use_compass_variant"),
+                    label = if(compass_exists) {
+                        "Use COMPASS imputed matrix ?"
+                    } else {
+                        "Run MCMC first"
+                    },
+                    value = compass_exists,
+                    status = "success"
+                )
+
+                if (!compass_exists) {
+                    compass_switch_ui_ptnUMAP_DNA <- shiny::div(
+                        style = "pointer-events: none; opacity: 0.5;",
+                        compass_switch_ui_ptnUMAP_DNA
+                    )
+
+                    compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants <- shiny::div(
+                        style = "pointer-events: none; opacity: 0.5;",
+                        compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants
+                    )
+                } else {
+                    compass_switch_ui_ptnUMAP_DNA <- shiny::div(
+                        compass_switch_ui_ptnUMAP_DNA
+                    )
+
+                    compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants <- shiny::div(
+                        compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants
+                    )
+                }
+
+                tabs[[length(tabs) + 1]] <- bslib::nav_panel(
+                    title = "Protein UMAP x DNA",
+
+
+                    accordion(
+                        id = ns("ptnUMAP_DNA_acc"),
+                        open = FALSE,
+                        accordion_panel(
+                            "DNA clones",
+                            shiny::fluidRow(
+                                shiny::column(3,
+                                              bslib::card(
+                                                  shiny::h3("Projection Controls"),
+                                                  shiny::div(compass_switch_ui_ptnUMAP_DNA, align = "left")
+                                              )
+                                ),
+                                shiny::column(9,
+                                              bslib::card(
+                                                  shiny::h3("Orthogonal Projection"),
+                                                  plotlyOutput(ns("ptnUMAP_DNA_acc_dnaClones_plot"), height = "600px")
+                                              )
+                                )
+                            )
+                        ),
+                        accordion_panel(
+                            "DNA Variants",
+                            shiny::fluidRow(
+                                shiny::column(3,
+                                              bslib::card(
+                                                  shiny::h4("Variant Projection"),
+                                                  shinyWidgets::pickerInput(
+                                                      inputId = ns("selected_variant"),
+                                                      label = "Targeted Variant",
+                                                      # choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
+                                                      choices = ScIGMA_data$variants.filtered$label,
+                                                      options = list(`live-search` = TRUE)
+                                                  ),
+
+                                                  shiny::div(compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants,
+                                                             align = "left")
+                                                  # shinyWidgets::materialSwitch(
+                                                  #     inputId = ns("use_compass_variant"),
+                                                  #     label = "Use COMPASS imputation",
+                                                  #     value = FALSE,
+                                                  #     status = "success"
+                                                  # )
+                                              )
+                                ),
+                                shiny::column(9,
+                                              bslib::card(
+                                                  plotly::plotlyOutput(ns("ptnUMAP_DNA_acc_dnaVariants_plot"), height = "600px")
+                                              )
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+
+            # Panel 2 : UMAP Unsupervised Clusters x DNA
+            if (has_dna && has_clusters) {
+                tabs[[length(tabs) + 1]] <- bslib::nav_panel(
+                    title = "UMAP Unsupervised Clusters x DNA",
+                    accordion(
+                        id = ns("UMAPclusters_DNA_acc"),
+                        open = FALSE,
+                        accordion_panel(
+                            "DNA clones",
+                            bslib::card(
+                                shiny::plotOutput(ns("UMAPclusters_DNAclones_acc_barplot"), height = "600px")
+                            )
+                        ),
+                        accordion_panel(
+                            "DNA Variants",
+                            bslib::card(
+                                shiny::plotOutput(ns("UMAPclusters_DNAvariants_acc_barplot"), height = "600px")
+                            )
+                        )
+                    )
+                )
+            }
+
+            # Panel 3 : Bi-plot Gates x DNA
+            if (has_dna && has_gates) {
+
+                # 2. Construction conditionnelle de l'interrupteur
+                compass_switch_ui_use_compass_biplot <- shinyWidgets::materialSwitch(
+                    inputId = ns("use_compass_biplot"),
+                    label = if(compass_exists) {
+                        "Use COMPASS imputed matrix ?"
+                    } else {
+                        "Run MCMC first"
+                    },
+                    value = compass_exists,
+                    status = "success"
+                )
+
+                if (!compass_exists) {
+                    compass_switch_ui_use_compass_biplot <- shiny::div(
+                        style = "pointer-events: none; opacity: 0.5;",
+                        compass_switch_ui_use_compass_biplot
+                    )
+                } else {
+                    compass_switch_ui_use_compass_biplot <- shiny::div(
+                        compass_switch_ui_use_compass_biplot
+                    )
+                }
+
+
+                tabs[[length(tabs) + 1]] <- bslib::nav_panel(
+                    title = "Bi-plot Gates x DNA",
+                    shiny::fluidRow(
+                        shiny::column(3,
+                                      bslib::card(
+                                          shiny::h4("Population Profiling"),
+                                          shinyWidgets::pickerInput(
+                                              inputId = ns("selected_biplot_pop"),
+                                              label = "Target Population",
+                                              choices = names(ScIGMA_data$protein_gating_tree$gates_list),
+                                              options = list(`live-search` = TRUE)
+                                          ),
+                                          shiny::div(compass_switch_ui_use_compass_biplot, align = "left")
+                                      )
+                        ),
+                        shiny::column(9,
+                                      bslib::card(
+                                          plotly::plotlyOutput(ns("biplot_dna_distribution_plot"), height = "600px")
+                                      )
+                        )
+                    )
+                )
+            }
+
+            # 5. Rendu final (Si au moins un onglet est valide, on l'affiche)
+            if (length(tabs) > 0) {
+                do.call(bslib::navset_card_underline, c(list(id = ns("multiomics_tabs")), tabs))
+            } else {
+                return(
+                    shiny::div(class = "text-center mt-5",
+                               shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
+                    )
+                )
+            }
         })
 
         # [ NODE_ACCESS : COMPUTATIONS ]
@@ -231,6 +339,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
 
         output$ptnUMAP_DNA_acc_dnaVariants_plot <- plotly::renderPlotly({
+            print("ptnUMAP_DNA_acc_dnaVariants_plot : input$use_compass_variant")
+            print(input$use_compass_variant)
             # 1. Évaluation paresseuse stricte
             shiny::req("DNA Variants" %in% input$ptnUMAP_DNA_acc)
             watch("umap_computed")
@@ -345,7 +455,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 rownames_to_column("Variant_ID")
 
             plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
-                             by = "Variant_ID")
+                                        by = "Variant_ID")
 
             plot_df_joined$Variant <- paste(plot_df_joined$protein,
                                             plot_df_joined$cdna, sep = ", ")

@@ -121,7 +121,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     },
                                     hr(),
                                     h4("Gating"),
-                                    textInput(ns("subset_name"), "Gate name", placeholder = "ex: Clone A"),
+                                    textInput(ns("subset_name"), "Gate name", placeholder = "ex: Gate A"),
                                     actionButton(ns("mk_subset"), "Create sub-sample", class = "btn-primary"),
                                     verbatimTextOutput(ns("selection_info"))
                                 )
@@ -188,7 +188,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                       uiOutput(ns("markers_umap_panel_ui"))
                                   ),
                                   accordion_panel(
-                                      "Biplot clones",
+                                      "Biplot gates",
                                       uiOutput(ns("biplotClones_umap_panel_ui"))
                                   ),
                                   accordion_panel(
@@ -428,15 +428,24 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             req(r_state$temp_selection)
 
             new_id <- paste0("sub_", as.numeric(Sys.time()))
-            name_val <- input$subset_name
-            if (name_val == "") name_val <- paste("Gate", length(r_state$subsets))
+
+            safe_name <- sanitize_gate_name(input$subset_name)
+
+            if (safe_name == "") {
+                # On génère un nom par défaut qui respecte aussi la convention sans espace
+                safe_name <- paste0("Gate_", length(r_state$subsets))
+            }
+
+            # name_val <- input$subset_name
+            # if (name_val == "") name_val <- paste("Gate", length(r_state$subsets))
 
             # Save Indices & Meta
             r_state$subsets[[new_id]] <- r_state$temp_selection
 
             parent_id <- r_state$current_view
             r_state$subset_meta[[new_id]] <- list(
-                name = name_val,
+                # name = name_val,
+                name = safe_name,
                 parent = parent_id,
                 depth = r_state$subset_meta[[parent_id]]$depth + 1
             )
@@ -910,7 +919,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                        area = "umap_clone_select",
                                        virtualSelectInput(
                                            inputId = ns("umap_clones_to_project"),
-                                           label = "Select sub-clones :",
+                                           label = "Select sub-gates:",
                                            choices = choices_list,
                                            multiple = TRUE,
                                            width = "100%",
@@ -919,11 +928,11 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                        hr(),
                                        actionBttn(
                                            inputId = ns("project_clones_btn"),
-                                           label = "Project Clones",
+                                           label = "Project gates",
                                            style = "unite",
                                            color = "primary"
                                        ),
-                                       helpText("Child clones are automatically drawn on top of their parents.")
+                                       helpText("Child gates are automatically drawn on top of their parents.")
                                    )
                             ),
                             column(9, plotlyOutput(ns("umap_plot_biplot_clones"), height = "600px"))
@@ -982,7 +991,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 type = 'scattergl',
                 mode = 'markers',
                 marker = list(size = 5, opacity = 0.8),
-                text = ~paste("<b>Barcode:</b>", barcode, "<br><b>Gate:</b>", Clone),
+                text = ~paste("<b>Gate:</b>", Clone),
                 hoverinfo = "text"
             ) %>%
                 layout(
@@ -991,7 +1000,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     xaxis = list(visible = FALSE),
                     yaxis = list(visible = FALSE),
                     legend = list(
-                        title = list(text = "<b>Sub-clones</b>", font = list(family = "Arial", color = "black")),
+                        title = list(text = "<b>Sub-gates</b>", font = list(family = "Arial", color = "black")),
                         font = list(family = "Arial", size = 12, color = "black")
                     ),
                     margin = list(l = 60, r = 30, b = 10, t = 30)

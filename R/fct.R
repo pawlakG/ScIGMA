@@ -129,3 +129,13 @@ protein_run_pca <- function(ScIGMA_data) {
 }
 
 
+#' Sanitize manual gating names to ensure strictly valid R strings
+#' @param gate_name Character vector of raw gate names
+#' @return Character vector of sanitized names
+sanitize_gate_name <- function(gate_name) {
+    clean_name <- trimws(gate_name)
+    clean_name <- gsub("[^A-Za-z0-9]", "_", clean_name)
+    clean_name <- gsub("_+", "_", clean_name)
+    clean_name <- gsub("^_|_$", "", clean_name)
+    return(clean_name)
+}

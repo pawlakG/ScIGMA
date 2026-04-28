@@ -43,7 +43,7 @@ mod_analysis_DNA_ui <- function(id) {
                                                value = TRUE,
                                                status = "success"
                                            ),
-                                           align = "center")
+                                           align = "left")
                                 ),
                                 column(4,
                                        div(
@@ -54,7 +54,7 @@ mod_analysis_DNA_ui <- function(id) {
                                                # status = "primary"
                                                status = "success"
                                            ),
-                                           align = "center")
+                                           align = "left")
                                 ),
                                 column(4,
                                        div(
@@ -251,7 +251,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             watch("dna_clones_renamed")
             watch("compass_completed")        # <-- NEW : Rafraîchit la heatmap quand COMPASS se termine
         }, {
-            print("Rendering DNA heatmap")
             sel_indices <- input$variant_selection_rows_selected
             heatmap_include_all_samples <- input$heatmap_include_all_samples
             use_imputed <- input$heatmap_use_compass_imputed
@@ -283,30 +282,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 )
 
                 ht <- ComplexHeatmap::draw(ht_res$heatmap)
-
-                print("New heatmap rendered")
-
-                # if (is.null(ScIGMA_data$dna_clones_renamed)) {
-                #
-                #     # 1. Protection Post-COMPASS :
-                #     # On autorise la heatmap à modifier les clones 'actifs' (ex: pour fusionner
-                #     # les 'small' clusters) UNIQUEMENT si on est en phase exploratoire pré-COMPASS,
-                #     # OU si la heatmap affiche explicitement l'architecture COMPASS.
-                #     compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
-                #
-                #     if (!compass_exists || (compass_exists && use_imputed)) {
-                #         ScIGMA_data$dna.clones <- ht_res$clones
-                #         ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
-                #     }
-                #
-                #     # 2. FIX CRITIQUE : Suppression totale de l'écrasement de dna.clones_pre_compass
-                #     # Ce slot est désormais intouchable par la heatmap. Il reste pur et défini
-                #     # uniquement par ton filtrage initial (bouton Apply).
-                # }
-                #
-                # trigger("dnaVariant_selected")
-                ht <- ComplexHeatmap::draw(ht_res$heatmap)
-                print("New heatmap rendered")
 
                 if (is.null(ScIGMA_data$dna_clones_renamed)) {
 

@@ -71,8 +71,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             tabs <- list()
 
             compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
-            print("compass_exists")
-            print(compass_exists)
 
             # Panel 1 : Protein UMAP x DNA
             if (has_dna && has_umap) {
@@ -227,7 +225,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                     )
                 }
 
-
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "Bi-plot Gates x DNA",
                     shiny::fluidRow(
@@ -313,7 +310,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                       type = 'scattergl', mode = 'markers',
                                       color = ~dna_clones,
                                       colors = ScIGMA_data$dna_clone_colors, # Utilisation de la palette R6
-                                      marker = list(size = 5, opacity = 0.8)) %>%
+                                      marker = list(size = 5, opacity = 0.8),
+                                      text = ~paste("<b>DNA clones</b>:", dna_clones),
+                                      hoverinfo = "text") %>%
                              layout(
                                  xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
                                  yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
@@ -336,7 +335,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 choices = available_variants
             )
         }, ignoreInit = TRUE)
-
 
         observeEvent(
             list(watch("umap_computed"),
@@ -412,7 +410,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                              colors = variant_colors,
                              marker = list(size = 5, opacity = 0.8),
                              # Tooltip interactif propre
-                             text = ~paste("Barcode:", Barcode, "<br>Genotype:", Variant_Genotype),
+                             text = ~paste("<b>Genotype</b>:", Variant_Genotype),
                              hoverinfo = "text"
                          ) |>
                              plotly::layout(
@@ -440,7 +438,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
             # Déclencheur : l'onglet doit être actif
             shiny::req(input$selected_biplot_pop, ScIGMA_data$variants.filtered)
-
 
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
@@ -471,7 +468,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                         by = "Variant_ID")
 
             plot_df_joined$Variant <- paste(plot_df_joined$protein,
-                                            plot_df_joined$cdna, sep = ", ")
+                                            plot_df_joined$cdna, sep = "<br>")
 
             plotly::plot_ly(
                 data = plot_df_joined,
@@ -488,7 +485,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             ) |>
                 plotly::layout(
                     barmode = 'group',
-                    xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
+                    # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
+                    xaxis = c(list(title = ""), prism_axis_style),
                     yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
                     legend = list(title = list(text = "<b>Genotype</b>")),
                     margin = list(b = 100, t = 50)

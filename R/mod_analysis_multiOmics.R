@@ -224,6 +224,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                         compass_switch_ui_use_compass_biplot
                     )
                 }
+-
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "Bi-plot Gates x DNA",
@@ -234,7 +235,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                           shinyWidgets::pickerInput(
                                               inputId = ns("selected_biplot_pop"),
                                               label = "Target Population",
-                                              choices = names(ScIGMA_data$protein_gating_tree$gates_list),
+                                              # choices = names(ScIGMA_data$protein_gating_tree$gates_list),
+                                              choices = sapply(ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
+                                                               \(x) x$name)|> as.character(),
                                               options = list(`live-search` = TRUE)
                                           ),
                                           shiny::div(compass_switch_ui_use_compass_biplot, align = "left")
@@ -277,23 +280,15 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                          # 1. Sélection dynamique du vecteur selon le slider
                          use_compass <- isTRUE(input$ptnUMAP_DNA_acc_gtMtx_choice)
 
-                         print("ScIGMA_data$dna.clones_pre_compass")
-                         print(table(ScIGMA_data$dna.clones_pre_compass))
-                         print("dna_clones_to_use <- ScIGMA_data$dna.clones")
-                         print(table(dna_clones_to_use <- ScIGMA_data$dna.clones))
-
                          if (use_compass) {
                              # Sécurité : si COMPASS n'a pas été lancé, on force le retour au brut
                              if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
                                  shiny::showNotification("COMPASS non exécuté. Affichage des clones bruts.", type = "warning")
-                                 print("using pre-compass clones")
                                  dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
                              } else {
-                                 print("using post-compass clones")
                                  dna_clones_to_use <- ScIGMA_data$dna.clones
                              }
                          } else {
-                             print("using pre-compass clones")
                              dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
                          }
 
@@ -345,9 +340,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                          w <- Waiter$new(id = ns("ptnUMAP_DNA_acc_dnaVariants_plot"), html = spin_3(), color = transparent(0.5))
                          w$show()
 
-
-                         print("ptnUMAP_DNA_acc_dnaVariants_plot : input$use_compass_variant")
-                         print(input$use_compass_variant)
                          # 1. Évaluation paresseuse stricte
                          shiny::req("DNA Variants" %in% input$ptnUMAP_DNA_acc)
                          watch("umap_computed")
@@ -361,8 +353,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                          tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
 
                          # 3. Extraction du génotype
-                         print("ScIGMA_data$mae")
-                         print(ScIGMA_data$mae)
                          geno_df <- extract_variant_genotypes(
                              mae_data = ScIGMA_data$mae,
                              # variant_id = input$selected_variant,
@@ -439,10 +429,16 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             # Déclencheur : l'onglet doit être actif
             shiny::req(input$selected_biplot_pop, ScIGMA_data$variants.filtered)
 
+            selected_biplot_gate_name <- input$selected_biplot_pop
+            selected_biplot_gate_ids_list <- sapply(ScIGMA_data$protein_gating_tree$meta_list, \(x){
+                x$name
+            })
+            selected_biplot_gate_ids <- names(selected_biplot_gate_ids_list)[selected_biplot_gate_ids_list == selected_biplot_gate_name]
+
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
             assay_colnames <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> colnames()
-            cel_barcode <- assay_colnames[ScIGMA_data$protein_gating_tree$gates_list[[input$selected_biplot_pop]]]
+            cel_barcode <- assay_colnames[ScIGMA_data$protein_gating_tree$gates_list[[selected_biplot_gate_ids]]]
 
             # Extraction des données via le helper
             plot_df <- compute_population_genotype_distribution(

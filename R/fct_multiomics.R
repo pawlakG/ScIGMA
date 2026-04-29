@@ -23,10 +23,10 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     extracted_df <- variant_vector |> as.data.frame() |> rownames_to_column("cell_barcode")
 
     extracted_df <- extracted_df %>% dplyr::mutate(variant_vector = dplyr::recode(variant_vector,
-                                                                      "0" = "HOM",
-                                                                      "1" = "HET",
-                                                                      "2" = "HOM",
-                                                                      "3" = "Missing/ADO"))
+                                                                                  "0" = "HOM",
+                                                                                  "1" = "HET",
+                                                                                  "2" = "HOM",
+                                                                                  "3" = "Missing/ADO"))
     colnames(extracted_df)[colnames(extracted_df) == "variant_vector"] <- "Variant_Genotype"
     colnames(extracted_df)[colnames(extracted_df) == "cell_barcode"] <- "Barcode"
 
@@ -39,7 +39,11 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
 #' @param cell_barcodes Character vector of barcodes in the population
 #' @param use_compass Logical to use imputed data
 #' @export
-compute_population_genotype_distribution <- function(mae_data, variant_ids, cell_barcodes, use_compass) {
+compute_population_genotype_distribution <- function(mae_data,
+                                                     variant_ids,
+                                                     cell_barcodes,
+                                                     use_compass,
+                                                     seurat_cluster = NULL) {
 
     # 1. Sélection de la matrice source
     if (use_compass) {
@@ -57,23 +61,37 @@ compute_population_genotype_distribution <- function(mae_data, variant_ids, cell
     # 3. Transformation Long-Format pour calcul groupé
     dist_df <- as.data.frame(as.matrix(sub_mtx)) |>
         tibble::rownames_to_column("Variant_ID") |>
-        tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code") |>
+        tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code")|>
         dplyr::mutate(
             Variant_Genotype = dplyr::recode(as.character(Code),
                                              "0" = "WT", "1" = "HET",
                                              "2" = "HOM", "3" = "Missing/ADO")
         )
 
+    if (is.null(seurat_cluster)){
+        final_stats <- dist_df |>
+            dplyr::group_by(Variant_ID, Variant_Genotype)|>
+            dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
+            dplyr::group_by(Variant_ID)
+    } else {
+        dist_df <- dist_df |>
+            dplyr::mutate(
+                Cluster = seurat_cluster[Barcode]
+            )
+        final_stats <- dist_df |>
+            dplyr::group_by(Variant_ID, Cluster, Variant_Genotype)|>
+            dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
+            dplyr::group_by(Variant_ID, Cluster)
+    }
+
     # 4. Agrégation Statistique
-    final_stats <- dist_df |>
-        dplyr::group_by(Variant_ID, Variant_Genotype) |>
-        dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
-        dplyr::group_by(Variant_ID) |>
+    final_stats <- final_stats  |>
         dplyr::mutate(
             Total_In_Variant = sum(Count),
             Percentage = (Count / Total_In_Variant) * 100
         ) |>
         dplyr::ungroup()
+
 
     # Assurer que tous les niveaux de génotypes sont présents pour un plot stable
     levels_genotypes <- c("WT", "HET", "HOM", "Missing/ADO")

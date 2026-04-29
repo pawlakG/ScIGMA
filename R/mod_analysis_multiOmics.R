@@ -157,12 +157,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
                                                   shiny::div(compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants,
                                                              align = "left")
-                                                  # shinyWidgets::materialSwitch(
-                                                  #     inputId = ns("use_compass_variant"),
-                                                  #     label = "Use COMPASS imputation",
-                                                  #     value = FALSE,
-                                                  #     status = "success"
-                                                  # )
                                               )
                                 ),
                                 shiny::column(9,
@@ -178,21 +172,62 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             # Panel 2 : UMAP Unsupervised Clusters x DNA
             if (has_dna && has_clusters) {
+
+
+                compass_switch_ui_clusterPtn_DNA <- shinyWidgets::materialSwitch(
+                    inputId = ns("clusterPtn_DNA_compass_choice"),
+                    label = if(compass_exists) {
+                        "Use COMPASS imputed matrix ?"
+                    } else {
+                        "Run MCMC first"
+                    },
+                    value = compass_exists,
+                    status = "success"
+                )
+
+
+
+                if (!compass_exists) {
+                    compass_switch_ui_clusterPtn_DNA <- shiny::div(
+                        style = "pointer-events: none; opacity: 0.5;",
+                        compass_switch_ui_clusterPtn_DNA
+                    )
+                } else {
+                    compass_switch_ui_clusterPtn_DNA <- shiny::div(
+                        compass_switch_ui_clusterPtn_DNA
+                    )
+                }
+
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "UMAP Unsupervised Clusters x DNA",
                     accordion(
                         id = ns("UMAPclusters_DNA_acc"),
                         open = FALSE,
-                        accordion_panel(
-                            "DNA clones",
-                            bslib::card(
-                                shiny::plotOutput(ns("UMAPclusters_DNAclones_acc_barplot"), height = "600px")
+                        # --- SOUS-PANEL 1 : CLONES ---
+                        bslib::accordion_panel(
+                            title = "DNA clones",
+                            shiny::fluidRow(
+                                grid_card(
+                                    area = "main",
+                                    shiny::h3("Clonal Distribution"),
+                                    plotly::plotlyOutput(ns("plot_clust_clones"), height = "500px")
+                                )
+                            ),
+                            shiny::fluidRow(
+                                shiny::div(compass_switch_ui_clusterPtn_DNA, align = "left")
                             )
                         ),
-                        accordion_panel(
-                            "DNA Variants",
-                            bslib::card(
-                                shiny::plotOutput(ns("UMAPclusters_DNAvariants_acc_barplot"), height = "600px")
+                        # --- SOUS-PANEL 2 : VARIANTS ---
+                        bslib::accordion_panel(
+                            title = "DNA Variants",
+                            shiny::fluidRow(
+                                grid_card(
+                                    area = "main",
+                                    shiny::h3("Variant Genotypes"),
+                                    plotly::plotlyOutput(ns("plot_clust_variants")
+                                                         # height = "600px"
+                                    )
+                                )
                             )
                         )
                     )
@@ -224,7 +259,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                         compass_switch_ui_use_compass_biplot
                     )
                 }
--
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "Bi-plot Gates x DNA",
@@ -421,9 +455,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                      })
                  }, ignoreInit = TRUE)
 
-        # >> UMAP Unsupervised Clusters x DNA _
-        # observeEvent({})
-
         # >> Bi-plot Gates x DNA Distribution _
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
             # Déclencheur : l'onglet doit être actif
@@ -482,6 +513,142 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 plotly::layout(
                     barmode = 'group',
                     # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
+                    xaxis = c(list(title = ""), prism_axis_style),
+                    yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
+                    legend = list(title = list(text = "<b>Genotype</b>")),
+                    margin = list(b = 100, t = 50)
+                ) |>
+                plotly::config(displaylogo = FALSE)
+        })
+
+        # ---------------------------------------------------------
+        # [ NODE_ACCESS : UMAP Clusters x DNA ]
+        # ---------------------------------------------------------
+        # 1. Rendu du Barplot : Clusters x Clones
+        output$plot_clust_clones <- plotly::renderPlotly({
+            shiny::req(ScIGMA_data$seurat_object)
+
+
+            if (input$clusterPtn_DNA_compass_choice) {
+                # Sécurité : si COMPASS n'a pas été lancé, on force le retour au brut
+                if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                    shiny::showNotification("COMPASS non exécuté. Affichage des clones bruts.", type = "warning")
+                    dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+                } else {
+                    dna_clones_to_use <- ScIGMA_data$dna.clones
+                }
+            } else {
+                dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+            }
+
+            cell_barcodes <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized") |>
+                colnames()
+
+            # >> Setup dataframe _
+            dna_clones_clusters_df <- data.frame("Barcode" =  cell_barcodes,
+                                                 "Clone" = dna_clones_to_use[cell_barcodes],
+                                                 "Cluster" = ScIGMA_data$seurat_object$seurat_clusters[cell_barcodes])
+
+            dna_clones_clusters_df$Clone <- forcats::fct_na_value_to_level(dna_clones_clusters_df$Clone, level = "Missing")
+
+            dna_clones_clusters_df_summarized <- dna_clones_clusters_df |>
+                dplyr::group_by(Clone, Cluster)|>
+                dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
+                dplyr::group_by(Cluster) |>
+                dplyr::mutate(
+                    Total_In_Variant = sum(Count),
+                    Percentage = (Count / Total_In_Variant) * 100
+                ) |>
+                dplyr::ungroup()
+
+
+            plotly::plot_ly(
+                data = dna_clones_clusters_df_summarized,
+                x = ~Cluster,
+                y = ~Percentage,
+                color = ~Clone,
+                # colors = variant_colors,
+                type = 'bar',
+                text = ~paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
+                textposition = 'outside',
+                textfont = list(size = 12, color = "black", family = "Arial"),
+                constraintext = 'none',
+                hoverinfo = 'text'
+            ) |>
+                plotly::layout(
+                    barmode = 'group',
+                    # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
+                    xaxis = c(list(title = ""), prism_axis_style),
+                    yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
+                    legend = list(title = list(text = "<b>Genotype</b>")),
+                    margin = list(b = 100, t = 50)
+                ) |>
+                plotly::config(displaylogo = FALSE)
+        })
+
+
+        # 2. Rendu du Barplot : Clusters x Variants (Mutations)
+        output$plot_clust_variants <- plotly::renderPlotly({
+            shiny::req(ScIGMA_data$seurat_object)
+
+            assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+
+            assay_colnames <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> colnames()
+
+            # Extraction des données via le helper
+            plot_df <- compute_population_genotype_distribution(
+                mae_data = ScIGMA_data$mae,
+                variant_ids = rownames(ScIGMA_data$variants.filtered),
+                cell_barcodes = assay_colnames,
+                use_compass = input$clusterPtn_DNA_compass_choice,
+                seurat_cluster = ScIGMA_data$seurat_object$seurat_clusters
+            ) |> as.data.frame()
+
+            # Add cluster info
+            print("plot_df dna-cluster vs dna-clones")
+            print(head(plot_df))
+            print("ScIGMA_data$seurat_object$seurat_clusters")
+            print(head(ScIGMA_data$seurat_object$seurat_clusters))
+
+            # plot_df$seurat_cluster <- ScIGMA_data$seurat_object$seurat_clusters[rownames(plot_df)]
+
+
+            # Palette clinique (Gris pour ADO)
+            variant_colors <- c(
+                "WT" = "#440154", "HET" = "#21918c",
+                "HOM" = "#fde725", "Missing/ADO" = "#e0e0e0"
+            )
+
+            # Merge plot_df with variant ScIGMA_data$variants.filtered
+
+            variants.filtered_tmp <- ScIGMA_data$variants.filtered |>
+                select(-variant_id) |>
+                rownames_to_column("Variant_ID")
+
+            plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
+                                        by = "Variant_ID")
+
+            plot_df_joined$Variant <- paste(plot_df_joined$protein,
+                                            plot_df_joined$cdna, sep = "<br>")
+
+            plotly::plot_ly(
+                data = plot_df_joined,
+                x = ~list(Cluster, Variant_ID),
+                y = ~Percentage,
+                # color = ~Variant_Genotype,
+                color = ~Variant_Genotype,
+                # colors = variant_colors,
+                type = 'bar',
+                text = ~paste0(round(Percentage, 1), "%<br>(n=", Count, ")<br>Genotype: ",  Variant_Genotype),
+                # 'inside' ou 'auto' est indispensable pour éviter que les textes se superposent en haut
+                textposition = 'inside',
+                textfont = list(size = 12, color = "black", family = "Arial"),
+                constraintext = 'none',
+                hoverinfo = 'text'
+            ) |>
+                plotly::layout(
+                    # barmode = 'stack' va empiler les génotypes au sein de chaque Variant_ID
+                    barmode = 'stack',
                     xaxis = c(list(title = ""), prism_axis_style),
                     yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
                     legend = list(title = list(text = "<b>Genotype</b>")),

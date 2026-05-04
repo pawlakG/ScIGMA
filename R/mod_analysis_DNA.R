@@ -163,7 +163,24 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         observeEvent(input$btn_filtrer, {
             req(ScIGMA_data$mae)
 
-            # --- 1. Calcul immédiat des clones purs ---
+            # --- 1. Purge des états précédents (FIX CRITIQUE) ---
+            ScIGMA_data$variants.filtered <- NULL
+            ScIGMA_data$dna_clones_renamed <- NULL # FIX : Détruire explicitement les anciens noms
+
+            # FIX : Atomisation de l'UI de renommage pour éviter le cache des anciens levels
+            output$rename_cluster_ui <- renderUI({ NULL })
+
+            if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                S4Vectors::metadata(ScIGMA_data$mae)$compass <- NULL
+                if ("cnv.active.clones" %in% names(ScIGMA_data)) ScIGMA_data$cnv.active.clones <- NULL
+
+                shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+                compass_tree_visible(FALSE)
+
+                shiny::showNotification("Variantes modifiées : Le modèle COMPASS précédent a été purgé.", type = "warning")
+            }
+
+            # --- 2. Calcul immédiat des clones purs ---
             sel_indices <- input$variant_selection_rows_selected
             if (length(sel_indices) > 0) {
                 # Tri et assignation des variants sélectionnés
@@ -176,7 +193,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 ScIGMA_data$variants.filtered <- selected_df
 
                 # Extraction de la matrice brute pour identifier les cellules complètes
-                # short_vars <- sub("^([^:]+:)|^:", "", selected_df$variant_id)
                 short_vars <- rownames(selected_df)
                 gt_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt"))[short_vars, , drop = FALSE])
                 msk_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "variant_filter_mask"))[short_vars, , drop = FALSE]) != 0
@@ -196,19 +212,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     bslib::nav_show(id = "dna_tabs", target = "compass_tab")
                 }
             } else {
-                # NEW : Si l'utilisateur clique sur Apply avec 0 variant sélectionné, on cache l'onglet
                 bslib::nav_hide(id = "dna_tabs", target = "compass_tab")
-            }
-
-            # --- 2. Purge du modèle COMPASS obsolète ---
-            if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
-                S4Vectors::metadata(ScIGMA_data$mae)$compass <- NULL
-                if ("cnv.active.clones" %in% names(ScIGMA_data)) ScIGMA_data$cnv.active.clones <- NULL
-
-                shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
-                compass_tree_visible(FALSE)
-
-                shiny::showNotification("Variantes modifiées : Le modèle COMPASS précédent a été purgé.", type = "warning")
             }
         }, priority = 10, ignoreInit = TRUE)
 

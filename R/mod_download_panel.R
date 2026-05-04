@@ -338,25 +338,9 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 current_colData$Cell_Barcode <- rownames(current_colData)
 
                 merged_colData <- merge(current_colData, global_meta, by = "Cell_Barcode", all.x = TRUE)
-                print("test4")
-                # rownames(merged_colData) <- merged_colData$Cell_Barcode
-
-                print("rownames(SummarizedExperiment::colData(export_mae) ")
-                print(head(rownames(SummarizedExperiment::colData(export_mae) )))
-
-                print("new rownames")
-                print(rownames(S4Vectors::DataFrame(merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
-                                                                         merged_colData$Cell_Barcode), ]) |> head()))
-
-                print("duplicated colnames(export_mae)[[dna_variants]]")
-                print(sum(duplicated(colnames(export_mae)[["dna_variants"]])))
-                print("merged_colData")
-                print(head(merged_colData))
-
-
-                print(all(rownames(SummarizedExperiment::colData(export_mae) ) == rownames(S4Vectors::DataFrame(merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
-                                                                                                                                     merged_colData$Cell_Barcode), ]) |> head())))
-
+                merged_colData <- merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
+                                                       merged_colData$Cell_Barcode), ]
+                rownames(merged_colData) <- merged_colData$Cell_Barcode
                 SummarizedExperiment::colData(export_mae) <- S4Vectors::DataFrame(merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
                                                                                                        merged_colData$Cell_Barcode), ])
 

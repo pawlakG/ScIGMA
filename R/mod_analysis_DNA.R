@@ -307,6 +307,15 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
                 }
 
+                shiny::showNotification(
+                    ui = paste0(
+                        "Success: ", length(sel_indices),
+                        " DNA variants successfully selected and processed."
+                    ),
+                    type = "message",
+                    duration = 5
+                )
+
                 trigger("dnaVariant_selected")
 
                 output$dna_variant_heatmap <- renderPlot({

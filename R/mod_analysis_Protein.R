@@ -111,14 +111,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                 choices = c("None", levels(ScIGMA_data$dna.clones))),
 
                                     # FIX CRITIQUE : Détection propre du nouvel Assay
-                                    if ("compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
-                                        shinyWidgets::materialSwitch(
-                                            inputId = ns("use_compass_gt"),
-                                            label = "Use COMPASS imputed data",
-                                            value = FALSE,
-                                            status = "success"
-                                        )
-                                    },
+                                    # if ("compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
+                                    #     shinyWidgets::materialSwitch(
+                                    #         inputId = ns("use_compass_gt"),
+                                    #         label = "Use COMPASS imputed data",
+                                    #         value = FALSE,
+                                    #         status = "success"
+                                    #     )
+                                    # },
                                     hr(),
                                     h4("Gating"),
                                     textInput(ns("subset_name"), "Gate name", placeholder = "ex: Gate A"),
@@ -253,7 +253,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 r_state$subset_meta <- list()
                 r_state$subset_meta[["root"]] <- list(
-                    name = "Tout",
+                    name = "All",
                     parent = NA,
                     depth = 0
                 )

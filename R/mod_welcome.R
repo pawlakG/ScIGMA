@@ -10,9 +10,21 @@
 mod_welcome_ui <- function(id) {
     ns <- NS(id)
     tagList(
-        # fluidPage(
-            card(full_screen = TRUE, card_header(HTML("Welcome to LENS: Layered Exploration of multi-omic single-cell proteogeNomic Sequencing")))
-        # )
+        card(
+            full_screen = TRUE,
+            card_header(HTML("Welcome to ScIGMA: Single-cell Integrated Genomic & Multi-omics Analyzer")),
+            # NEW: Insert graphical abstract with responsive constraints
+            card_body(
+                div(
+                    style = "padding: 4%; width: 100%;",
+                    tags$img(
+                        src = "www/ScIGMA_graphicalAbstract.png",
+                        style = "width: 100%; height: auto; display: block; margin: 0 auto;",
+                        alt = "ScIGMA Graphical Abstract"
+                    )
+                )
+            )
+        )
     )
 }
 

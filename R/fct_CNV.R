@@ -692,7 +692,13 @@ plot_cnv_genome <- function(cnv_matrix,
             # Application du GRAS sur les labels des gènes
             x_tick_text <- paste0("<b>", unique_groups, "</b>")
 
-            sep_pos <- seq(1.5, length(unique_groups) - 0.5, 1)
+            # FIX CRITIQUE : Protection de la création des séparateurs
+            # Empêche seq() de crasher si un seul gène (ou groupe) est sélectionné
+            if (length(unique_groups) > 1) {
+                sep_pos <- seq(1.5, length(unique_groups) - 0.5, 1)
+            } else {
+                sep_pos <- numeric(0)
+            }
 
             # Recalcul des moyennes par gène
             tp_mean <- plot_meta |> dplyr::group_by(Gene) |> dplyr::summarize(Mean_Ploidy = mean(Mean_Ploidy, na.rm=TRUE))

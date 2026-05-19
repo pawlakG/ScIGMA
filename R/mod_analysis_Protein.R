@@ -156,6 +156,21 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                      grid_card(
                                                          area = "umap_accordion_first",
                                                          h3("UMAP parameters"),
+
+                                                         shinyWidgets::pickerInput(
+                                                             inputId = ns("umap_features"),
+                                                             label = "Protein markers",
+                                                             choices = rownames(ScIGMA_data$mae[["proteins"]]),
+                                                             selected = rownames(ScIGMA_data$mae[["proteins"]]),
+                                                             multiple = TRUE,
+                                                             options = shinyWidgets::pickerOptions(
+                                                                 actionsBox = TRUE,
+                                                                 liveSearch = TRUE,
+                                                                 size = 10,
+                                                                 `selected-text-format` = "count > 3"
+                                                             )
+                                                         ),
+
                                                          numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
                                                          numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
                                                          hr(),
@@ -570,8 +585,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         observe({
             watch("launch_umap")
 
-            w <- Waiter$new(
-                html = spin_loaders(1, color = "black"),
+            w <- waiter::Waiter$new(
+                html = waiter::spin_loaders(1, color = "black"),
                 color = "rgba(255, 255, 255, 0.5)"
             )
             w$show()
@@ -579,21 +594,33 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             n_neighbors <- isolate(input$n_neighbors)
             min_dist <- isolate(input$min_dist)
 
+            # NEW : Extraction des features sélectionnées
+            umap_features <- isolate(input$umap_features)
+
             req(ScIGMA_data$mae[["proteins"]])
+
+            # Sécurité : Éviter un crash si l'utilisateur désélectionne tout
+            if (is.null(umap_features) || length(umap_features) < 3) {
+                shiny::showNotification("Please select at least 3 protein markers to build a UMAP model.", type = "error")
+                w$hide()
+                return()
+            }
+
             message("Computing UMAP...")
 
-            # Assure-toi que Seurat utilise bien les 'features' (Protéines) et non les 'dims' (PCA) pour l'UMAP
-            ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
-                                                 features = rownames(ScIGMA_data$seurat_object),
-                                                 min.dist = min_dist,
-                                                 n.neighbors = n_neighbors)
+            # UPDATED : Injection stricte des features ciblées dans Seurat
+            ScIGMA_data$seurat_object <- Seurat::RunUMAP(ScIGMA_data$seurat_object,
+                                                         features = umap_features,
+                                                         min.dist = min_dist,
+                                                         n.neighbors = n_neighbors)
 
-            # --- FIX CRITIQUE : Vraie Ground Truth (Matrice Normalisée, Cellules x Protéines) ---
+            # --- FIX CRITIQUE : Vraie Ground Truth ---
             message("Computing rigorous UMAP metrics against raw normalized data...")
 
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
-            # Transposition pour avoir les Cellules en lignes
-            true_ground_truth_mat <- t(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use))
+
+            # UPDATED : Restriction de la matrice haute-dimension aux features sélectionnées
+            true_ground_truth_mat <- t(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[umap_features, , drop = FALSE])
             umap_mat <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings
 
             # Calcul du triptyque
@@ -615,8 +642,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             gargoyle::trigger("umap_computed")
             message("Calcul UMAP et évaluations terminés.")
 
-        }) %>%
-            bindEvent(input$run_umap_btn)
+        }) |>
+            shiny::bindEvent(input$run_umap_btn)
 
         # --- NEW : Rendu dynamique du panneau de score (Radar Plot) ---
         output$umap_evaluation_panel <- renderUI({

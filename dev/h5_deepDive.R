@@ -46,6 +46,9 @@ ScIGMA_data <- loadH5_HDF5_biocond(
 
 ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
 
+print(head(rownames(ScIGMA_data$mae[["dna_variants"]])))
+print(length(rownames(ScIGMA_data$mae[["dna_variants"]])))
+
 # 2. Filtrage & Annotation (Un seul appel robuste)
 tryCatch({
     # Assure-toi que cfg$paths est disponible dans l'environnement
@@ -150,9 +153,3 @@ extracted_variant_genotypes <- extract_variant_genotypes(mae_data = ScIGMA_data$
 extracted_variant_genotypes_df_plot <- extracted_variant_genotypes |> t() |> as.data.frame() |> select(1) |> rownames_to_column("cell_barcode")
 ref_umap <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings) |> rownames_to_column("cell_barcode")
 extracted_variant_genotypes_df_plot <- merge(extracted_variant_genotypes_df_plot, ref_umap) |> column_to_rownames("cell_barcode")
-
-
-
-
-
-

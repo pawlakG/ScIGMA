@@ -57,6 +57,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         output$protein_main_ui <- shiny::renderUI({
             watch("dnaVariant_filtered")
             watch("compass_completed")
+            watch("umap_computed") # NEW : Déclenche l'UI quand l'UMAP est prêt
 
             if (!isTRUE(is_filtered_flag())) {
                 # Cas 1 : Bloqué
@@ -67,10 +68,33 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     br(), br()
                 )
             } else {
+                # NEW : Vérification de l'existence du modèle UMAP
+                umap_ready <- !is.null(ScIGMA_data$seurat_object@reductions$umap)
+
+                # NEW : Persistance des inputs utilisateurs lors des rechargements UI
+                curr_features <- shiny::isolate(input$umap_features)
+                if (is.null(curr_features) && !is.null(ScIGMA_data$mae[["proteins"]])) {
+                    curr_features <- rownames(ScIGMA_data$mae[["proteins"]])
+                }
+
+                curr_n_neighbors <- shiny::isolate(input$n_neighbors)
+                if (is.null(curr_n_neighbors)) curr_n_neighbors <- 15
+
+                curr_min_dist <- shiny::isolate(input$min_dist)
+                if (is.null(curr_min_dist)) curr_min_dist <- 0.2
+
+                # NEW : Capture et persistance de l'onglet principal actif
+                curr_tab <- shiny::isolate(input$protein_tabs)
+                if (is.null(curr_tab)) curr_tab <- "tab_description"
+
                 # Cas 2 : Autorisé (Injection de l'UI complète)
                 navset_card_underline(
+                    id = ns("protein_tabs"),     # NEW : Identifiant pour écouter l'onglet actif
+                    selected = curr_tab,         # NEW : Restauration immédiate de l'état
+
                     nav_panel(
-                        "Description",
+                        title = "Description",
+                        value = "tab_description", # NEW : Identifiant interne du panneau
                         accordion(
                             id = ns("acc_ptn"),
                             open = FALSE,
@@ -85,7 +109,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         )
                     ),
                     nav_panel(
-                        "Bi-plot",
+                        title = "Biplot",
+                        value = "tab_biplot",      # NEW : Identifiant interne du panneau
                         fluidRow(
                             # ---- 1. Contrôles & Axes ----
                             column(
@@ -146,8 +171,11 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                             )
                         )
                     ),
-                    nav_panel("UMAP",
-                              accordion(
+                    nav_panel(
+                        title = "UMAP",
+                        value = "tab_umap",        # NEW : Identifiant interne du panneau
+                        accordion(
+                            id = ns("umap_accordion_main"),
                                   accordion_panel(
                                       "Built UMAP model",
                                       fluidRow(
@@ -157,11 +185,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                          area = "umap_accordion_first",
                                                          h3("UMAP parameters"),
 
+                                                         # UPDATED : Injection des features sauvegardées
                                                          shinyWidgets::pickerInput(
                                                              inputId = ns("umap_features"),
                                                              label = "Protein markers",
                                                              choices = rownames(ScIGMA_data$mae[["proteins"]]),
-                                                             selected = rownames(ScIGMA_data$mae[["proteins"]]),
+                                                             selected = curr_features,
                                                              multiple = TRUE,
                                                              options = shinyWidgets::pickerOptions(
                                                                  actionsBox = TRUE,
@@ -171,8 +200,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                              )
                                                          ),
 
-                                                         numericInput(ns("n_neighbors"), "Neighbors", value = 15, min = 5, max = 100),
-                                                         numericInput(ns("min_dist"), "Distance Min", value = 0.2, min = 0.01, max = 1.0, step = 0.1),
+                                                         # UPDATED : Injection des valeurs numériques sauvegardées
+                                                         numericInput(ns("n_neighbors"), "Neighbors", value = curr_n_neighbors, min = 5, max = 100),
+                                                         numericInput(ns("min_dist"), "Distance Min", value = curr_min_dist, min = 0.01, max = 1.0, step = 0.1),
                                                          hr(),
                                                          actionBttn(
                                                              inputId = ns("run_umap_btn"), label = "Run UMAP",
@@ -198,35 +228,49 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                           )
                                       )
                                   ),
+
+                                  # NEW : Remplacement du contenu si l'UMAP n'est pas calculée
                                   accordion_panel(
                                       "Markers expression",
-                                      uiOutput(ns("markers_umap_panel_ui"))
+                                      if (umap_ready) {
+                                          uiOutput(ns("markers_umap_panel_ui"))
+                                      } else {
+                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                      }
                                   ),
                                   accordion_panel(
                                       "Biplot gates",
-                                      uiOutput(ns("biplotClones_umap_panel_ui"))
+                                      if (umap_ready) {
+                                          uiOutput(ns("biplotClones_umap_panel_ui"))
+                                      } else {
+                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                      }
                                   ),
                                   accordion_panel(
                                       "Unsupervised clustering",
-                                      fluidRow(
-                                          column(3,
-                                                 tagList(
-                                                     grid_card(
-                                                         area = "sidebar",
-                                                         h3("Clustering parameters"),
-                                                         numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
-                                                         hr(),
-                                                         actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                                      if (umap_ready) {
+                                          fluidRow(
+                                              column(3,
+                                                     tagList(
+                                                         grid_card(
+                                                             area = "sidebar",
+                                                             h3("Clustering parameters"),
+                                                             numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
+                                                             hr(),
+                                                             actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                                                         )
                                                      )
-                                                 )
-                                          ),
-                                          column(9,
-                                                 grid_card(
-                                                     area = "main", h3("2D Projection"),
-                                                     plotlyOutput(ns("umap_clustering_plot"), height = "600px")
-                                                 )
+                                              ),
+                                              column(9,
+                                                     grid_card(
+                                                         area = "main", h3("2D Projection"),
+                                                         plotlyOutput(ns("umap_clustering_plot"), height = "600px")
+                                                     )
+                                              )
                                           )
-                                      )
+                                      } else {
+                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                      }
                                   )
                               )
                     )

@@ -40,41 +40,33 @@ app_ui <- function(request) {
             nav_panel(
                 title = HTML("Analysis"),
                 value = "analysis_tab",
-                grid_container(
-                    layout = c("analysis"),
-                    row_sizes = c("1fr"),
-                    grid_card(
-                        area = "analysis",
-                        card_body(
-                            navset_tab(
-                                id = "tabs_analysis_inner",
-                                nav_panel(
-                                    title = "Load and preprocess",
-                                    value = "tab_overview",
-                                    mod_analysis_overview_ui("analysis_overview_1")
-                                ),
-                                nav_panel(
-                                    title = "DNA",
-                                    value = "tab_dna",
-                                    mod_analysis_DNA_ui("analysis_DNA_1")
-                                ),
-                                nav_panel(
-                                    title = "CNV",
-                                    value = "tab_cnv",
-                                    mod_analysis_CNV_ui("analysis_CNV_1")
-                                ),
-                                nav_panel(
-                                    title = "Protein",
-                                    value = "tab_protein",
-                                    mod_analysis_Protein_ui("analysis_Protein_1")
-                                ),
-                                nav_panel(
-                                    title = "Multi-omics",
-                                    value = "tab_multi_omics",
-                                    mod_analysis_multiomics_ui("analysis_multiomics_1")
-                                )
-                            )
-                        )
+
+                navset_card_underline(
+                    id = "tabs_analysis_inner",
+                    nav_panel(
+                        title = "Load and preprocess",
+                        value = "tab_overview",
+                        mod_analysis_overview_ui("analysis_overview_1")
+                    ),
+                    nav_panel(
+                        title = "DNA",
+                        value = "tab_dna",
+                        mod_analysis_DNA_ui("analysis_DNA_1")
+                    ),
+                    nav_panel(
+                        title = "CNV",
+                        value = "tab_cnv",
+                        mod_analysis_CNV_ui("analysis_CNV_1")
+                    ),
+                    nav_panel(
+                        title = "Protein",
+                        value = "tab_protein",
+                        mod_analysis_Protein_ui("analysis_Protein_1")
+                    ),
+                    nav_panel(
+                        title = "Multi-omics",
+                        value = "tab_multi_omics",
+                        mod_analysis_multiomics_ui("analysis_multiomics_1")
                     )
                 )
             ),

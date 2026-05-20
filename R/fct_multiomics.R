@@ -21,14 +21,24 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     }
 
     extracted_df <- variant_vector |> as.data.frame() |> rownames_to_column("cell_barcode")
+    message("inside extract_variant before mutate variant_vector")
+    print(head(extracted_df))
+    print(str(extracted_df))
+    print(table(extracted_df$variant_vector))
+    message("\n")
 
     extracted_df <- extracted_df %>% dplyr::mutate(variant_vector = dplyr::recode(variant_vector,
-                                                                                  "0" = "HOM",
+                                                                                  "0" = "WT",
                                                                                   "1" = "HET",
                                                                                   "2" = "HOM",
                                                                                   "3" = "Missing/ADO"))
     colnames(extracted_df)[colnames(extracted_df) == "variant_vector"] <- "Variant_Genotype"
     colnames(extracted_df)[colnames(extracted_df) == "cell_barcode"] <- "Barcode"
+    message("inside extract_variant after mutate variant_vector")
+    print(head(extracted_df))
+    print(str(extracted_df))
+    print(table(extracted_df$Variant_Genotype))
+    message("\n")
 
     return(extracted_df)
 }

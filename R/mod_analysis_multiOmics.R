@@ -72,7 +72,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
 
-            # Panel 1 : Protein UMAP x DNA
+            # Panel 1 : Protein UMAP x SNV
             if (has_dna && has_umap) {
                 # 2. Construction conditionnelle de l'interrupteur
                 compass_switch_ui_ptnUMAP_DNA <- shinyWidgets::materialSwitch(
@@ -118,7 +118,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 }
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
-                    title = "Protein UMAP x DNA",
+                    title = "Protein UMAP x SNV",
 
 
                     accordion(
@@ -170,7 +170,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 )
             }
 
-            # Panel 2 : UMAP Unsupervised Clusters x DNA
+            # Panel 2 : UMAP Unsupervised Clusters x SNV
             if (has_dna && has_clusters) {
 
 
@@ -199,7 +199,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 }
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
-                    title = "UMAP Unsupervised Clusters x DNA",
+                    title = "UMAP Unsupervised Clusters x SNV",
                     accordion(
                         id = ns("UMAPclusters_DNA_acc"),
                         open = FALSE,
@@ -235,7 +235,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 )
             }
 
-            # Panel 3 : Bi-plot Gates x DNA
+            # Panel 3 : Bi-plot Gates x SNV
             if (has_dna && has_gates) {
 
                 # 2. Construction conditionnelle de l'interrupteur
@@ -262,7 +262,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 }
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
-                    title = "Bi-plot Gates x DNA",
+                    title = "Bi-plot Gates x SNV",
                     shiny::fluidRow(
                         shiny::column(3,
                                       bslib::card(
@@ -301,7 +301,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
         # [ NODE_ACCESS : COMPUTATIONS ]
         # ----------------------------------------------------- _
-        # >> Protein UMAP x DNA _
+        # >> Protein UMAP x SNV _
         # [!] Clones
         output$ptnUMAP_DNA_acc_dnaClones_plot <- plotly::renderPlotly({
             watch("umap_computed")
@@ -458,7 +458,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             return(p)
         })
 
-        # >> Bi-plot Gates x DNA Distribution _
+        # >> Bi-plot Gates x SNV Distribution _
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
 
             watch("dna_clones_renamed")
@@ -530,7 +530,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         })
 
         # ---------------------------------------------------------
-        # [ NODE_ACCESS : UMAP Clusters x DNA ]
+        # [ NODE_ACCESS : UMAP Clusters x SNV ]
         # ---------------------------------------------------------
         # 1. Rendu du Barplot : Clusters x Clones
         output$plot_clust_clones <- plotly::renderPlotly({

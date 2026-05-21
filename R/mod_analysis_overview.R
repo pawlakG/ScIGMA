@@ -325,16 +325,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             if (ScIGMA_data$filetype == "DNA+protein"){
                 message("Preprocessing protein data ...")
 
-                #ScIGMA_data <- normalizeProtein(ScIGMA_data)
-
-                print("rownames(ScIGMA_data$mae[['proteins']]) before sanitizing")
-                print(rownames(ScIGMA_data$mae[["proteins"]]))
-
                 safe_rownames <- sanitize_protein_markers(rownames(ScIGMA_data$mae[["proteins"]]))
-                print("rownames(ScIGMA_data$mae[['proteins']])")
-                print(rownames(ScIGMA_data$mae[["proteins"]]))
-                print("safe_rownames")
-                print(safe_rownames)
                 rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
 
                 ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)

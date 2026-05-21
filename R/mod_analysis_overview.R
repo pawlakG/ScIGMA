@@ -330,6 +330,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
             }
 
+            ScIGMA_data$cnv_dp_filtered <- NULL
+
             message(whereami::whereami())
 
             # ---------------------------- #

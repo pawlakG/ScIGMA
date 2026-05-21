@@ -15,6 +15,7 @@ ScIGMA_object <- R6::R6Class(
         protein.filtered = NULL,
         variants.filtered = NULL,
         ploidy.mtx = NULL,
+        is_cnv_filtered = FALSE,
         cnv_dp_filtered = NULL,
         seurat_object = NULL,
         protein_gating_tree = list(),
@@ -79,6 +80,7 @@ ScIGMA_object <- R6::R6Class(
             self$variants.filtered <- NULL
             self$ploidy.mtx <- NULL
             self$cnv_dp_filtered <- NULL
+            self$is_cnv_filtered <- FALSE
             self$seurat_object <- NULL
             self$protein_gating_tree <- list()
             self$umaps <- list()

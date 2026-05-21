@@ -215,9 +215,6 @@ filter_cnv_matrix_by_completeness <- function(
 
     cell_ampCompleteness_selected <- names(cell_ampCompleteness_filter)[cell_ampCompleteness_filter]
 
-    print("cell_ampCompleteness_selected")
-    print(cell_ampCompleteness_selected)
-
     if (length(cell_ampCompleteness_selected) == 0) {
         warning("No cells passed the amplicon completeness filter. Returning empty results.")
         return(list(

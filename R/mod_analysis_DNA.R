@@ -321,6 +321,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 output$dna_variant_heatmap <- renderPlot({
                     ht
                 })
+
+            ScIGMA_data$cnv_dp_filtered <- NULL
             }
         }, ignoreInit = TRUE)
 

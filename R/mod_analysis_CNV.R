@@ -25,90 +25,186 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
         output$cnv_processing <- renderUI({
             watch("dnaVariant_selected")
             watch("dataLoaded")
+            watch("CNV_filtered")
 
-            if(is.null(ScIGMA_data$dna.clones)){
+            if (is.null(ScIGMA_data$dna.clones)) {
                 tagList(
                     br(),
-                    fluidRow(h4("Please select DNA variant first.", class = "text-muted text-center"))
+                    fluidRow(
+                        h4(
+                            "Please select DNA variant first.",
+                            class = "text-muted text-center"
+                        )
+                    )
                 )
             } else {
+                cnv_ready <- ScIGMA_data$is_cnv_filtered
+
+                # Dynamic panel focus definition under 80 characters
+                active_panel <- if (cnv_ready) {
+                    "Plot Configuration"
+                } else {
+                    "Amplicon & Cell Filters"
+                }
+
                 tagList(
                     br(),
-                    bslib::card(
-                        bslib::card_header(
-                            shiny::icon("filter"), "Amplicon & Cell Filters",
-                            class = "bg-primary text-white"
-                        ),
-                        bslib::card_body(
+                    bslib::accordion(
+                        id = ns("cnv_accordion_main"),
+                        open = active_panel,
+
+                        # PANEL 1: AMPLICON & CELL FILTERS
+                        bslib::accordion_panel(
+                            title = "Amplicon & Cell Filters",
+                            icon = shiny::icon("filter"),
                             fluidRow(
-                                column(4, numericInput(ns("cnv_ampCompleteness"), label = "Amplicon completeness (%)", value = 50)),
-                                column(4, numericInput(ns("cnv_ampReadDepth"), label = "Amplicon read depth", value = 10)),
-                                column(4, numericInput(ns("cnv_meanCellReadDepth"), label = "Mean cell read depth", value = 10))
+                                column(
+                                    width = 4,
+                                    numericInput(
+                                        inputId = ns("cnv_ampCompleteness"),
+                                        label = "Amplicon completeness (%)",
+                                        value = 50
+                                    )
+                                ),
+                                column(
+                                    width = 4,
+                                    numericInput(
+                                        inputId = ns("cnv_ampReadDepth"),
+                                        label = "Amplicon read depth",
+                                        value = 10
+                                    )
+                                ),
+                                column(
+                                    width = 4,
+                                    numericInput(
+                                        inputId = ns("cnv_meanCellReadDepth"),
+                                        label = "Mean cell read depth",
+                                        value = 10
+                                    )
+                                )
                             ),
                             br(),
                             fluidRow(
-                                column(6,
-                                       shinyWidgets::materialSwitch(
-                                           inputId = ns("cnv_use_compass_imputed"),
-                                           label = "Use COMPASS imputed clones",
-                                           value = FALSE,
-                                           status = "primary"
-                                       )
+                                column(
+                                    width = 6,
+                                    shinyWidgets::materialSwitch(
+                                        inputId = ns("cnv_use_compass_imputed"),
+                                        label = "Use COMPASS imputed clones",
+                                        value = FALSE,
+                                        status = "primary"
+                                    )
                                 ),
-                                column(6,
-                                       div(actionButton(ns("cnv_filter_button"), "Apply Filters",
-                                                        class = "btn-primary", icon = icon("play")), align = "right")
+                                column(
+                                    width = 6,
+                                    div(
+                                        actionButton(
+                                            inputId = ns("cnv_filter_button"),
+                                            label = "Apply Filters",
+                                            class = "btn-primary",
+                                            icon = icon("play")
+                                        ),
+                                        align = "right"
+                                    )
                                 )
                             )
+                        ),
+
+                        # PANEL 2: PLOT CONFIGURATION
+                        bslib::accordion_panel(
+                            title = "Plot Configuration",
+                            icon = shiny::icon("sliders"),
+                            if (cnv_ready) {
+                                tagList(
+                                    uiOutput(ns("cnv_plot_parameters")),
+                                    uiOutput(ns("cnv_plot_additionalParameters"))
+                                )
+                            } else {
+                                fluidRow(
+                                    h4(
+                                        "Please filter amplicons first",
+                                        class = "text-muted text-center",
+                                        style = "margin-top: 20px;"
+                                    )
+                                )
+                            }
+                        ),
+
+                        # PANEL 3: VISUALIZATION
+                        bslib::accordion_panel(
+                            title = "Visualization",
+                            icon = shiny::icon("chart-area"),
+                            if (cnv_ready) {
+                                uiOutput(ns("dynamic_plot_container"))
+                            } else {
+                                fluidRow(
+                                    h4(
+                                        "Please filter amplicons first",
+                                        class = "text-muted text-center",
+                                        style = "margin-top: 20px;"
+                                    )
+                                )
+                            }
                         )
-                    ),
-                    uiOutput(ns("cnv_plot_parameters")),
-                    uiOutput(ns("cnv_plot_additionalParameters")),
-                    uiOutput(ns("dynamic_plot_container"))
+                    )
                 )
             }
         })
+
+        output$cnv_placeholder <- renderUI({
+            watch("CNV_filtered")
+            print("ScIGMA_data$cnv_dp_filtered")
+            print(ScIGMA_data$cnv_dp_filtered)
+            if (is.null(ScIGMA_data$cnv_dp_filtered)) {
+                bslib::card(
+                    br(),
+                    fluidRow(h4("Please filter amplicons first", class = "text-muted text-center")),
+                    br()
+                )
+            } else {
+                return(NULL)
+            }
+        })
+
 
         # UI for plot parameters
         observeEvent({
             watch("CNV_filtered")
         },{
             output$cnv_plot_parameters <- renderUI({
+
+                # UPDATED : Silent DOM collapse. Returns NULL until filtration is triggered.
                 if (is.null(ScIGMA_data$cnv_dp_filtered)){
-                    bslib::card(br(), fluidRow(h4("Please filter CNV data first", class = "text-muted text-center")))
+                    return(NULL)
                 } else {
                     clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
                     clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
 
                     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
 
-                    bslib::card(
-                        bslib::card_header(shiny::icon("sliders"), "Plot Configuration", class = "bg-primary text-white"),
-                        bslib::card_body(
-                            fluidRow(
-                                column(4, pickerInput(
-                                    inputId = ns("cnv_diploidClone"),
-                                    label = "Diploid clone in DNA",
-                                    choices = clone_choices,
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                )),
-                                column(4,pickerInput(
-                                    inputId = ns("cnv_plotType"),
-                                    label = "Plot Type",
-                                    choices = c("Heatmap", "Lineplot"),
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                )),
-                                column(4,pickerInput(
-                                    inputId = ns("cnv_xAxis"),
-                                    label = "X-axis",
-                                    choices = sort_genomic_chromosomes(cnv_id_table$chrom),
-                                    multiple = TRUE,
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                ))
-                            )
+                    tagList(
+                        fluidRow(
+                            column(4, pickerInput(
+                                inputId = ns("cnv_diploidClone"),
+                                label = "Diploid clone in DNA",
+                                choices = clone_choices,
+                                options = pickerOptions(container = "body"),
+                                width = "100%"
+                            )),
+                            column(4,pickerInput(
+                                inputId = ns("cnv_plotType"),
+                                label = "Plot Type",
+                                choices = c("Heatmap", "Lineplot"),
+                                options = pickerOptions(container = "body"),
+                                width = "100%"
+                            )),
+                            column(4,pickerInput(
+                                inputId = ns("cnv_xAxis"),
+                                label = "X-axis",
+                                choices = sort_genomic_chromosomes(cnv_id_table$chrom),
+                                multiple = TRUE,
+                                options = pickerOptions(container = "body"),
+                                width = "100%"
+                            ))
                         )
                     )
                 }
@@ -131,9 +227,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                     clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
                     clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
 
-                    bslib::card(
-                        bslib::card_header(shiny::icon("layer-group"), "Additional Parameters", class = "bg-primary text-white"),
-                        bslib::card_body(
+                        tagList(
                             if (input$cnv_plotType == "Heatmap"){
                                 fluidRow(
                                     column(4, pickerInput(
@@ -164,7 +258,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                                 )
                             }
                         )
-                    )
                 }
             })
 
@@ -181,7 +274,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
             ignoreInit = TRUE,
             handlerExpr = {
                 message("Filtering cnv ...")
-                req(ScIGMA_data$mae)
+                shiny::req(ScIGMA_data$mae)
+                shiny::req(input$cnv_filter_button > 0)
                 if (isTRUE(input$cnv_use_compass_imputed)) {
                     # Sécurité : vérifier que COMPASS existe
                     if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
@@ -220,7 +314,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                                                     amp_meanCellRead = cnv_meanCellReadDepth)
 
                 ScIGMA_data$cnv_dp_filtered <- filtered_data
-                message("Filtering done")
+                ScIGMA_data$is_cnv_filtered <- TRUE
                 trigger("CNV_filtered")
             })
 

@@ -185,7 +185,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                          area = "umap_accordion_first",
                                                          h3("UMAP parameters"),
 
-                                                         # UPDATED : Injection des features sauvegardées
                                                          shinyWidgets::pickerInput(
                                                              inputId = ns("umap_features"),
                                                              label = "Protein markers",
@@ -200,7 +199,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                              )
                                                          ),
 
-                                                         # UPDATED : Injection des valeurs numériques sauvegardées
                                                          numericInput(ns("n_neighbors"), "Neighbors", value = curr_n_neighbors, min = 5, max = 100),
                                                          numericInput(ns("min_dist"), "Distance Min", value = curr_min_dist, min = 0.01, max = 1.0, step = 0.1),
                                                          hr(),

@@ -823,3 +823,43 @@ sanitize_mae_strings <- function(mae) {
 
     return(mae)
 }
+
+#' Sanitize protein marker names for Seurat compatibility
+#'
+#' @description Normalizes raw protein names by converting Greek characters
+#'   and HTML entities into their Latin equivalents via C-level vectorization.
+#'   Removes incompatible symbols to ensure complete Seurat interoperability.
+#'
+#' @param marker_names Character vector. Raw protein marker names.
+#'
+#' @return Character vector of sanitized alphanumeric names.
+#'
+#' @importFrom stringr str_replace_all
+#' @export
+sanitize_protein_markers <- function(marker_names) {
+    greek_map <- c(
+        "\u03B1" = "alpha",   "\u0391" = "Alpha",
+        "&#945;" = "alpha",   "&#913;" = "Alpha",   "&alpha;" = "alpha",
+        "\u03B2" = "beta",    "\u0392" = "Beta",
+        "&#946;" = "beta",    "&#914;" = "Beta",    "&beta;"  = "beta",
+        "\u03B3" = "gamma",   "\u0393" = "Gamma",
+        "&#947;" = "gamma",   "&#915;" = "Gamma",   "&gamma;" = "gamma",
+        "\u03B4" = "delta",   "\u0394" = "Delta",
+        "&#948;" = "delta",   "&#916;" = "Delta",   "&delta;" = "delta",
+        "\u03B5" = "epsilon", "\u0395" = "Epsilon",
+        "&#949;" = "epsilon", "&#917;" = "Epsilon", "&epsilon;" = "epsilon",
+        "\u03BA" = "kappa",   "\u039A" = "Kappa",
+        "&#954;" = "kappa",   "&#922;" = "Kappa",   "&kappa;" = "kappa",
+        "\u03BC" = "mu",      "\u039C" = "Mu",
+        "&#956;" = "mu",      "&#924;" = "Mu",      "&mu;"    = "mu"
+    )
+
+    # Pipeline: Tidyverse standard, strictly avoiding for loops
+    clean_names <- marker_names |>
+        stringr::str_replace_all(greek_map) |>
+        stringr::str_replace_all("[ /\\-]", "_") |>
+        stringr::str_replace_all("[^a-zA-Z0-9_]", "") |>
+        stringr::str_replace_all("_", "-")
+
+    return(clean_names)
+}

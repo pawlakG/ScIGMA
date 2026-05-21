@@ -279,10 +279,9 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             req(overview_preprocess_minCellPt)
             req(overview_preprocess_minMutCellPt)
-            req(ScIGMA_data$mae) # Sécurité : s'assure que les données sont chargées
+            req(ScIGMA_data$mae)
 
             message(whereami::whereami())
-            # show_modal_spinner(text = "Filtering and annotating DNA variants...")
             w <- Waiter$new(
                 # id = "umap_clustering_plot", # Peut cibler un plot précis ou toute la page
                 html = spin_loaders(1, color = "black"),             # Spinner discret et élégant
@@ -327,6 +326,17 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 message("Preprocessing protein data ...")
 
                 #ScIGMA_data <- normalizeProtein(ScIGMA_data)
+
+                print("rownames(ScIGMA_data$mae[['proteins']]) before sanitizing")
+                print(rownames(ScIGMA_data$mae[["proteins"]]))
+
+                safe_rownames <- sanitize_protein_markers(rownames(ScIGMA_data$mae[["proteins"]]))
+                print("rownames(ScIGMA_data$mae[['proteins']])")
+                print(rownames(ScIGMA_data$mae[["proteins"]]))
+                print("safe_rownames")
+                print(safe_rownames)
+                rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
+
                 ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
             }
 

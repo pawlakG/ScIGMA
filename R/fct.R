@@ -119,6 +119,15 @@ protein_run_pca <- function(ScIGMA_data) {
         verbose = FALSE
     )
 
+    print("ncol(ScIGMA_data$seurat_object@reductions$pca@cell.embeddings)")
+    print("colnames")
+    print(colnames(seurat_obj@reductions$pca@cell.embeddings))
+    print(ncol(seurat_obj@reductions$pca@cell.embeddings))
+    print("max_npcs")
+    print(max_npcs)
+    print("dim(seurat_obj)")
+    print(dim(seurat_obj))
+
     seurat_obj <- Seurat::FindNeighbors(
         seurat_obj,
         dims = 1:max_npcs,

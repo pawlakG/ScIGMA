@@ -49,7 +49,7 @@ app_ui <- function(request) {
                         mod_analysis_overview_ui("analysis_overview_1")
                     ),
                     nav_panel(
-                        title = "DNA",
+                        title = "SNV",
                         value = "tab_dna",
                         mod_analysis_DNA_ui("analysis_DNA_1")
                     ),

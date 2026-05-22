@@ -77,5 +77,7 @@ not implicitly coerce to in-memory matrices.
 - `filter_variants(filter_fun)`: Keep variants for which `filter_fun(id)` is TRUE.
 - `realize_all(dir, file, chunkdim, level)`: Persist delayed matrices to a
    single HDF5 file with optional chunking/compression control.
+)
+Load an H5 file into an HDF5‑backed ScIGMA_object
 }
 

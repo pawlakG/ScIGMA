@@ -862,12 +862,12 @@ get_genes_memory_safe <- function(input_df) {
     for (ver in versions) {
         sub_df <- input_df[input_df$genome_version == ver, ]
 
-        tx_db_pkg <- paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene")
-        if (!requireNamespace(tx_db_pkg, quietly = TRUE)) {
-            warning(paste("Package", tx_db_pkg, "not installed."))
+        if (!requireNamespace(paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"), quietly = TRUE)) {
+            warning(paste("Package", paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"), "not installed."))
             next
         }
-        tx_db <- getExportedValue(tx_db_pkg, tx_db_pkg)
+        tx_db <- getExportedValue(paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"),
+                                  paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"))
 
         # Standardize chromosome naming
         query_gr <- GRanges(

@@ -211,18 +211,6 @@ suppressPackageStartupMessages({
 #' - `filter_variants(filter_fun)`: Keep variants for which `filter_fun(id)` is TRUE.
 #' - `realize_all(dir, file, chunkdim, level)`: Persist delayed matrices to a
 #'    single HDF5 file with optional chunking/compression control.
-#'
-#' @examples
-#' \dontrun{
-#' # Minimal construction with HDF5-backed matrices (placeholders shown):
-#' library(HDF5Array)
-#' vaf <- HDF5Array("data.h5", "assays/dna_variants/layers/AF")
-#' obj <- ScIGMA_object$new(
-#'   meta.data = "SampleA",
-#'   cell.ids = c("cell1","cell2"),
-#'   cell.labels = c("cell1","cell2"),
-#'   variants = c("var1","var2"),
-#'   vaf.mtx = vaf
 #' )
 
 

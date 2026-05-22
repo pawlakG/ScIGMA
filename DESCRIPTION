@@ -7,45 +7,76 @@ Description: PKG_DESC.
 License: What license is it under?
 Imports: 
     BiocParallel,
-    bsicons,
     bslib,
+    circlize,
+    colorBlindness,
+    ComplexHeatmap,
     compositions,
     config,
     data.table,
     DelayedArray,
     DelayedMatrixStats,
+    DiagrammeR,
+    DiagrammeRsvg,
     dplyr,
     DT,
+    EnsDb.Hsapiens.v75,
+    EnsDb.Hsapiens.v86,
+    ensembldb,
     forcats,
     future,
     gargoyle,
+    GenomicRanges,
+    ggplot2,
     ggprism,
+    ggridges,
     golem,
+    grid,
     gridlayout,
     HDF5Array,
     httr2,
+    InteractiveComplexHeatmap,
+    IRanges,
+    magrittr,
+    Matrix,
     methods,
+    MultiAssayExperiment,
     parallel,
+    pkgload,
+    plotly,
     promises,
     purrr,
     R6,
     Rcpp,
     rhdf5,
+    rlang,
+    S4Vectors,
+    scales,
+    Seurat,
     shiny,
     shinybusy,
-    shinydashboard,
-    shinythemes,
+    shinycssloaders,
+    shinyjs,
     shinyWidgets,
+    SingleCellExperiment,
     stats,
     stringr,
+    SummarizedExperiment,
     tibble,
+    tidyr,
     tools,
-    whereami
+    utils,
+    uwot,
+    viridis,
+    viridisLite,
+    waiter,
+    whereami,
+    zip
+Suggests: 
+    testthat (>= 3.0.0)
 LinkingTo: 
     Rcpp
+Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
-Suggests: 
-    testthat (>= 3.0.0)
-Config/testthat/edition: 3

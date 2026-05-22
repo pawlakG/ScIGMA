@@ -133,7 +133,7 @@ mod_help_panel_ui <- function(id) {
                             icon = shiny::icon("chart-bar"),
                             shiny::markdown("
               * **Ridge Plots & Barplots:** Assess the continuous expression landscape and distribution of cell-surface markers across your cohort.
-              * **Biplot Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo biplots to isolate pure immunophenotypic subpopulations.
+              * **AbSeq Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo plots to isolate pure immunophenotypic subpopulations.
               ")
                         ),
 
@@ -159,7 +159,7 @@ mod_help_panel_ui <- function(id) {
                             icon = shiny::icon("layer-group"),
                             shiny::markdown("
               * **Markers Expression Accordion:** *Left Panel:* Select antibody targets. *Right Panel:* Generates a split grid overlaying continuous normalized expression values across the UMAP.
-              * **Biplot Gates Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
+              * **AbSeq Gating Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
               * **Unsupervised Clustering Accordion:** *Left Panel:* Fine-tune the Louvain/Leiden resolution parameter (higher values yield a larger number of distinct phenotypic clusters). *Right Panel:* Displays categorical cluster color assignments.
               ")
                         )
@@ -205,7 +205,7 @@ mod_help_panel_ui <- function(id) {
                         ),
 
                         bslib::accordion_panel(
-                            title = "Biplot Gates x SNV Mapping",
+                            title = "AbSeq Gating x SNV Mapping",
                             icon = shiny::icon("filter"),
                             shiny::markdown("
               * **Interface Strategy:** *Left Panel:* Select manually gated cell populations. *Right Panel:* Displays rigorous stacked barplots breaking down the exact mutational or subclonal composition contained within that specific phenotypic gate. Allows direct validation of immunophenotypic markers for targeted cell sorting.

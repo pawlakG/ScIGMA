@@ -109,7 +109,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         )
                     ),
                     nav_panel(
-                        title = "Biplot",
+                        title = "AbSeq Gating",
                         value = "tab_biplot",      # NEW : Identifiant interne du panneau
                         fluidRow(
                             # ---- 1. Contrôles & Axes ----
@@ -237,7 +237,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                       }
                                   ),
                                   accordion_panel(
-                                      "Biplot gates",
+                                      "AbSeq Gating",
                                       if (umap_ready) {
                                           uiOutput(ns("biplotClones_umap_panel_ui"))
                                       } else {

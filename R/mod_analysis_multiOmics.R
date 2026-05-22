@@ -262,7 +262,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 }
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
-                    title = "Biplot Gates x SNV",
+                    title = "AbSeq Gating x SNV",
                     shiny::fluidRow(
                         shiny::column(3,
                                       bslib::card(

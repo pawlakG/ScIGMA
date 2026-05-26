@@ -656,7 +656,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                          min.dist = min_dist,
                                                          n.neighbors = n_neighbors)
 
-            # --- FIX CRITIQUE : Vraie Ground Truth ---
             message("Computing rigorous UMAP metrics against raw normalized data...")
 
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")

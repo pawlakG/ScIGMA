@@ -70,18 +70,18 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                                     width = 4,
                                     numericInput(
                                         inputId = ns("cnv_ampReadDepth"),
-                                        label = "Amplicon read depth",
-                                        value = 10
-                                    )
-                                ),
-                                column(
-                                    width = 4,
-                                    numericInput(
-                                        inputId = ns("cnv_meanCellReadDepth"),
-                                        label = "Mean cell read depth",
+                                        label = "Minimum amplicon read depth",
                                         value = 10
                                     )
                                 )
+                                # column(
+                                #     width = 4,
+                                #     numericInput(
+                                #         inputId = ns("cnv_meanCellReadDepth"),
+                                #         label = "Minimum mean cell read depth",
+                                #         value = 10
+                                #     )
+                                # )
                             ),
                             br(),
                             fluidRow(
@@ -304,7 +304,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 # Store values
                 cnv_ampCompleteness <- input$cnv_ampCompleteness
                 cnv_ampReadDepth <- input$cnv_ampReadDepth
-                cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
+                #cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
+                cnv_meanCellReadDepth <- 10
 
                 # Filters (Remplacement de ScIGMA_data$dna.clones par active_clones)
                 filtered_data <- filter_cnv_profile(ScIGMA_data,

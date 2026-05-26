@@ -205,7 +205,6 @@ filter_cnv_matrix_by_completeness <- function(
     tmp_dp_mtx_aggregated <- tmp_dp_mtx_aggregated[, colnames(tmp_dp_mtx_aggregated) != "NA", drop = FALSE]
 
     ## --- Filter according to amplicon completeness (Cell-level filter) ---
-    # CORRECTION CRITIQUE : tmp_dp_mtx_aggregated est [Cells x Amplicons].
     # Pour évaluer chaque cellule, on itère sur les LIGNES (MARGIN = 1).
     cell_ampCompleteness_filter <- apply(
         X = tmp_dp_mtx_aggregated,

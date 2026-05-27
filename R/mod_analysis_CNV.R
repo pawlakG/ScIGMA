@@ -317,6 +317,19 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 ScIGMA_data$cnv_dp_filtered <- filtered_data
                 ScIGMA_data$is_cnv_filtered <- TRUE
                 trigger("CNV_filtered")
+
+                # FIX: Force UI update for pickerInputs after renaming to bypass Shiny DOM diffing caching
+                clone_choices <- levels(active_clones)[levels(active_clones) != "small"]
+                shinyWidgets::updatePickerInput(
+                    session = session,
+                    inputId = "cnv_diploidClone",
+                    choices = clone_choices
+                )
+                shinyWidgets::updatePickerInput(
+                    session = session,
+                    inputId = "cnv_lineplot_cluster",
+                    choices = clone_choices
+                )
             })
 
         # Observe event for ploidy computation

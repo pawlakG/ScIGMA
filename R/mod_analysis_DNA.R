@@ -305,6 +305,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                     # 4. Rafraîchissement de la palette universelle
                     ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+
+                    # 5. Invalidation des données CNV si les variants ou clones ont été re-générés.
+                    # On ne détruit pas le filtre CNV lors d'un simple renommage de clone.
+                    ScIGMA_data$cnv_dp_filtered <- NULL
                 }
 
                 shiny::showNotification(
@@ -321,8 +325,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 output$dna_variant_heatmap <- renderPlot({
                     ht
                 })
-
-            ScIGMA_data$cnv_dp_filtered <- NULL
             }
         }, ignoreInit = TRUE)
 

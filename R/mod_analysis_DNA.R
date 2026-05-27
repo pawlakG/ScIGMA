@@ -76,12 +76,15 @@ mod_analysis_DNA_ui <- function(id) {
                 title = "COMPASS",
                 value = "compass_tab",
                 bslib::card(
+                    fill = FALSE,
                     bslib::card_header(
                         shiny::icon("code-branch"),
                         "COMPASS: Clonal Architecture Inference",
                         class = "bg-dark text-white" # À adapter selon ton thème ggprism/application
                     ),
                     bslib::card_body(
+                        fillable = FALSE,
+                        fill = FALSE,
                         shiny::p(
                             "COMPASS (COpy number and Mutation Phylogeny from
                             Amplicon Single-cell Sequencing) is a probabilistic
@@ -403,6 +406,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             shiny::req(compass_tree_visible()) # Ne s'affiche que si l'interrupteur est TRUE
 
             bslib::card(
+                fill = FALSE,
                 bslib::card_header(
                     div(class = "d-flex justify-content-between align-items-center",
                         span(shiny::icon("project-diagram"), " Maximum Likelihood Phylogeny")
@@ -410,17 +414,20 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     class = "bg-dark text-white"
                 ),
                 bslib::card_body(
+                    fillable = FALSE,
+                    fill = FALSE,
                     # Le spinner tournera ici jusqu'à ce que renderGrViz renvoie l'image
                     shinycssloaders::withSpinner(
                         DiagrammeR::grVizOutput(ns("compass_tree_plot"), width = "100%", height = "500px"),
                         type = 4, color = "#007bff"
                     )
                 ),
-                br(),
-                shiny::downloadButton(
-                    outputId = ns("btn_download_tree"),
-                    label = "Download Tree (.svg)",
-                    class = "btn-sm btn-light"
+                bslib::card_footer(
+                    shiny::downloadButton(
+                        outputId = ns("btn_download_tree"),
+                        label = "Download Tree (.svg)",
+                        class = "btn-sm btn-light"
+                    )
                 )
             )
         })

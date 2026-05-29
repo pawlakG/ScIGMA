@@ -14,7 +14,10 @@ app_ui <- function(request) {
         use_waiter(),
 
         page_navbar(
-            title = HTML("ScIGMA portal"),
+            title = tagList(
+                tags$img(src = "www/logo.png", height = "70px", style = "vertical-align: bottom; margin-right: -23px; margin-bottom: -5px;"),
+                "cIGMA portal"
+            ),
             selected = "welcome_tab",
 
             # 1. CORRECTION DU THEME
@@ -104,7 +107,7 @@ golem_add_external_resources <- function() {
     )
 
     tags$head(
-        favicon(),
+        favicon(ext = "png"),
         bundle_resources(
             path = app_sys("app/www"),
             app_title = "ScIGMA"

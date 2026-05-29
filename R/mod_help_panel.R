@@ -340,6 +340,32 @@ mod_help_panel_ui <- function(id) {
                     )
                 )
             )
+        ),
+        
+        # --- TAB 6: DATA EXPORT ---
+        bslib::nav_panel(
+            title = "6. Data Export",
+            icon = shiny::icon("download"),
+            bslib::card_body(
+                shiny::markdown("
+          ### Exporting Results & Analysis
+          ScIGMA provides comprehensive export capabilities allowing you to download processed datasets and generated figures for downstream applications and publication.
+          
+          * **Processed Data:** Export your filtered and normalized single-cell matrices, including variant calls and proteomic counts, in standard tabular formats.
+          * **High-Resolution Figures:** Download publication-ready plots (UMAP, heatmaps, phylogenies) directly from their respective modules.
+          * **Clonal Assignments:** Retrieve the exact cell-to-clone mapping inferred by COMPASS and the corresponding single-cell genotype matrices.
+          "),
+                tags$figure(
+                    style = "display: inline-block; text-align: center;",
+                    
+                    tags$img(src = "www/img/13_download.png", width = "90%"),
+                    
+                    tags$figcaption(
+                        style = "margin-top: 8px; color: #555555;", 
+                        tags$em("Fig. 13: Data export options.")
+                    )
+                )
+            )
         )
     )
 )

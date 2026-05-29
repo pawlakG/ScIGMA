@@ -94,22 +94,26 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             if (file.exists(filePath)) {
                 if (file.info(filePath)$isdir) {
                     ScIGMA_data <- tryCatch(
-                        loadH5_HDF5_biocond(
-                            filepath = filePath,
-                            sample_name = sampleName,
-                            omic_type = fileType
-                        ),
+                        ScIGMA_profile("1. Chargement des donnees (Directory)", {
+                            loadH5_HDF5_biocond(
+                                filepath = filePath,
+                                sample_name = sampleName,
+                                omic_type = fileType
+                            )
+                        }, filepath = filePath),
                         error = function(e){
                             message("Error during loadH5")
                             stop(e$message)
                         })
                 } else {
                     temp_scigma_obj <- tryCatch(
-                        loadH5_HDF5_biocond(
-                            filepath = filePath,
-                            sample_name = sampleName,
-                            omic_type = fileType
-                        ),
+                        ScIGMA_profile("1. Chargement des donnees (File)", {
+                            loadH5_HDF5_biocond(
+                                filepath = filePath,
+                                sample_name = sampleName,
+                                omic_type = fileType
+                            )
+                        }, filepath = filePath),
                         error = function(e){
                             message("Error during loadH5")
                             stop(e$message)

@@ -186,34 +186,36 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             # --- 2. Calcul immédiat des clones purs ---
             sel_indices <- input$variant_selection_rows_selected
             if (length(sel_indices) > 0) {
-                # Tri et assignation des variants sélectionnés
-                sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
-                    as.data.frame() |>
-                    dplyr::arrange(desc(cell_proportion), desc(impact))
-
-                selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
-                selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
-                ScIGMA_data$variants.filtered <- selected_df
-
-                # Extraction de la matrice brute pour identifier les cellules complètes
-                short_vars <- rownames(selected_df)
-                gt_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt"))[short_vars, , drop = FALSE])
-                msk_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "variant_filter_mask"))[short_vars, , drop = FALSE]) != 0
-
-                # Application du masque (3 = Missing/Dropout)
-                gt_raw[cbind(row(msk_raw)[msk_raw], col(msk_raw)[msk_raw])] <- 3L
-                gt_complete_cells <- gt_raw[rowSums(gt_raw == 3L) == 0, , drop = FALSE]
-
-                if (nrow(gt_complete_cells) > 0) {
-                    res_raw <- generate_clonal_labels(gt_complete_cells, selected_df, ignore_missing = TRUE)
-                    ScIGMA_data$dna.clones <- setNames(as.factor(res_raw$cell_metadata$clonal_cluster_id),
-                                                       res_raw$cell_metadata$cell_barcode)
-                    ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
-                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
-
-                    # NEW : Les clones bruts sont validés, on révèle l'onglet COMPASS
-                    bslib::nav_show(id = "dna_tabs", target = "compass_tab")
-                }
+                ScIGMA_profile("2. Filtrage et annotation des variants", {
+                    # Tri et assignation des variants sélectionnés
+                    sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+                        as.data.frame() |>
+                        dplyr::arrange(desc(cell_proportion), desc(impact))
+    
+                    selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
+                    selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
+                    ScIGMA_data$variants.filtered <- selected_df
+    
+                    # Extraction de la matrice brute pour identifier les cellules complètes
+                    short_vars <- rownames(selected_df)
+                    gt_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt"))[short_vars, , drop = FALSE])
+                    msk_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "variant_filter_mask"))[short_vars, , drop = FALSE]) != 0
+    
+                    # Application du masque (3 = Missing/Dropout)
+                    gt_raw[cbind(row(msk_raw)[msk_raw], col(msk_raw)[msk_raw])] <- 3L
+                    gt_complete_cells <- gt_raw[rowSums(gt_raw == 3L) == 0, , drop = FALSE]
+    
+                    if (nrow(gt_complete_cells) > 0) {
+                        res_raw <- generate_clonal_labels(gt_complete_cells, selected_df, ignore_missing = TRUE)
+                        ScIGMA_data$dna.clones <- setNames(as.factor(res_raw$cell_metadata$clonal_cluster_id),
+                                                           res_raw$cell_metadata$cell_barcode)
+                        ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
+                        ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+    
+                        # NEW : Les clones bruts sont validés, on révèle l'onglet COMPASS
+                        bslib::nav_show(id = "dna_tabs", target = "compass_tab")
+                    }
+                })
             } else {
                 bslib::nav_hide(id = "dna_tabs", target = "compass_tab")
             }
@@ -447,21 +449,23 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                     prefix_out <- file.path(tempdir(), paste0("compass_async_", as.integer(Sys.time())))
 
-                    run_compass_mcmc(
-                        variant_matrices   = variant_matrices,
-                        locus_regions      = vec_locus_regions,
-                        region_matrix      = mat_cna,
-                        output_prefix      = prefix_out,
-                        locus_names        = vec_locus_names,
-                        locus_chromosomes  = vec_locus_chrom,
-                        region_names       = vec_region_names,
-                        region_chromosomes = vec_region_chrom,
-                        chains             = 4L,
-                        # chain_length       = 500L,
-                        chain_length       = compass_length_chains,
-                        patient_sex        = "female",
-                        use_cna            = use_cna
-                    )
+                    ScIGMA_profile("3. Algorithme COMPASS", {
+                        run_compass_mcmc(
+                            variant_matrices   = variant_matrices,
+                            locus_regions      = vec_locus_regions,
+                            region_matrix      = mat_cna,
+                            output_prefix      = prefix_out,
+                            locus_names        = vec_locus_names,
+                            locus_chromosomes  = vec_locus_chrom,
+                            region_names       = vec_region_names,
+                            region_chromosomes = vec_region_chrom,
+                            chains             = 4L,
+                            # chain_length       = 500L,
+                            chain_length       = compass_length_chains,
+                            patient_sex        = "female",
+                            use_cna            = use_cna
+                        )
+                    })
 
                     return(list(prefix = prefix_out, targets = target_vars))
                 }, seed = TRUE)

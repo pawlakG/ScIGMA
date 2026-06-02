@@ -587,8 +587,7 @@ generate_dna_variant_heatmap <- function(obj,
         which(grepl(x, selected_variants_df$variant_id))
     }, simplify = FALSE, USE.NAMES = FALSE) |> unlist()
 
-    new_colnames <- selected_variants_df$variant_id[idx_colnames]
-    new_colnames <- sub(":", "    \n", new_colnames)
+    new_colnames <- paste0(selected_variants_df$gene[idx_colnames], "   \n", selected_variants_df$cdna[idx_colnames])
 
     ## Heatmap
     heatmap <- ComplexHeatmap::Heatmap(

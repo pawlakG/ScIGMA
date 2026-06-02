@@ -18,7 +18,7 @@ ScIGMA_profile <- function(step_name, expr, filepath = NULL) {
 
     # RAM before
     gc_info_before <- gc(reset = TRUE)
-    gc_before <- sum(gc_info_before[, "used (Mb)"])
+    gc_before <- sum(gc_info_before[, 2])
 
     # Time before
     t0 <- Sys.time()
@@ -32,7 +32,7 @@ ScIGMA_profile <- function(step_name, expr, filepath = NULL) {
 
     # RAM after
     gc_info_after <- gc()
-    gc_after <- sum(gc_info_after[, "used (Mb)"])
+    gc_after <- sum(gc_info_after[, 2])
     ram_diff <- gc_after - gc_before
 
     # Ratio

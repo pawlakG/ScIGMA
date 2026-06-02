@@ -431,7 +431,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     legend = list(title = list(text = "<b>Genotype</b>")),
                     margin = list(l = 60, r = 30, b = 60, t = 50)
                 ) %>%
-                plotly::config(displaylogo = FALSE)
+                plotly::config(displaylogo = FALSE) %>%
+                plotly::event_register("plotly_selected")
         })
 
         # --- 3. Selection & Gating Logic ---

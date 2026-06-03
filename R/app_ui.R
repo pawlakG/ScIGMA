@@ -15,22 +15,15 @@ app_ui <- function(request) {
 
         page_navbar(
             title = tagList(
-                tags$img(src = "www/logo.png", height = "70px", style = "vertical-align: bottom; margin-right: -23px; margin-bottom: -5px;"),
+                tags$img(src = "www/logo_noBg.png", height = "70px", style = "vertical-align: bottom; margin-right: -23px; margin-bottom: -5px;"),
                 "cIGMA portal"
             ),
             selected = "welcome_tab",
 
-            # 1. CORRECTION DU THEME
-            # On utilise font_scale pour grossir le texte proprement
-            # sans casser la hiérarchie visuelle de Lux.
             theme = bs_theme(
                 bootswatch = "lux",
                 font_scale = 1 # Augmente la taille globale de 10% (ajustez selon besoin)
             ),
-
-            # 2. NETTOYAGE
-            # J'ai retiré le bloc tags$style violent qui écrasait le thème.
-            # Si vous avez besoin de CSS spécifique, ciblez des classes précises sans toucher aux h1-h6 globalement.
 
             navbar_options = navbar_options(collapsible = TRUE),
 

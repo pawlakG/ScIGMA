@@ -334,3 +334,39 @@ OS: Darwin
 CPU: Apple M4 Pro
 Total RAM: 48.00 GB
 =================================
+=== ScIGMA Performance Report ===
+Step: 1. Chargement des donnees (File)
+Time: 0.32 seconds
+RAM Before: 1020.30 MB
+RAM After: 1029.00 MB
+RAM Impact (Delta): 8.70 MB
+File Size: 55.02 MB
+RAM/File Size Ratio: 0.16
+OS: Darwin
+CPU: Apple M4 Pro
+Total RAM: 48.00 GB
+=================================
+=== ScIGMA Performance Report ===
+Step: 2. Filtrage et annotation des variants
+Time: 0.12 seconds
+RAM Before: 1194.80 MB
+RAM After: 1196.00 MB
+RAM Impact (Delta): 1.20 MB
+File Size: N/A MB
+RAM/File Size Ratio: N/A
+OS: Darwin
+CPU: Apple M4 Pro
+Total RAM: 48.00 GB
+=================================
+=== ScIGMA Performance Report ===
+Step: 3. Algorithme COMPASS
+Time: 7.89 seconds
+RAM Before: 1213.70 MB
+RAM After: 1213.60 MB
+RAM Impact (Delta): -0.10 MB
+File Size: N/A MB
+RAM/File Size Ratio: N/A
+OS: Darwin
+CPU: Apple M4 Pro
+Total RAM: 48.00 GB
+=================================

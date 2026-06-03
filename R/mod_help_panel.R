@@ -176,7 +176,7 @@ mod_help_panel_ui <- function(id) {
         
         # --- TAB 4: PROTEINS ---
         bslib::nav_panel(
-            title = "4. Protein Surface Markers",
+            title = "4. Immunophenotype analysis",
             icon = shiny::icon("id-card"),
             bslib::card_body(
                 bslib::accordion(
@@ -188,7 +188,7 @@ mod_help_panel_ui <- function(id) {
                         icon = shiny::icon("chart-bar"),
                         shiny::markdown("
               * **Ridge Plots & Barplots:** Assess the continuous expression landscape and distribution of cell-surface markers across your cohort.
-              * **AbSeq Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo plots to isolate pure immunophenotypic subpopulations.
+              * **Immunophenotype Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo plots to isolate pure immunophenotypic subpopulations.
               "),
                         tags$figure(
                             style = "display: inline-block; text-align: center;",
@@ -197,7 +197,7 @@ mod_help_panel_ui <- function(id) {
                             
                             tags$figcaption(
                                 style = "margin-top: 8px; color: #555555;", 
-                                tags$em("Fig. 6: AbSeq tab - Descriptive panel: ridge plots and barplots of protein abundances.")
+                                tags$em("Fig. 6: Immunophenotype tab - Descriptive panel: ridge plots and barplots of protein abundances.")
                             )
                         )
                     ),
@@ -224,7 +224,7 @@ mod_help_panel_ui <- function(id) {
                             
                             tags$figcaption(
                                 style = "margin-top: 8px; color: #555555;", 
-                                tags$em("Fig. 7: AbSeq analysis - FCM-like gating and projection of DNA clones.")
+                                tags$em("Fig. 7: Immunophenotype analysis - FCM-like gating and projection of DNA clones.")
                             )
                         )
                     ),
@@ -234,7 +234,7 @@ mod_help_panel_ui <- function(id) {
                         icon = shiny::icon("layer-group"),
                         shiny::markdown("
               * **Markers Expression Accordion:** *Left Panel:* Select antibody targets. *Right Panel:* Generates a split grid overlaying continuous normalized expression values across the UMAP.
-              * **AbSeq Gating Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
+              * **Immunophenotype Gating Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
               * **Unsupervised Clustering Accordion:** *Left Panel:* Fine-tune the Louvain/Leiden resolution parameter (higher values yield a larger number of distinct phenotypic clusters). *Right Panel:* Displays categorical cluster color assignments.
               "),
                         shiny::fluidRow(
@@ -246,7 +246,7 @@ mod_help_panel_ui <- function(id) {
                                     
                                     tags$figcaption(
                                         style = "margin-top: 8px; color: #555555;", 
-                                        tags$em("Fig. 8: AbSeq analysis - UMAP projection and protein marker expression.")
+                                        tags$em("Fig. 8: Immunophenotype analysis - UMAP projection and protein marker expression.")
                                     )
                                     
                                 )
@@ -259,7 +259,7 @@ mod_help_panel_ui <- function(id) {
                                     
                                     tags$figcaption(
                                         style = "margin-top: 8px; color: #555555;", 
-                                        tags$em("Fig. 9: AbSeq subpopulation projection and unsupervised clustering on UMAP.")
+                                        tags$em("Fig. 9: Immunophenotype subpopulation projection and unsupervised clustering on UMAP.")
                                     )
                                 )
                             )
@@ -322,7 +322,7 @@ mod_help_panel_ui <- function(id) {
                     ),
                     
                     bslib::accordion_panel(
-                        title = "AbSeq Gating x SNV Mapping",
+                        title = "Immunophenotype Gating x SNV Mapping",
                         icon = shiny::icon("filter"),
                         shiny::markdown("
               * **Interface Strategy:** *Left Panel:* Select manually gated cell populations. *Right Panel:* Displays rigorous stacked barplots breaking down the exact mutational or subclonal composition contained within that specific phenotypic gate. Allows direct validation of immunophenotypic markers for targeted cell sorting.
@@ -334,7 +334,7 @@ mod_help_panel_ui <- function(id) {
                             
                             tags$figcaption(
                                 style = "margin-top: 8px; color: #555555;", 
-                                tags$em("Fig. 12: Multi-omics panel - Variant genotype distribution across AbSeq subpopulations.")
+                                tags$em("Fig. 12: Multi-omics panel - Variant genotype distribution across Immunophenotype subpopulations.")
                             )
                         )
                     )

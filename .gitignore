@@ -8,6 +8,9 @@
 Trash/
 src/*.o
 .positai
+
+#Dev folder
 dev/article/
 
+# Performance log
 *.txt

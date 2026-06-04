@@ -96,13 +96,18 @@ run_compass_mcmc <- function(
     )
 
     if (use_cna) {
-        output_files$nodes_copynumbers <- paste0(output_prefix, "_nodes_copynumbers.tsv")
+        cna_file <- paste0(output_prefix, "_nodes_copynumbers.tsv")
+        if (file.exists(cna_file)) {
+            output_files$nodes_copynumbers <- cna_file
+        } else {
+            message("⚠️ COMPASS a ignoré l'inférence CNA (impossible d'estimer les poids des régions, potentiellement par manque de cellules à la racine 'wild-type'). L'arbre final repose uniquement sur les SNVs.")
+        }
     }
 
     # Vérification silencieuse (Fail-safe)
     missing_files <- !file.exists(unlist(output_files))
     if (any(missing_files)) {
-        warning("L'exécution s'est terminée, mais certains fichiers sont absents du disque.")
+        warning("L'exécution s'est terminée, mais certains fichiers attendus sont absents du disque.")
     }
 
     return(output_files)

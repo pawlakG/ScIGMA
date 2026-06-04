@@ -264,7 +264,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             heatmap_include_all_samples <- input$heatmap_include_all_samples
             use_imputed <- input$heatmap_use_compass_imputed
 
-            if (length(sel_indices) > 0) {
+            if (length(sel_indices) > 0 && max(sel_indices) <= nrow(ScIGMA_data$mae[["dna_variants"]])) {
 
                 if (isTRUE(use_imputed) && is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
                     shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "warning")
@@ -276,7 +276,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                     as.data.frame() |>
-                    dplyr::select(variant_id, gene, transcript_id, protein, cdna, variant_type, gene_function, impact, cell_proportion) |>
+                    dplyr::select(dplyr::any_of("variant_id"), gene, transcript_id, protein, cdna, variant_type, gene_function, impact, cell_proportion) |>
                     dplyr::arrange(desc(cell_proportion), desc(impact))
 
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
@@ -294,26 +294,30 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 if (is.null(ScIGMA_data$dna_clones_renamed)) {
 
-                    # 1. On récupère systématiquement les clones calculés par la heatmap
-                    # (incluant les catégories "small" et "Missing")
-                    new_clones <- ht_res$clones
+                    is_compass_locked <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
 
-                    # 2. Mise à jour du Slot Actif (dna.clones)
-                    ScIGMA_data$dna.clones <- new_clones
-
-                    # 3. Pare-feu pour le Slot Brut (dna.clones_pre_compass)
-                    # On ne met à jour la "vérité terrain brute" que si la heatmap
-                    # n'affiche PAS les données imputées par COMPASS.
-                    if (!isTRUE(use_imputed)) {
-                        ScIGMA_data$dna.clones_pre_compass <- new_clones
+                    if (!is_compass_locked) {
+                        # 1. On récupère systématiquement les clones calculés par la heatmap
+                        # (incluant les catégories "small" et "Missing")
+                        new_clones <- ht_res$clones
+    
+                        # 2. Mise à jour du Slot Actif (dna.clones)
+                        ScIGMA_data$dna.clones <- new_clones
+    
+                        # 3. Pare-feu pour le Slot Brut (dna.clones_pre_compass)
+                        # On ne met à jour la "vérité terrain brute" que si la heatmap
+                        # n'affiche PAS les données imputées par COMPASS.
+                        if (!isTRUE(use_imputed)) {
+                            ScIGMA_data$dna.clones_pre_compass <- new_clones
+                        }
+    
+                        # 4. Rafraîchissement de la palette universelle
+                        ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+    
+                        # 5. Invalidation des données CNV si les variants ou clones ont été re-générés.
+                        # On ne détruit pas le filtre CNV lors d'un simple renommage de clone.
+                        ScIGMA_data$cnv_dp_filtered <- NULL
                     }
-
-                    # 4. Rafraîchissement de la palette universelle
-                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
-
-                    # 5. Invalidation des données CNV si les variants ou clones ont été re-générés.
-                    # On ne détruit pas le filtre CNV lors d'un simple renommage de clone.
-                    ScIGMA_data$cnv_dp_filtered <- NULL
                 }
 
                 shiny::showNotification(

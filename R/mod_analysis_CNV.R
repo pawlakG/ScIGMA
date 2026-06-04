@@ -336,6 +336,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
         observeEvent(input$cnv_diploidClone,
                      {
                          req(input$cnv_diploidClone)
+                         req(ScIGMA_data$cnv_dp_filtered)
                          message("Recomputing ploidy ...")
 
                          # FIX : Utilisation des clones actifs du CNV

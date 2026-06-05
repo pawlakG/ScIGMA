@@ -190,7 +190,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     # Tri et assignation des variants sélectionnés
                     sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                         as.data.frame() |>
-                        dplyr::arrange(desc(cell_proportion), desc(impact))
+                        dplyr::arrange(desc(cell_proportion), clinvar)
     
                     selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
                     selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
@@ -241,9 +241,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
             tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                 as.data.frame() |>
-                dplyr::select(gene, transcript_id, protein, cdna, variant_type, gene_function, impact, cell_proportion) |>
+                dplyr::select(gene, transcript_id, protein, cdna, variant_type, gene_function, clinvar, cell_proportion) |>
                 # dplyr::filter(!is.na(variant_id)) |>
-                dplyr::arrange(desc(cell_proportion), desc(impact))
+                dplyr::arrange(desc(cell_proportion), clinvar)
 
             datatable(tmp_variant_annotation,
                       selection = 'multiple',
@@ -276,12 +276,15 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                     as.data.frame() |>
-                    dplyr::select(dplyr::any_of("variant_id"), gene, transcript_id, protein, cdna, variant_type, gene_function, impact, cell_proportion) |>
-                    dplyr::arrange(desc(cell_proportion), desc(impact))
+                    dplyr::select(dplyr::any_of("variant_id"), gene, transcript_id, protein, cdna, variant_type, gene_function, clinvar, cell_proportion) |>
+                    dplyr::arrange(desc(cell_proportion), clinvar)
 
                 selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
                 selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
                 ScIGMA_data$variants.filtered <- selected_df
+
+                print("selected_df")
+                print(selected_df)
 
                 ht_res <- generate_dna_variant_heatmap(
                     obj = ScIGMA_data,

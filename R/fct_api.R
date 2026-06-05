@@ -1,172 +1,101 @@
-#' Normalize variant separators
+#' Fetch Clinical VEP Annotations
 #'
-#' Replace `:` and `/` with `-` in variant strings. Useful to normalize
-#' variant identifiers for URLs, file names, or APIs that do not accept
-#' colon or slash characters.
-#'
-#' @param variant A character (or factor) vector of variant strings
-#'   (e.g., `"chr1:115256598-T/C"`).
-#'
-#' @return A character vector with `:` and `/` replaced by `-`.
-#'
-#' @details
-#' - Vectorized over `variant`.
-#' - `NA` inputs remain `NA`.
-#' - This function does not trim whitespace or collapse repeated hyphens.
-#'
-#' @examples
-#' format_variant("chr1:115256598-T/C")
-#' # "chr1-115256598-T-C"
-#'
-#' format_variant(c("chr2:200/A", NA))
-#' # "chr2-200-A" NA
-format_variant <- function(variant) {
-    stopifnot(is.character(variant) || is.factor(variant))
-    variant <- as.character(variant)
-    chartr(":/", "--", variant)
-}
+#' @param custom_variant_vector Character vector of variants (e.g. "chr1-115256669-G-A")
+#' @param genome_build Genome build, default "grch37"
+#' @return A tibble with annotations
+#' @export
+fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build = "grch37") {                                                       
+  
+  # DICTIONNAIRE TRANSLATION (3-lettres -> 1-lettre clinique)
+  aa_map <- c(
+    "Ala"="A", "Arg"="R", "Asn"="N", "Asp"="D", "Cys"="C", 
+    "Gln"="Q", "Glu"="E", "Gly"="G", "His"="H", "Ile"="I", 
+    "Leu"="L", "Lys"="K", "Met"="M", "Phe"="F", "Pro"="P", 
+    "Ser"="S", "Thr"="T", "Trp"="W", "Tyr"="Y", "Val"="V", 
+    "Ter"="*"
+  )
 
-
-#' Normalize a nested path specification
-#'
-#' Accepts either a single string in dot-notation (e.g., `"a.b.c"`)
-#' or a character vector (e.g., `c("a", "b", "c")`) and returns
-#' the path as a character vector of segments.
-#'
-#' @param path Character scalar in dot-notation or a character vector
-#'   of path segments.
-#'
-#' @return A character vector of path segments.
-#'
-#' @examples
-#' make_path("a.b.c")
-#' make_path(c("a", "b", "c"))
-make_path <- function(path) {
-    if (is.character(path)){
-        strsplit(path, "\\.", fixed = FALSE)[[1]]
-    } else {
-        path
-    }
-}
-
-#' Safely pluck a nested value, returning NA for empty/missing inputs
-#'
-#' Uses \code{purrr::pluck()} to extract a nested element from a record.
-#' If the value is \code{NULL}, an empty list, or a length-0 vector,
-#' returns \code{NA}. Otherwise returns the extracted value as-is.
-#'
-#' @param x A list-like record (e.g., one parsed JSON object).
-#' @param path Path to the element: dot-notation string like \code{"a.b.c"}
-#'   or a character vector like \code{c("a","b","c")}.
-#'
-#' @return The extracted value, or \code{NA} if missing/empty.
-#'
-#' @details
-#' Empty structures are normalized to \code{NA} so downstream binding
-#' and tabular transformations are stable.
-#'
-#' @examples
-#' rec <- list(a = list(b = list(c = 1)))
-#' pluck_or_na(rec, "a.b.c")  # 1
-#' pluck_or_na(rec, "a.b.d")  # NA
-pluck_or_na <- function(x, path) {
-    v <- purrr::pluck(x, !!!make_path(path), .default = NULL)
-    # NA if NULL / empty list / length-0 vector
-    if (is.null(v) || (is.list(v) && length(v) == 0) || (length(v) == 0)) {
-        NA
-    } else {
-        v
-    }
-}
-
-#' Extract multiple nested fields from a list of records
-#'
-#' Given a list of records (e.g., parsed JSON objects) and a named list of
-#' paths, extracts each requested path into a tibble column. Each extracted
-#' value is wrapped to produce a list-column, preserving heterogeneous
-#' structures while enabling safe row-binding.
-#'
-#' @param records A list of records (each element is a list parsed from JSON).
-#' @param paths A named list mapping output column names to paths.
-#'   Paths can be dot-notation strings (e.g., \code{"a.b.c"}) or character
-#'   vectors of segments (e.g., \code{c("a","b","c")}).
-#'
-#' @return A tibble with one row per input record and one column per requested
-#'   path. Columns are list-columns to preserve nested/heterogeneous values.
-#'
-#' @examples
-#' records <- list(
-#'   list(id = 1, annotations = list(clinvar = list(value = list(sig = "pathogenic")))),
-#'   list(id = 2, annotations = list())  # missing value
-#' )
-#' paths <- list(
-#'   id = "id",
-#'   clinvar_value = "annotations.clinvar.value"
-#' )
-#' extract_paths(records, paths)
-#'
-#' # Then, if desired, widen:
-#' # extract_paths(records, paths) |> tidyr::unnest_wider(clinvar_value, names_sep = "_")
-extract_paths <- function(records, paths) {
-    # Example of 'paths': list(col_name = "a.b.c", other = "x.y")
-    stopifnot(is.list(records))
-    purrr::map(records, function(rec) {
-        # Ensure list-columns by wrapping each plucked value in a list()
-        vals <- purrr::imap(paths, ~ list(pluck_or_na(rec, .x)))  # guarantees list-columns
-        tibble::as_tibble(vals)
-    }) |>
-        dplyr::bind_rows()
-}
-
-#' @import httr2
-#' @import dplyr
-#'
-fetch_variants_batch_fields <- function(
-        ids,
-        paths,                                   # list(col_name = "a.b.c", ...)
-        base_url = "https://api.missionbio.io/annotations/v1/variants",
-        batch_size = 300,
-        max_retries = 4
-) {
-    stopifnot(length(ids) >= 1L)
-    ids_formated <- format_variant(ids)
-
-    chunks <- split(ids_formated, ceiling(seq_along(ids_formated) / batch_size))
-
-    message(paste0("Annotating ", length(chunks), " batches ..."))
-
-    purrr::map_dfr(chunks, function(ch) {
-
-        query_url <- paste0(base_url, "?ids=", paste0(ch, collapse = ","))
-
-        res_query <- query_url |>
-            httr2::request() |>
-            httr2::req_retry(max_tries = max_retries, backoff = ~ min(60, 2^(.x - 1))) |>
-            httr2::req_perform() |>
-            httr2::resp_body_json()
-
-
-        # colonne id + toutes les extractions demandées
-        tibble::tibble(variant_id = ch) |>
-            dplyr::bind_cols(extract_paths(res_query, paths)) |>
-            dplyr::mutate("gene_function" = sapply(gene_function, paste0,collapse = ", "),
-                          "clinvar" = sapply(clinvar, paste0,collapse = ", ")) |>
-            dplyr::mutate(
-                chromosome   = purrr::map_chr(chromosome, 1, .default = NA_character_),
-                position     = purrr::map_chr(position, 1, .default = NA_character_),
-                transcript_id   = purrr::map_chr(transcript_id, 1, .default = NA_character_),
-                protein   = purrr::map_chr(protein, 1, .default = NA_character_),
-                cdna   = purrr::map_chr(cdna, 1, .default = NA_character_),
-                ref_allele   = purrr::map_chr(ref_allele, 1, .default = NA_character_),
-                alt_allele   = purrr::map_chr(alt_allele, 1, .default = NA_character_),
-                gene         = purrr::map_chr(gene, 1, .default = NA_character_),
-                variant_type = purrr::map_chr(variant_type, 1, .default = NA_character_),
-                impact = purrr::map_vec(impact,as.numeric,.default = NA_real_),
-                clinvar = purrr::map_chr(clinvar, as.character ,.default = NA_character_),
-                clinvar = data.table::fifelse(clinvar == "NA", NA, clinvar),
-                variant_id = paste0(gene,":",sub("^([^-]+)-([^-]+)-([^-]+)-([^-]+)$", "\\1:\\2:\\3/\\4",variant_id))
-            )
-    })
+  # 1. Parsing HGVS Input (Robust parsing for MAE native ids like 'chr1:115256669:G/A')                                                                                                                          
+  hgvs_queries <- custom_variant_vector %>%
+    as.character() %>%
+    chartr(":/", "--", .) %>%
+    stringr::str_remove("^chr") %>%                                                                                                                         
+    stringr::str_split("-") %>%                                                                                                                             
+    purrr::map_chr(~ paste0(.x[1], ":g.", .x[2], .x[3], ">", .x[4]))                                                                                      
+  
+  # 2. Configuration Endpoint
+  server <- if (genome_build == "grch37") "https://grch37.rest.ensembl.org" else "https://rest.ensembl.org"                                        
+  endpoint <- "/vep/human/hgvs?refseq=1&hgvs=1&variant_class=1&canonical=1&phenotypes=1"                                                                        
+  
+  # 3. Batch Request                                                                                                                               
+  body_json <- jsonlite::toJSON(list(hgvs_notations = hgvs_queries), auto_unbox = TRUE)                                                                      
+  
+  response <- httr::POST(                                                                                                                                
+    url = paste0(server, endpoint),                                                                                                                
+    httr::content_type("application/json"),                                                                                                              
+    httr::accept("application/json"),                                                                                                                    
+    body = body_json                                                                                                                               
+  )                                                                                                                                                
+  
+  if (httr::status_code(response) != 200) stop(sprintf("🛑 [FATAL] API VEP Error %s: %s", httr::status_code(response), httr::content(response, "text")))             
+  
+  # 4. Flattening & Filtrage Initial                                                                                                               
+  raw_data <- httr::content(response, "parsed", simplifyVector = TRUE)                                                                                   
+  
+  annotation_table <- raw_data %>%                                                                                                                 
+    tibble::as_tibble() %>%                                                                                                                                
+    tidyr::unnest(transcript_consequences, keep_empty = TRUE, names_repair = "unique") %>%                                                                
+    dplyr::filter(canonical == 1)                                                                                                                         
+  
+  # ----------------------------------------------------------------------------                                                                   
+  # SÉCURITÉ STRUCTURELLE
+  # ----------------------------------------------------------------------------                                                                   
+  expected_cols <- c("hgvsc", "hgvsp")                                                                             
+  for (col in expected_cols) {                                                                                                                     
+    if (!col %in% names(annotation_table)) annotation_table[[col]] <- NA_character_                                                                                                     
+  }
+  
+  if (!"colocated_variants" %in% names(annotation_table)) {
+    annotation_table$colocated_variants <- list(NULL)
+  }
+  
+  # 5. Data Engineering & Mapping 1-Lettre                                                                                                                
+  annotation_table <- annotation_table %>%                                                                                                         
+    dplyr::mutate(                                                                                                                                        
+      consequence_terms = purrr::map_chr(consequence_terms, ~ paste(.x, collapse = ",")),
+      cDNA = dplyr::if_else(!is.na(hgvsc), stringr::str_extract(hgvsc, "c\\..+"), NA_character_),
+      
+      extracted_p = stringr::str_extract(hgvsp, "p\\..+"),
+      extracted_p = stringr::str_replace_all(extracted_p, "%3D", "="),
+      extracted_p = stringr::str_replace_all(extracted_p, aa_map),
+      
+      PROTEIN = dplyr::case_when(
+        is.na(extracted_p) ~ NA_character_,
+        is.na(gene_symbol) ~ extracted_p,
+        TRUE ~ paste0(gene_symbol, ":", extracted_p)
+      ),
+      
+      CLINVAR = purrr::map_chr(colocated_variants, ~ {
+        if (is.null(.x) || !is.data.frame(.x) || !"clin_sig" %in% names(.x)) return(NA_character_)
+        sigs <- unlist(.x$clin_sig)
+        if (length(sigs) == 0) return(NA_character_)
+        paste(unique(sigs[!is.na(sigs)]), collapse = ",")
+      }),
+      original_variant = custom_variant_vector[match(input, hgvs_queries)]
+    ) %>%
+    dplyr::filter(!is.na(cDNA)) %>%
+    dplyr::select(
+      original_variant,
+      gene = gene_symbol,
+      transcript_id = transcript_id,
+      protein = PROTEIN,
+      cdna = cDNA,
+      variant_type = dplyr::any_of("variant_class"),
+      gene_function = consequence_terms,
+      clinvar = CLINVAR
+    )
+  
+  return(annotation_table)
 }
 
 #' Filter variants and fetch annotations
@@ -219,24 +148,18 @@ filter_and_annotate_variants <- function(obj,
 
     # 3. Protected API call
     annot_df <- tryCatch({
-        fetch_variants_batch_fields(
-            variant_ids,
-            batch_size = batch_size,
-            paths = paths
-        )
+        fetch_clinical_vep_annotations(variant_ids)
     }, error = function(e) {
         stop(sprintf("API Error during variant annotation: %s", e$message))
     })
 
-    annot_df$impact <- round(annot_df$impact, 2)
-
     if (!is.null(annot_df) && nrow(annot_df) > 0) {
 
-        # Robust string cleaning (prevents truncating legitimate IDs)
-        annot_df$query <- ifelse(
-            grepl("^[A-Za-z0-9]+:chr", annot_df$variant_id),
-            sub("^[^:]*:", "", annot_df$variant_id),
-            annot_df$variant_id
+        # Format variant_id like GENE:chrX:POS:REF/ALT for legacy compatibility downstream
+        annot_df$variant_id <- ifelse(
+            !is.na(annot_df$gene),
+            paste0(annot_df$gene, ":", sub("^([^-]+)-([^-]+)-([^-]+)-([^-]+)$", "\\1:\\2:\\3/\\4", chartr(":/", "--", annot_df$original_variant))),
+            paste0("Unmapped:", annot_df$original_variant)
         )
 
         # 4. Dimensional synchronization
@@ -249,7 +172,7 @@ filter_and_annotate_variants <- function(obj,
             x = current_rowdata,
             y = annot_df,
             by.x = "query_id",
-            by.y = "query",
+            by.y = "original_variant",
             all.x = TRUE,
             sort = FALSE
         )

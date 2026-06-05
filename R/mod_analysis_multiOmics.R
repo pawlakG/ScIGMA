@@ -512,8 +512,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 color = ~Variant_Genotype,
                 colors = variant_colors,
                 type = 'bar',
-                text = ~paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
+                text = ~paste0(round(Percentage, 1), "% (n=", Count, ")"),
                 textposition = 'outside',
+                textangle = -90,
                 textfont = list(size = 12, color = "black", family = "Arial"),
                 constraintext = 'none',
                 hoverinfo = 'text'
@@ -521,7 +522,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 plotly::layout(
                     barmode = 'group',
                     # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
-                    xaxis = c(list(title = ""), prism_axis_style),
+                    xaxis = c(list(title = "", tickangle = 45), prism_axis_style),
                     yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
                     legend = list(title = list(text = "<b>Genotype</b>")),
                     margin = list(b = 100, t = 50)

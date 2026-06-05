@@ -312,8 +312,10 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 )
             }, error = function(e) {
                 remove_modal_spinner()
+                print(e)
                 message("Error during DNA variant filtering and annotation")
-                stop(e$message)
+                shiny::showNotification(e$message, type = "error", duration = 10)
+                req(FALSE)
             })
 
             # ---------------------------- #

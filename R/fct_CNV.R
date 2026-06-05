@@ -481,6 +481,7 @@ render_annotation_table <- function(obj, ploidy_data){
 plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 
     mat_data <- t(ploidy_data)
+    mat_data[mat_data > 8] <- 8
 
     # Extraction sécurisée des métadonnées
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
@@ -635,6 +636,7 @@ plot_cnv_genome <- function(cnv_matrix,
                             lineplot_type = "Genes+amplicons") {
 
     # --- 1. Data Preparation ---
+    cnv_matrix[cnv_matrix > 8] <- 8
     if (!is.null(sub_indices)) {
         mat_sub <- cnv_matrix[sub_indices, , drop = FALSE]
     } else {

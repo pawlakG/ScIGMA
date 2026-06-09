@@ -87,7 +87,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             message(whereami::whereami())
             # show_modal_spinner(text = "Loading data ...")
             w <- Waiter$new(
-                html = spin_double_bounce(),             # Spinner discret et élégant
+                html = spin_double_bounce(),
                 color = "rgba(255, 255, 255, 0.5)" # Fond blanc semi-transparent (pas de bloc blanc opaque)
             )
             w$show()
@@ -123,19 +123,15 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             } else {
                 stop("File or folder path doesn't exists\n")
             }
-            # 2. On transfère les données dans l'objet R6 GLOBAL partagé
-            # Cela préserve la référence mémoire pour tous tes modules Shiny
             ScIGMA_data$mae <- temp_scigma_obj$mae
             ScIGMA_data$mae_raw <- temp_scigma_obj$mae
             ScIGMA_data$filetype <- temp_scigma_obj$filetype
 
             ScIGMA_data$reset_analysis()
 
-            # Remise à zéro des métriques UI locales
             init_metrics$init_number_cell <- NULL
             init_metrics$init_number_dna_variant <- NULL
 
-            # Injection des nouvelles données
             ScIGMA_data$mae <- temp_scigma_obj$mae
             ScIGMA_data$mae_raw <- temp_scigma_obj$mae
             ScIGMA_data$filetype <- temp_scigma_obj$filetype
@@ -160,7 +156,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             val_dna   <- if (has_mae) nrow(ScIGMA_data$mae[["dna_variants"]]) else "No data loaded"
             val_cnv   <- if (has_mae) nrow(ScIGMA_data$mae[["amplicons"]]) else "No data loaded"
 
-            # Vérification stricte de l'existence de l'assay 'proteins'
             val_prot <- if (!has_mae) {
                 "No data loaded"
             } else if (!("proteins" %in% names(ScIGMA_data$mae))) {
@@ -287,8 +282,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             message(whereami::whereami())
             w <- Waiter$new(
-                # id = "umap_clustering_plot", # Peut cibler un plot précis ou toute la page
-                html = spin_loaders(1, color = "black"),             # Spinner discret et élégant
+                html = spin_loaders(1, color = "black"),
                 color = "rgba(255, 255, 255, 0.5)" # Fond blanc semi-transparent (pas de bloc blanc opaque)
             )
             w$show()
@@ -305,10 +299,9 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             temp_scigma_obj <- tryCatch({
                 filter_and_annotate_variants(
                     obj = ScIGMA_data,
-                    paths = cfg$paths, # Assure-toi que cfg$paths est bien accessible ici
+                    paths = cfg$paths, # Make sure cfg$paths is accessible here
                     min_cell_pt = overview_preprocess_minCellPt,
                     min_mut_cell_pt = overview_preprocess_minMutCellPt
-                    # Les autres paramètres prendront leurs valeurs par défaut (min_dp=10, etc.)
                 )
             }, error = function(e) {
                 remove_modal_spinner()
@@ -320,7 +313,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             # ---------------------------- #
             # Update Global R6 Reference
-            # On transfère le MAE filtré et annoté dans l'objet global
             ScIGMA_data$mae <- temp_scigma_obj$mae
 
             # >> Sanitize MAE _
@@ -357,7 +349,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             watch("dataLoaded")
             message(whereami::whereami())
 
-            # Sécurité anti-crash
             if (is.null(ScIGMA_data$mae)) return(NULL)
 
             filter_status <- S4Vectors::metadata(ScIGMA_data$mae)$variant_filter
@@ -372,7 +363,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 current_cells <-ncol(ScIGMA_data$mae[["dna_variants"]])
                 current_variants <- nrow(ScIGMA_data$mae[["dna_variants"]])
 
-                # UPDATED: Extraction directe des dimensions PRE-filtrage depuis mae_raw
                 initial_cells <- ncol(ScIGMA_data$mae_raw[["dna_variants"]])
                 initial_variants <- nrow(ScIGMA_data$mae_raw[["dna_variants"]])
 
@@ -381,7 +371,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                         h5("DNA variant filtering results:"),
                         column(6,
                                HTML(
-                                   # UPDATED : Utilisation des variables dynamiques locales
                                    paste0("Number of cells removed: ", initial_cells - current_cells, "</br>"),
                                    paste0("Number of DNA variants removed: ", initial_variants - current_variants)
                                )

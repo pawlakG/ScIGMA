@@ -10,7 +10,6 @@ NULL
 #' Direct interface to the ETHZ C++ COMPASS backend. Runs natively in R memory.
 #' This function strictly requires Copy Number Alteration (CNA) data.
 #'
-#' @param variant_matrices List. Contains 'REF', 'ALT', and 'GT' matrices.
 #' @param locus_regions Integer vector. Maps each locus to a region index (0-based).
 #' @param region_matrix Integer matrix. Region counts (regions x cells). Required.
 #' @param output_prefix Character. Prefix for output tree and data.
@@ -36,22 +35,19 @@ run_compass_mcmc <- function(
         use_cna = TRUE
 ) {
 
-    # 1. Extraction automatique des barcodes si non fournis
+    # 1. Automatic barcode extraction if not provided
     if (is.null(cell_names)) {
         cell_names <- colnames(variant_matrices$REF)
-        if (is.null(cell_names)) stop("Les matrices ne contiennent aucun nom de colonne (cellules).")
+        if (is.null(cell_names)) stop("Matrices do not contain any column names (cells).")
     }
 
-    # 1. BIOCONDUCTOR COMPLIANCE : Gestion automatique et sécurisée du chemin
     if (is.null(output_prefix)) {
         output_prefix <- file.path(tempdir(), paste0("compass_", as.integer(Sys.time())))
         message("No output_prefix provided. Writing to temp directory: ", output_prefix)
     } else {
-        # Sécurité I/O : Création de l'arborescence parente si elle n'existe pas
         dir.create(dirname(output_prefix), showWarnings = FALSE, recursive = TRUE)
     }
 
-    # Barrière de sécurité stricte
     if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
         stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
     }
@@ -74,7 +70,7 @@ run_compass_mcmc <- function(
             locus_chromosomes = as.character(locus_chromosomes),
             region_names = as.character(region_names),
             region_chromosomes = as.character(region_chromosomes),
-            cell_names = as.character(cell_names), # <-- NEW INJECTION
+            cell_names = as.character(cell_names),
             output_prefix = output_prefix,
             n_chains = as.integer(chains),
             chain_length = as.integer(chain_length),
@@ -85,8 +81,6 @@ run_compass_mcmc <- function(
         stop(sprintf("Fatal C++ error: %s", e$message))
     })
 
-    # 2. STANDARD DE PRODUCTION : Retourner les chemins générés
-    # Le C++ génère ces extensions en dur. On les mappe pour l'utilisateur.
     output_files <- list(
         tree_dot           = paste0(output_prefix, "_tree.gv"),
         tree_json          = paste0(output_prefix, "_tree.json"),
@@ -100,14 +94,13 @@ run_compass_mcmc <- function(
         if (file.exists(cna_file)) {
             output_files$nodes_copynumbers <- cna_file
         } else {
-            message("⚠️ COMPASS a ignoré l'inférence CNA (impossible d'estimer les poids des régions, potentiellement par manque de cellules à la racine 'wild-type'). L'arbre final repose uniquement sur les SNVs.")
+            message("⚠️ COMPASS ignored CNA inference (unable to estimate region weights, potentially due to lack of cells at the 'wild-type' root). Final tree relies solely on SNVs.")
         }
     }
 
-    # Vérification silencieuse (Fail-safe)
     missing_files <- !file.exists(unlist(output_files))
     if (any(missing_files)) {
-        warning("L'exécution s'est terminée, mais certains fichiers attendus sont absents du disque.")
+        warning("Execution finished, but some expected files are missing from disk.")
     }
 
     return(output_files)

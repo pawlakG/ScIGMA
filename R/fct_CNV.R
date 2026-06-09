@@ -129,7 +129,6 @@ aggregate_matrix_by_mappingTable<- function(numeric_matrix,
 #' It requires an auxiliary function `aggregate_matrix_by_amplicon` to first
 #' aggregate the depth matrix by amplicon identifiers.
 #'
-#' @param obj A list or environment containing the required matrices and table:
 #'   \itemize{
 #'     \item{\strong{amp.mtx}: A numeric matrix (CNV matrix) with amplicons as columns
 #'     and cells as rows (or vice-versa, but the current logic suggests amplicons as columns
@@ -186,13 +185,10 @@ filter_cnv_matrix_by_completeness <- function(
         amp_meanCellRead = 10,
         aggregate_fun = aggregate_matrix_by_mappingTable
 ) {
-    # 1. Extraction BioConductor (Lignes = Features, Colonnes = Cellules)
     amp_mtx <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
     dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
     dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
 
-    # 2. Transposition pour l'agrégation
-    # aggregate_fun attend : Lignes = Samples (Cells), Colonnes = Features (Variants)
     tmp_dp_mtx <- t(as.matrix(dp_mtx))
 
     tmp_dp_mtx_aggregated <- aggregate_fun(
@@ -205,7 +201,6 @@ filter_cnv_matrix_by_completeness <- function(
     tmp_dp_mtx_aggregated <- tmp_dp_mtx_aggregated[, colnames(tmp_dp_mtx_aggregated) != "NA", drop = FALSE]
 
     ## --- Filter according to amplicon completeness (Cell-level filter) ---
-    # Pour évaluer chaque cellule, on itère sur les LIGNES (MARGIN = 1).
     cell_ampCompleteness_filter <- apply(
         X = tmp_dp_mtx_aggregated,
         MARGIN = 1,
@@ -442,7 +437,6 @@ sort_genomic_chromosomes <- function(chromosome_vector) {
 render_annotation_table <- function(obj, ploidy_data){
     mat_data <- t(ploidy_data)
 
-    # Extraction sécurisée des métadonnées
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
     if (is.null(genome_v)) genome_v <- "hg19"
@@ -483,7 +477,6 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
     mat_data <- t(ploidy_data)
     mat_data[mat_data > 8] <- 8
 
-    # Extraction sécurisée des métadonnées
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
     if (is.null(genome_v)) genome_v <- "hg19"
@@ -653,9 +646,8 @@ plot_cnv_genome <- function(cnv_matrix,
     )
     # --- 2. Handling Order & X-Axis Logic ---
 
-    # Valeurs par défaut
     plot_meta$x_index <- 1:nrow(plot_meta)
-    x_tick_text <- paste0("<b>", probes, "</b>") # GRAS par défaut
+    x_tick_text <- paste0("<b>", probes, "</b>")
     x_tick_vals <- plot_meta$x_index
     separators <- list()
     angle_val <- -90
@@ -667,7 +659,6 @@ plot_cnv_genome <- function(cnv_matrix,
             dplyr::left_join(plot_meta, gene_annotation, by = "Probe")
         )
 
-        # B. Tri Génomique
         plot_meta <- plot_meta %>%
             dplyr::mutate(
                 chr_sort = suppressWarnings(as.numeric(Chromosome)),
@@ -678,7 +669,6 @@ plot_cnv_genome <- function(cnv_matrix,
 
         # C. Branchement Conditionnel
         if (lineplot_type == "Genes+amplicons") {
-            # MODE STACKED (Gènes)
             angle_val <- -45
 
             plot_meta$group_label <- ifelse(is.na(plot_meta$Gene), plot_meta$Probe, plot_meta$Gene)
@@ -687,18 +677,14 @@ plot_cnv_genome <- function(cnv_matrix,
             plot_meta$x_index <- as.numeric(factor(plot_meta$group_label, levels = unique_groups))
             x_tick_vals <- 1:length(unique_groups)
 
-            # Application du GRAS sur les labels des gènes
             x_tick_text <- paste0("<b>", unique_groups, "</b>")
 
-            # FIX CRITIQUE : Protection de la création des séparateurs
-            # Empêche seq() de crasher si un seul gène (ou groupe) est sélectionné
             if (length(unique_groups) > 1) {
                 sep_pos <- seq(1.5, length(unique_groups) - 0.5, 1)
             } else {
                 sep_pos <- numeric(0)
             }
 
-            # Recalcul des moyennes par gène
             tp_mean <- plot_meta |> dplyr::group_by(Gene) |> dplyr::summarize(Mean_Ploidy = mean(Mean_Ploidy, na.rm=TRUE))
             tp_mean_vec <- setNames(tp_mean$Mean_Ploidy, nm = tp_mean$Gene)
             plot_meta$Mean_Ploidy <- tp_mean_vec[plot_meta$Gene]
@@ -720,13 +706,11 @@ plot_cnv_genome <- function(cnv_matrix,
             x_tick_text <- paste0("<b>", rle_res$values, "</b>")
         }
 
-        # D. Ré-ordonner
         ordered_probes <- plot_meta$Probe
         ordered_probes <- ordered_probes[ordered_probes %in% colnames(mat_sub)]
         mat_sub <- mat_sub[, ordered_probes, drop = FALSE]
         plot_meta <- plot_meta[match(ordered_probes, plot_meta$Probe), ]
 
-        # E. Séparateurs
         separators <- lapply(sep_pos, function(p) {
             list(
                 type = "line",
@@ -771,7 +755,7 @@ plot_cnv_genome <- function(cnv_matrix,
                 ticktext = x_tick_text, # Contient les tags <b>
                 tickangle = angle_val,
                 ticks = "outside",
-                tickfont = list(size = 13), # Taille augmentée pour l'axe X (Gènes)
+                tickfont = list(size = 13),
                 automargin = TRUE,
                 zeroline = FALSE,
                 showgrid = FALSE
@@ -783,7 +767,7 @@ plot_cnv_genome <- function(cnv_matrix,
                 zeroline = TRUE,
                 zerolinewidth = 1,
                 gridcolor = "#eeeeee",
-                tickfont = list(size = 14) # Taille augmentée pour les chiffres Y
+                tickfont = list(size = 14)
             ),
             legend = list(
                 orientation = "h",
@@ -890,7 +874,6 @@ get_genes_memory_safe <- function(input_df) {
             output_list[[ver]] <- res_df
         }
 
-        # Purge RAM
         rm(tx_db, query_gr, hits, all_genes)
         gc()
     }
@@ -969,7 +952,6 @@ annotate_amplicons_exact <- function(mae) {
         # vectorization ?
         merged_rd <- merged_rd[!duplicated(merged_rd$dna_id) ,]
     }
-    # Re-injection in S4 object
     SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
 
     return(mae)

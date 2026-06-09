@@ -34,31 +34,23 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         # [ NODE_ACCESS : UI GENERATION ]
         # ----------------------------------------------------- _
         output$multiomics_main_ui <- shiny::renderUI({
-            # 1. Écoute active des signaux (Gargoyle)
             watch("umap_computed")
             watch("dnaVariant_selected")
             watch("dna_clones_renamed")
             watch("compass_completed")
-            # Ajoute ces signaux s'ils existent dans tes modules Protéines
             watch("clusters_computed")
             watch("gating_updated")
 
-            # 2. Vérification stricte des états (Ground Truth)
             # A. Les clones ADN existent-ils ?
             has_dna <- !is.null(ScIGMA_data$dna.clones_pre_compass) || !is.null(ScIGMA_data$dna.clones)
 
-            # B. La UMAP protéique est-elle faite ?
             has_umap <- !is.null(ScIGMA_data$seurat_object) && !is.null(ScIGMA_data$seurat_object@reductions$umap)
 
-            # C. Le clustering non-supervisé est-il fait ?
-            # Vérifie si la colonne des clusters existe dans les métadonnées (adapte "seurat_clusters" si tu l'as nommée autrement)
             has_clusters <- has_umap && ("seurat_clusters" %in% colnames(ScIGMA_data$seurat_object@meta.data))
 
-            # D. Le gating manuel est-il fait ?
-            # Vérifie que la liste des sous-populations (gates) n'est pas vide
+            # D. Is manual gating done?
             has_gates <- !is.null(ScIGMA_data$protein_gating_tree) && (length(ScIGMA_data$protein_gating_tree) > 0)
 
-            # 3. Condition par défaut : Aucun pré-requis n'est rempli
             if (!has_dna || (!has_umap && !has_clusters && !has_gates)) {
                 return(
                     shiny::div(class = "text-center mt-5",
@@ -67,14 +59,12 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 )
             }
 
-            # 4. Construction dynamique des onglets
             tabs <- list()
 
             compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
 
             # Panel 1 : Protein UMAP x SNV
             if (has_dna && has_umap) {
-                # 2. Construction conditionnelle de l'interrupteur
                 compass_switch_ui_ptnUMAP_DNA <- shinyWidgets::materialSwitch(
                     inputId = ns("ptnUMAP_DNA_acc_gtMtx_choice"),
                     label = if(compass_exists) {
@@ -238,7 +228,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             # Panel 3 : Bi-plot Gates x SNV
             if (has_dna && has_gates) {
 
-                # 2. Construction conditionnelle de l'interrupteur
                 compass_switch_ui_use_compass_biplot <- shinyWidgets::materialSwitch(
                     inputId = ns("use_compass_biplot"),
                     label = if(compass_exists) {
@@ -287,7 +276,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 )
             }
 
-            # 5. Rendu final (Si au moins un onglet est valide, on l'affiche)
             if (length(tabs) > 0) {
                 do.call(bslib::navset_card_underline, c(list(id = ns("multiomics_tabs")), tabs))
             } else {
@@ -327,12 +315,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             shiny::req(dna_clones_to_use)
 
-            # 2. Préparation du DataFrame
             ptnUmap_dna_df <- as.data.frame(ScIGMA_data$seurat_object@reductions$umap@cell.embeddings)
             ptnUmap_dna_df$dna_clones <- as.character(dna_clones_to_use[rownames(ptnUmap_dna_df)])
             ptnUmap_dna_df$dna_clones[is.na(ptnUmap_dna_df$dna_clones)] <- "Missing"
 
-            # 3. Rendu avec palette synchronisée
             p <- plot_ly(data = ptnUmap_dna_df,
                          x = ~umap_1, y = ~umap_2,
                          type = 'scattergl', mode = 'markers',
@@ -385,14 +371,12 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             tmp_selected_variant <- rownames(ScIGMA_data$variants.filtered)[ScIGMA_data$variants.filtered$label == input$selected_variant]
 
-            # 3. Extraction du génotype
             geno_df <- extract_variant_genotypes(
                 mae_data = ScIGMA_data$mae,
                 # variant_id = input$selected_variant,
                 variant_id = tmp_selected_variant,
                 use_compass = input$use_compass_variant
             )
-            # 4. Jointure asymétrique
             plot_df <- merge(umap_df, geno_df, by = "Barcode", all.x = TRUE)
 
             # 5. Nomenclature clinique
@@ -412,8 +396,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 levels = c("WT", "HET", "HOM", "Missing/ADO", "Unknown")
             )
 
-            # 6. Verrouillage strict de la palette colorimétrique (Inspirée de Viridis)
-            # Permet de figer les couleurs indépendamment des dropouts présents dans le lot
             variant_colors <- c(
                 "WT" = "#440154",          # Violet profond
                 "HET" = "#21918c",         # Sarcelle
@@ -465,7 +447,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             watch("compass_completed")
             watch("clusters_computed")
 
-            # Déclencheur : l'onglet doit être actif
             shiny::req(input$selected_biplot_pop, ScIGMA_data$variants.filtered)
 
             selected_biplot_gate_name <- input$selected_biplot_pop
@@ -479,7 +460,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             assay_colnames <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> colnames()
             cel_barcode <- assay_colnames[ScIGMA_data$protein_gating_tree$gates_list[[selected_biplot_gate_ids]]]
 
-            # Extraction des données via le helper
             plot_df <- compute_population_genotype_distribution(
                 mae_data = ScIGMA_data$mae,
                 variant_ids = rownames(ScIGMA_data$variants.filtered),
@@ -487,7 +467,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 use_compass = input$use_compass_biplot
             ) |> as.data.frame()
 
-            # Palette clinique (Gris pour ADO)
             variant_colors <- c(
                 "WT" = "#440154", "HET" = "#21918c",
                 "HOM" = "#fde725", "Missing/ADO" = "#e0e0e0"
@@ -538,7 +517,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         # ---------------------------------------------------------
         # 1. Rendu du Barplot : Clusters x Clones
         output$plot_clust_clones <- plotly::renderPlotly({
-            # NEW: Missing triggers added to force UI reset
             watch("dna_clones_renamed")
             watch("compass_completed")
             watch("clusters_computed")

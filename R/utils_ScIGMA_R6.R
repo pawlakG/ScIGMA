@@ -6,7 +6,7 @@
 ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
     public = list(
-        mae = NULL,             # Dataset actif
+        mae = NULL,
         mae_raw = NULL,         # Dataset d'origine (immuable)
         backing_files = list(),
         filetype = NULL,
@@ -92,7 +92,6 @@ ScIGMA_object <- R6::R6Class(
             dna.clones_pre_compass <- NULL
             self$dna_clone_colors <- NULL
 
-            # Sécurité additionnelle sur les métadonnées
             if (!is.null(self$mae)) {
                 S4Vectors::metadata(self$mae) <- list()
             }

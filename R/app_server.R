@@ -18,10 +18,7 @@ app_server <- function(input, output, session) {
     plan(sequential)
 
     # --------------------------------------------------------------- #
-    # 1. Masquage initial des onglets (BSLIB)
     # --------------------------------------------------------------- #
-    # On cache immédiatement les onglets avancés au lancement.
-    # L'ID "tabs_analysis_inner" doit correspondre à celui défini dans navset_tab() (voir app_ui).
     nav_hide(id = "tabs_analysis_inner", target = "tab_protein")
     nav_hide(id = "tabs_analysis_inner", target = "tab_multi_omics")
 
@@ -52,22 +49,16 @@ app_server <- function(input, output, session) {
          "gating_updated")
     print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
-    # 2. Logique de révélation conditionnelle (GARGOYLE)
     # --------------------------------------------------------------- #
-    # On écoute l'événement déclenché par l'onglet Overview (ex: "dataLoaded" ou un nouveau trigger)
     on("dataLoaded", {
-        # CONDITION : À adapter selon la structure exacte de ton objet R6.
-        # Exemple : Si le type d'analyse contient "proteomics" ou si une checkbox est cochée.
 
         # scenario_check <- isTRUE(ScIGMA_data$has_proteomics)
-        # ou
+        # or
         # scenario_check <- ScIGMA_data$experiment_type == "multi_omics"
 
-        # Placeholder pour la logique :
         show_advanced_tabs <- FALSE
         print("ScIGMA_data$filetype app_server")
         print(ScIGMA_data$filetype )
-        # Exemple hypothétique basé sur ta demande :
         if (ScIGMA_data$filetype == "DNA+protein") {
                 show_advanced_tabs <- TRUE
         } else {
@@ -78,7 +69,6 @@ app_server <- function(input, output, session) {
             nav_show(id = "tabs_analysis_inner", target = "tab_protein")
             nav_show(id = "tabs_analysis_inner", target = "tab_multi_omics")
         } else {
-            # Optionnel : recacher si l'utilisateur change d'avis et recharge des données simples
             nav_hide(id = "tabs_analysis_inner", target = "tab_protein")
             nav_hide(id = "tabs_analysis_inner", target = "tab_multi_omics")
         }

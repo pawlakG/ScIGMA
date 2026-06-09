@@ -10,7 +10,7 @@
 #include "Tree.h"
 #include "Scores.h"
 
-// Déclaration des variables globales requises par COMPASS
+// Declaration of global variables required by COMPASS
 int n_cells;
 int n_loci;
 int n_regions;
@@ -18,7 +18,7 @@ std::vector<Cell> cells;
 Data data;
 Params parameters;
 
-// NEW : Rapatriement de la configuration des hyperparamètres
+// NEW: Configuration of hyperparameters
 void init_params() {
     parameters.sequencing_error_rate = 0.02;
     parameters.omega_hom = 50.0;

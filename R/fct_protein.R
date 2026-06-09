@@ -16,26 +16,19 @@
 #' scigma <- normalizeProtein(scigma)
 #' }
 normalizeProtein <- function(ScIGMA_object) {
-    # 1. Extraction MAE (Protéines x Cellules)
     inputMatrix <- SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "counts") |> as.matrix()
 
-    # 2. Calcul CLR (Cellules en lignes)
     tmp_clr <- compositions::clr(t(inputMatrix) + 1)
 
-    # CRITIQUE : Destruction de la classe 'rmult' et retour à une matrice R native
     tmp_mat <- as.matrix(unclass(tmp_clr))
     tmp_mat <- apply(tmp_mat, 2, \(x) x + abs(min(x)))  # Translate to non-negative values
 
-    # 3. Transposition pour le stockage MAE (Protéines x Cellules)
     ret <- t(tmp_mat)
 
-    # 4. Injection sécurisée
     SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "clr") <- ret
 
-    # 5. Mise à jour des métadonnées
     S4Vectors::metadata(ScIGMA_object$mae)$protein_normalize_method <- "CLR normalized"
 
-    # 6. Mise à jour de l'indicateut de filtrage des proteines
     ScIGMA_object$protein.filtered <- TRUE
 
     return(ScIGMA_object)
@@ -49,7 +42,6 @@ render_protein_ridge_plot <- function(obj){
     assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]),
                            "normalized", "counts")
 
-    # Transposition obligatoire pour ggplot (Cellules en lignes, Protéines en colonnes)
     tmp_data <- t(SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)) |>
         dplyr::as_tibble() |>
         tidyr::pivot_longer(dplyr::everything())
@@ -63,7 +55,6 @@ render_protein_ridge_plot <- function(obj){
     plotly::ggplotly(tmp_plot)
 }
 
-#' Génère un barplot de la proportion de protéines
 #' @export
 plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
 
@@ -72,7 +63,6 @@ plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution")
         stop("Object does not have a protein count matrix.")
     }
 
-    # CRITIQUE : Puisque les protéines sont en lignes, on utilise rowSums2
     protein_barplot_df <- data.frame(
         protein = rownames(ptn_mtx),
         percent = round(DelayedMatrixStats::rowSums2(ptn_mtx) / sum(ptn_mtx), 5) * 100
@@ -117,10 +107,8 @@ normalize_linear_regression <- function(raw_matrix,
                                         jitter = 0,
                                         scale = 1) {
 
-    # 1. Validation & Setup (Matrice: Protéines x Cellules)
     if (!is.matrix(raw_matrix)) raw_matrix <- as.matrix(raw_matrix)
 
-    # 2. Apply Jitter (Noise Injection)
     if (jitter > 0) {
         noise <- matrix(rnorm(length(raw_matrix), 0, jitter), nrow = nrow(raw_matrix))
         raw_matrix <- raw_matrix + noise
@@ -139,7 +127,6 @@ normalize_linear_regression <- function(raw_matrix,
         work_lib_size <- library_size
     }
 
-    # 5. Regression Loop (CRITIQUE: MARGIN = 1 pour itérer sur les Protéines/Lignes)
     norm_mat <- apply(work_mat, 1, function(protein_counts) {
         if (var(protein_counts) == 0) return(protein_counts)
 
@@ -153,8 +140,6 @@ normalize_linear_regression <- function(raw_matrix,
         }
     })
 
-    # ATTENTION: apply() avec MARGIN=1 retourne une matrice transposée (Cellules x Protéines).
-    # Il faut la re-transposer pour restaurer l'architecture canonique.
     norm_mat <- t(norm_mat)
     rownames(norm_mat) <- rownames(raw_matrix)
     colnames(norm_mat) <- colnames(raw_matrix)
@@ -281,7 +266,6 @@ run_umap_protein <- function(expression_matrix,
 #' @export
 compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size = 1000) {
 
-    # 1. Alignement strict des matrices
     common_cells <- intersect(rownames(high_dim_mat), rownames(low_dim_mat))
 
     if (length(common_cells) < 3) {
@@ -293,7 +277,6 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
     low_dim_mat <- low_dim_mat[common_cells, , drop = FALSE]
     N <- nrow(high_dim_mat)
 
-    # 2. Échantillonnage stochastique
     sample_n <- min(sample_size, N)
     k_safe <- min(k, sample_n - 2)
 
@@ -301,11 +284,9 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
     high_sub <- high_dim_mat[idx, , drop = FALSE]
     low_sub <- low_dim_mat[idx, , drop = FALSE]
 
-    # 3. Matrices de distances
     d_high <- as.matrix(dist(high_sub))
     d_low <- as.matrix(dist(low_sub))
 
-    # 4. Corrélation de Spearman (Topologie Globale)
     if (sd(d_high, na.rm = TRUE) == 0 || sd(d_low, na.rm = TRUE) == 0) {
         spearman_score <- 0
     } else {
@@ -316,7 +297,6 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
         )
     }
 
-    # 5. Formules exactes de Venna & Kaski (2001) - 100% Vectorisé
     diag(d_high) <- Inf
     diag(d_low) <- Inf
 
@@ -328,7 +308,6 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
                     sample_n * (sample_n - k_safe) * (sample_n - k_safe - 1) / 2)
     norm_factor <- 1 / denom
 
-    # Extraction par masques booléens (remplace la boucle for)
     # trust_penalty : On prend les rangs d'origine des K-voisins de l'UMAP
     trust_penalty <- sum(pmax(0, r_high[r_low <= k_safe] - k_safe))
 

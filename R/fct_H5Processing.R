@@ -162,21 +162,16 @@ suppressPackageStartupMessages({
 #'
 #' @description
 #' `ScIGMA_object` is an R6 class designed to manage large single-cell
-#' genomics/proteomics matrices using the **DelayedArray/HDF5Array** backend.
-#' All heavy matrices are expected to be HDF5-backed `DelayedArray` objects,
 #' allowing out-of-memory processing and block-wise computation without
 #' materializing the full data in RAM.
 #'
 #' @details
 #' The class stores cell- and feature-level metadata along with several
-#' assay matrices (VAF, genotype, depth, genotype quality, amplicon counts,
 #' proteins, and optional ploidy). A convenience method `realize_all()` can
 #' persist any delayed computations to a single HDF5 file, with control over
 #' chunking and compression.
 #'
 #' **Important:** matrix-like fields (those ending with `*.mtx`) must be
-#' `DelayedArray`-compatible objects (typically `HDF5Array`). The class does
-#' not implicitly coerce to in-memory matrices.
 #'
 #' @section Fields:
 #' - `meta.data` (`character`): Sample-level metadata.
@@ -209,7 +204,6 @@ suppressPackageStartupMessages({
 #' - `summary()`: Returns a list with counts and key matrix dimensions.
 #' - `add_variant(variant)`: Add a new variant ID (de-duplicated).
 #' - `filter_variants(filter_fun)`: Keep variants for which `filter_fun(id)` is TRUE.
-#' - `realize_all(dir, file, chunkdim, level)`: Persist delayed matrices to a
 #'    single HDF5 file with optional chunking/compression control.
 #' )
 
@@ -217,7 +211,6 @@ suppressPackageStartupMessages({
 # ----------------------------------------------------
 # 100% HDF5‑backed import function
 # ----------------------------------------------------
-# Reads a .h5 file and constructs a ScIGMA_object whose matrices
 # are HDF5Array/DelayedArray (no full in‑RAM copies).
 
 #' Load an H5 file into an HDF5‑backed ScIGMA_object
@@ -225,7 +218,6 @@ suppressPackageStartupMessages({
 #' @param sample.name Sample name (stored in `meta.data`).
 #' @param omic.type Either "DNA+protein" or "DNA".
 #' @param block.size Target DelayedArray block size in bytes (e.g., `100e6`).
-#' @return A `ScIGMA_object` with all matrices HDF5‑backed.
 loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA"), block.size = 100e6){
     omic.type <- match.arg(omic.type)
     stopifnot(file.exists(filepath))
@@ -386,9 +378,7 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 }
 
 
-#' Harmonize columns (features) across multiple matrices
 #'
-#' Given a list of matrices (typically `DelayedArray`/`HDF5Array`) and their
 #' corresponding column-name vectors, this helper aligns features across files
 #' according to a specified policy:
 #' \itemize{
@@ -461,7 +451,6 @@ harmonize_cols <- function(mtx_list, cols_list, label, feature_policy = c("ident
 #'   or `"intersect"` (keep only common features; reorder consistently). Default `"identical"`.
 #' @param verbose Logical. Print progress messages.
 #'
-#' @return A merged `ScIGMA_object` (all matrices HDF5-backed).
 #'
 #' @examples
 #' \dontrun{
@@ -579,7 +568,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     if (omic_type == "DNA+protein"){
         proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
 
-        # SUPPRESSION de t() : la matrice sort nativement en Features x Cells
         protein_mtx <- .h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts")
 
         if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")){
@@ -591,7 +579,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         protein_barcodes <- .h5read_char(filepath, protein_id_path)
         pr_ra_names <- .h5read_char(filepath, protein_samples)
 
-        # INVERSION STRICTE : Lignes = Protéines, Colonnes = Cellules
         if (length(proteins) > 0 && length(protein_barcodes) > 0) {
             dimnames(protein_mtx) <- list(proteins, protein_barcodes)
         }
@@ -628,7 +615,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     dna_sample_ids <- .h5read_char(filepath, "/assays/dna_variants/ra/barcode")
     dna_id <- .h5read_char(filepath, "/assays/dna_variants/ca/id")
 
-    # ---- 1. Extraction et Forçage Dimensionnel (Features x Cells) ----
     # Tapestri stocke souvent en Cellules x Variants. t() transpose en Variants x Cellules.
 
     vaf_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/AF")
@@ -654,11 +640,9 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         dimnames(variant_filter_mask) <- list(dna_id, dna_sample_ids)
     }
 
-    # Assurez-vous que amp_mtx est bien extrait avant cette ligne si ce n'est pas déjà le cas
     amp_mtx <- .h5_delayed(filepath, "/assays/dna_read_counts/layers/read_counts")
     if (length(amp_ca_ids) > 0 && length(amp_sample_ids) > 0) dimnames(amp_mtx) <- list(amp_ca_ids, amp_sample_ids)
 
-    # ---- 2. Validation stricte des dimensions ----
     expected_dim <- c(length(dna_id), length(dna_sample_ids))
     raw_assays <- list(
         vaf = vaf_mtx,
@@ -677,14 +661,13 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 
     if (length(assays_list) == 0) stop("Critical failure: DNA assays dimension mismatch.")
 
-    # ---- 3. Tables S4Vectors (Lignes = Identifiants de la dimension) ----
     dna_id_table <- S4Vectors::DataFrame(
         dna_id = dna_id,
         amplicon = .h5read_char(filepath, "/assays/dna_variants/ca/amplicon"),
         chrom = .h5read_char(filepath, "/assays/dna_variants/ca/CHROM"),
         pos = .h5read_char(filepath, "/assays/dna_variants/ca/POS"),
-        ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"), # RE-ADDED : Métrique QC
-        ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),         # RE-ADDED : Métrique QC
+        ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"),
+        ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),
         filtered = .h5read_char(filepath, "/assays/dna_variants/ca/filtered"),
         row.names = dna_id
     )
@@ -708,7 +691,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     genome_v <- .h5read_char(filepath, "/assays/dna_read_counts/metadata/genome_version")
     if (length(genome_v) == 0) genome_v <- "hg19"
 
-    # RE-ADDED : Extraction des métadonnées de pipeline (Tapestri, etc.)
     dna_variant_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_variants/metadata")
     dna_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_read_counts/metadata")
 
@@ -739,7 +721,6 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         )
     }
 
-    # ---- 5. Fédérateur MAE ----
     mae_main <- MultiAssayExperiment::MultiAssayExperiment(
         experiments = experiment_list,
         colData = dna_cell_table,
@@ -767,16 +748,13 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 #' @export
 sanitize_mae_strings <- function(mae) {
 
-    # Fonction interne ultra-rapide pour nettoyer un vecteur
     clean_char_vector <- function(x) {
         if (is.character(x)) {
-            # Pulvérise \r et supprime les espaces invisibles aux extrémités
             return(trimws(gsub("\r", "", x), whitespace = "[\\h\\v]"))
         }
-        return(x) # Ignore les vecteurs numériques/logiques
+        return(x)
     }
 
-    # Fonction interne pour nettoyer un DataFrame entier
     clean_df <- function(df) {
         if (is.null(df) || nrow(df) == 0) return(df)
 
@@ -792,17 +770,13 @@ sanitize_mae_strings <- function(mae) {
 
     message("Sanitizing MAE object (Removing \\r and phantom whitespaces)...")
 
-    # 1. Purge du colData global (Métadonnées cliniques)
     SummarizedExperiment::colData(mae) <- clean_df(as.data.frame(SummarizedExperiment::colData(mae)))
 
-    # 2. Purge itérative de chaque modalité (DNA, Protéines, Amplicons)
     for (exp_name in names(mae)) {
         se <- mae[[exp_name]]
 
-        # Purge des rowData (là où se trouve ton erreur)
         SummarizedExperiment::rowData(se) <- clean_df(as.data.frame(SummarizedExperiment::rowData(se)))
 
-        # Purge des rownames/colnames des matrices d'assay
         rownames(se) <- clean_char_vector(rownames(se))
         colnames(se) <- clean_char_vector(colnames(se))
 
@@ -816,7 +790,6 @@ sanitize_mae_strings <- function(mae) {
 #'
 #' @description Normalizes raw protein names by converting Greek characters
 #'   and HTML entities into their Latin equivalents via C-level vectorization.
-#'   Removes incompatible symbols to ensure complete Seurat interoperability.
 #'
 #' @param marker_names Character vector. Raw protein marker names.
 #'

@@ -27,12 +27,10 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
         # 1. MAIN UI RENDERER (Empty State Logic)
         # ---------------------------------------------------------------------
         output$download_main_ui <- shiny::renderUI({
-            # Déclencheurs pour réévaluer l'UI au fil de l'analyse
             watch("dataLoaded")
             watch("dnaVariant_filtered")
             watch("CNV_filtered")
 
-            # Condition 1 : Aucune donnée chargée
             if (is.null(ScIGMA_data$mae)) {
                 return(
                     shiny::div(class = "text-center mt-5", style = "padding: 50px;",
@@ -43,25 +41,20 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 )
             }
 
-            # --- AIGUILLAGE DYNAMIQUE DES CHOIX D'EXPORT ---
-            # De base : ADN et Métadonnées (qui s'auto-enrichiront des clones, gates, clusters)
             choices_list <- c("Cell Metadata" = "metadata",
                               "DNA Genotypes" = "dna")
 
-            # Après filtrage des variants et normalisation des protéines
             if (!is.null(ScIGMA_data$variants.filtered)) {
                 choices_list <- c(choices_list,
                                   "DNA Variants Info" = "variants",
                                   "Proteins (Normalized)" = "proteins")
             }
 
-            # Après filtrage CNV (Bouton "Filter" dans l'onglet CNV)
             if (!is.null(ScIGMA_data$cnv_dp_filtered)) {
                 choices_list <- c(choices_list, "Amplicons (CNV)" = "cnv")
             }
             # -----------------------------------------------
 
-            # Condition 2 : Les données sont présentes, on injecte l'UI
             shiny::tagList(
                 bslib::card(
                     bslib::card_header(
@@ -80,12 +73,11 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                                               shiny::h4("Export Configuration"),
                                               shiny::hr(),
 
-                                              # 1. Sélection des Omiques (Dynamique)
                                               shiny::h5("Include Omics Data:"),
                                               shinyWidgets::checkboxGroupButtons(
                                                   inputId = ns("export_omics_selection"),
                                                   choices = choices_list,
-                                                  selected = unname(choices_list), # Tout cocher par défaut
+                                                  selected = unname(choices_list),
                                                   direction = "vertical",
                                                   status = "outline-primary",
                                                   width = "100%"
@@ -159,12 +151,10 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
         # 2. DYNAMIC UI SUB-CONTROLS
         # ---------------------------------------------------------------------
 
-        # A. Contrôle des clones (Bruts vs COMPASS)
         output$export_clones_options_ui <- shiny::renderUI({
             watch("dataLoaded")
             watch("compass_completed")
 
-            # Sécurité pour éviter un crash si l'UI est évaluée alors que mae est encore NULL
             if (is.null(ScIGMA_data$mae)) return(NULL)
 
             compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
@@ -189,7 +179,6 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             }
         })
 
-        # B. Activation conditionnelle du bouton Seurat
         output$btn_download_seurat_ui <- shiny::renderUI({
             watch("dataLoaded")
             watch("umap_computed")
@@ -207,17 +196,14 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
         compile_global_metadata <- function() {
             req(ScIGMA_data$mae)
 
-            # 1. Base stricte
             cells <- colnames(ScIGMA_data$mae)[["dna_variants"]]
             print("cells")
             print(head(cells))
 
-            # FIX : Création sans rownames initiaux pour éviter l'erreur de longueur
             meta_df <- data.frame(Cell_Barcode = cells, stringsAsFactors = FALSE)
 
             # 2. Clones ADN
             if (isTRUE(input$export_use_compass_clones) && !is.null(ScIGMA_data$dna.clones)) {
-                # Extraction par mapping explicite pour éviter les décalages
                 print("compile_global_metadata test 0")
                 meta_df$DNA_Clone <- as.character(ScIGMA_data$dna.clones[cells])
                 print("compile_global_metadata test 1")
@@ -232,7 +218,6 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
 
             # 3. Seurat Clusters
             if (!is.null(ScIGMA_data$seurat_object) && "seurat_clusters" %in% colnames(ScIGMA_data$seurat_object@meta.data)) {
-                # Conversion du facteur en character avant injection
                 cluster_vec <- as.character(ScIGMA_data$seurat_object$seurat_clusters)
                 names(cluster_vec) <- rownames(ScIGMA_data$seurat_object@meta.data)
 
@@ -253,14 +238,12 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                     depths <- sapply(valid_ids, function(id) meta[[id]]$depth)
                     ordered_ids <- valid_ids[order(depths)]
 
-                    # Extraction stricte des barcodes depuis les protéines
                     all_cell_barcodes <- colnames(ScIGMA_data$mae[["proteins"]])
 
                     for (sid in ordered_ids) {
                         cell_indices <- gates[[sid]]
                         cell_barcodes <- all_cell_barcodes[cell_indices]
 
-                        # Intersection sécurisée pour ne cibler que les cellules valides
                         valid_barcodes <- intersect(cell_barcodes, meta_df$Cell_Barcode)
                         if(length(valid_barcodes) > 0){
                             meta_df$Immunophenotype_Gate[match(valid_barcodes, meta_df$Cell_Barcode)] <- meta[[sid]]$name
@@ -290,12 +273,10 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
 
                 export_seurat <- ScIGMA_data$seurat_object
 
-                # Injection des Métadonnées Globales
                 global_meta <- compile_global_metadata()
                 aligned_meta <- global_meta[colnames(export_seurat), , drop = FALSE]
                 export_seurat <- Seurat::AddMetaData(export_seurat, metadata = aligned_meta)
 
-                # Injection conditionnelle de la matrice ADN
                 if ("dna" %in% input$export_omics_selection && !is.null(ScIGMA_data$mae[["dna_variants"]])) {
                     use_compass <- isTRUE(input$export_use_compass_clones)
                     if (use_compass && "compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
@@ -361,7 +342,6 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 dir.create(temp_dir)
                 files_to_zip <- c()
 
-                # 1. Cell Metadata (Généré si la case est cochée)
                 if ("metadata" %in% input$export_omics_selection) {
                     meta_df <- compile_global_metadata()
                     meta_file <- file.path(temp_dir, "metadata_cells.csv")

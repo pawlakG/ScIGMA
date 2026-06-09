@@ -12,7 +12,6 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
         if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
             variant_vector <- imputed_mtx[variant_id, ]
         } else {
-            # Fallback sur la matrice brute si l'imputation est absente pour ce variant
             variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
         }
     } else {
@@ -55,7 +54,6 @@ compute_population_genotype_distribution <- function(mae_data,
                                                      use_compass,
                                                      seurat_cluster = NULL) {
 
-    # 1. Sélection de la matrice source
     if (use_compass) {
         mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
     } else {
@@ -68,7 +66,6 @@ compute_population_genotype_distribution <- function(mae_data,
 
     sub_mtx <- mtx_source[variant_ids, common_cells, drop = FALSE]
 
-    # 3. Transformation Long-Format pour calcul groupé
     dist_df <- as.data.frame(as.matrix(sub_mtx)) |>
         tibble::rownames_to_column("Variant_ID") |>
         tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code")|>
@@ -94,7 +91,6 @@ compute_population_genotype_distribution <- function(mae_data,
             dplyr::group_by(Variant_ID, Cluster)
     }
 
-    # 4. Agrégation Statistique
     final_stats <- final_stats  |>
         dplyr::mutate(
             Total_In_Variant = sum(Count),
@@ -103,7 +99,6 @@ compute_population_genotype_distribution <- function(mae_data,
         dplyr::ungroup()
 
 
-    # Assurer que tous les niveaux de génotypes sont présents pour un plot stable
     levels_genotypes <- c("WT", "HET", "HOM", "Missing/ADO")
     final_stats$Variant_Genotype <- factor(final_stats$Variant_Genotype, levels = levels_genotypes)
 

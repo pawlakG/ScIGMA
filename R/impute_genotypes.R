@@ -1,6 +1,4 @@
-# UPDATED
 # File: R/impute_genotypes.R
-# Modification de la signature et de l'isolation de la matrice
 
 #' Impute Missing Genotypes from COMPASS Phylogeny
 #'
@@ -31,7 +29,6 @@ impute_compass_genotypes <- function(
     df_probs  <- read.table(file_probs, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
     df_nodes  <- read.table(file_nodes, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
 
-    # Création d'une copie stricte et isolée
     mat_imputed <- gt_matrix
 
     cell_names_cpp <- paste0("Cell_", seq_len(ncol(mat_imputed)) - 1L)

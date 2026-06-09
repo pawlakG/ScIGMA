@@ -80,7 +80,7 @@ mod_analysis_DNA_ui <- function(id) {
                     bslib::card_header(
                         shiny::icon("code-branch"),
                         "COMPASS: Clonal Architecture Inference",
-                        class = "bg-dark text-white" # À adapter selon ton thème ggprism/application
+                        class = "bg-dark text-white"
                     ),
                     bslib::card_body(
                         fillable = FALSE,
@@ -154,8 +154,6 @@ mod_analysis_DNA_ui <- function(id) {
 #' @importFrom forcats fct_recode
 mod_analysis_DNA_server <- function(id, ScIGMA_data){
     moduleServer(id, function(input, output, session){
-        # UPDATED
-        # File: R/mod_analysis_overview.R (ou fichier contenant ce module)
 
         ns <- session$ns
 
@@ -166,11 +164,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         observeEvent(input$btn_filtrer, {
             req(ScIGMA_data$mae)
 
-            # --- 1. Purge des états précédents (FIX CRITIQUE) ---
             ScIGMA_data$variants.filtered <- NULL
-            ScIGMA_data$dna_clones_renamed <- NULL # FIX : Détruire explicitement les anciens noms
+            ScIGMA_data$dna_clones_renamed <- NULL
 
-            # FIX : Atomisation de l'UI de renommage pour éviter le cache des anciens levels
             output$rename_cluster_ui <- renderUI({ NULL })
 
             if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
@@ -180,14 +176,12 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
                 compass_tree_visible(FALSE)
 
-                shiny::showNotification("Variantes modifiées : Le modèle COMPASS précédent a été purgé.", type = "warning")
+                shiny::showNotification("Modified variants: Previous COMPASS model purged.", type = "warning")
             }
 
-            # --- 2. Calcul immédiat des clones purs ---
             sel_indices <- input$variant_selection_rows_selected
             if (length(sel_indices) > 0) {
                 ScIGMA_profile("2. Filtrage et annotation des variants", {
-                    # Tri et assignation des variants sélectionnés
                     sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
                         as.data.frame() |>
                         dplyr::arrange(desc(cell_proportion), clinvar)
@@ -196,7 +190,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
                     ScIGMA_data$variants.filtered <- selected_df
     
-                    # Extraction de la matrice brute pour identifier les cellules complètes
                     short_vars <- rownames(selected_df)
                     gt_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt"))[short_vars, , drop = FALSE])
                     msk_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "variant_filter_mask"))[short_vars, , drop = FALSE]) != 0
@@ -212,7 +205,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                         ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
                         ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
     
-                        # NEW : Les clones bruts sont validés, on révèle l'onglet COMPASS
                         bslib::nav_show(id = "dna_tabs", target = "compass_tab")
                     }
                 })
@@ -222,7 +214,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         }, priority = 10, ignoreInit = TRUE)
 
         observeEvent(watch("dataLoaded"), {
-            # Éteint les interrupteurs
             shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
             if (exists("compass_tree_visible")) compass_tree_visible(FALSE)
 
@@ -236,7 +227,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
         # 1. Render DNA variants dataframe
         output$variant_selection <- renderDT({
             watch("dnaVariant_filtered")
-            watch("dataLoaded") # <-- NEW : Force la table à afficher les nouveaux variants bruts
+            watch("dataLoaded")
             req(ScIGMA_data$mae)
 
             tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
@@ -247,19 +238,18 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
             datatable(tmp_variant_annotation,
                       selection = 'multiple',
-                      rownames = FALSE, # Désactivé car variant_id est déjà présent
+                      rownames = FALSE,
                       colnames = stringr::str_replace_all(names(tmp_variant_annotation), "_", " "),
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
 
-        # 2. Récupérer les lignes sélectionnées
         observeEvent({
             input$btn_filtrer
             input$heatmap_include_all_samples
-            input$heatmap_use_compass_imputed # <-- NEW : Écoute du nouvel interrupteur
+            input$heatmap_use_compass_imputed
             watch("dna_clones_renamed")
-            watch("compass_completed")        # <-- NEW : Rafraîchit la heatmap quand COMPASS se termine
+            watch("compass_completed")
         }, {
             sel_indices <- input$variant_selection_rows_selected
             heatmap_include_all_samples <- input$heatmap_include_all_samples
@@ -270,7 +260,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 if (isTRUE(use_imputed) && is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
                     shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "warning")
 
-                    # On repasse l'interrupteur sur OFF silencieusement
                     shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
                     use_imputed <- FALSE
                 }
@@ -301,25 +290,16 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                     is_compass_locked <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
 
                     if (!is_compass_locked) {
-                        # 1. On récupère systématiquement les clones calculés par la heatmap
-                        # (incluant les catégories "small" et "Missing")
                         new_clones <- ht_res$clones
     
-                        # 2. Mise à jour du Slot Actif (dna.clones)
                         ScIGMA_data$dna.clones <- new_clones
     
-                        # 3. Pare-feu pour le Slot Brut (dna.clones_pre_compass)
-                        # On ne met à jour la "vérité terrain brute" que si la heatmap
-                        # n'affiche PAS les données imputées par COMPASS.
                         if (!isTRUE(use_imputed)) {
                             ScIGMA_data$dna.clones_pre_compass <- new_clones
                         }
     
-                        # 4. Rafraîchissement de la palette universelle
                         ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
     
-                        # 5. Invalidation des données CNV si les variants ou clones ont été re-générés.
-                        # On ne détruit pas le filtre CNV lors d'un simple renommage de clone.
                         ScIGMA_data$cnv_dp_filtered <- NULL
                     }
                 }
@@ -368,7 +348,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                                          inputId = ns("btn_update_cluster_labels"),
                                          label = "Apply New Labels",
                                          icon = icon("check"),
-                                         class = "btn-primary w-100" # w-100 pour prendre toute la largeur
+                                         class = "btn-primary w-100"
                                      ), style = "margin-top:10px;"
                                  )
                              )
@@ -438,7 +418,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
         # Rendu dynamique de la carte UI
         output$compass_tree_ui <- shiny::renderUI({
-            shiny::req(compass_tree_visible()) # Ne s'affiche que si l'interrupteur est TRUE
+            shiny::req(compass_tree_visible())
 
             bslib::card(
                 fill = FALSE,
@@ -451,7 +431,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 bslib::card_body(
                     fillable = FALSE,
                     fill = FALSE,
-                    # Le spinner tournera ici jusqu'à ce que renderGrViz renvoie l'image
                     shinycssloaders::withSpinner(
                         DiagrammeR::grVizOutput(ns("compass_tree_plot"), width = "100%", height = "500px"),
                         type = 4, color = "#007bff"
@@ -473,7 +452,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                      vec_region_names, vec_region_chrom, use_cna, target_vars) {
 
                 # FIX CRITIQUE : future_promise() au lieu de future()
-                # Cela garantit la création d'une Promesse compatible avec l'Event Loop de Shiny
                 promises::future_promise({
 
                     if (!isNamespaceLoaded("ScIGMA")) {
@@ -520,9 +498,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             )
         }, ignoreInit = TRUE)
 
-        # 2. Exécution : Lancement réel si l'utilisateur valide
         observeEvent(input$confirm_run_compass, {
-            # On stoppe tout si l'utilisateur a cliqué sur "Cancel" (FALSE)
             req(isTRUE(input$confirm_run_compass))
 
             req(ScIGMA_data$mae)
@@ -531,12 +507,11 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             compass_tree_visible(TRUE)
 
             shinyjs::disable("btn_run_compass")
-            shiny::showNotification("1/2 - Extraction HDF5 et préparation des matrices...",
+            shiny::showNotification("1/2 - Extracting HDF5 and preparing matrices...",
                                     id = "compass_notif",
                                     duration = NULL,
                                     type = "message")
 
-            # --- DÉBUT DU CODE EXISTANT POUR COMPASS ---
             if (is.null(ScIGMA_data$variants.filtered)){
                 target_vars <- rownames(ScIGMA_data$mae[["dna_variants"]])
             } else {
@@ -547,7 +522,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
             compass_inputs <- build_compass_matrices(obj = ScIGMA_data, selected_variants = target_vars)
 
-            # Conversion en matrices denses + Transposition
             mat_ref <- t(as.matrix(compass_inputs$M_ref))
             mat_alt <- t(as.matrix(compass_inputs$M_alt))
             mat_cna <- t(as.matrix(compass_inputs$C))
@@ -563,7 +537,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
             variant_matrices <- list(REF = mat_ref, ALT = mat_alt, GT = mat_gt)
 
-            # Métadonnées
             dna_se <- ScIGMA_data$mae[["dna_variants"]]
             snv_sub <- as.data.frame(SummarizedExperiment::rowData(dna_se))[target_vars, ]
             vec_locus_names <- snv_sub$gene
@@ -579,24 +552,21 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             vec_locus_regions <- as.integer(compass_inputs$locus_regions)
 
             shiny::showNotification(
-                "2/2 - MCMC en arrière-plan. La session est débloquée, vous pouvez lancer d'autres analyses.",
+                "2/2 - Background MCMC. Session unlocked, you can run other analyses.",
                 id = "compass_notif",
                 type = "warning",
                 duration = NULL
             )
 
-            # L'appel magique : Lance le calcul et LIBÈRE IMMÉDIATEMENT la session UI
             compass_task$invoke(
                 compass_length_chains, variant_matrices, vec_locus_regions, mat_cna,
                 vec_locus_names, vec_locus_chrom,
                 vec_region_names, vec_region_chrom, use_cna, target_vars
             )
-            # --- FIN DU CODE EXISTANT POUR COMPASS ---
         }, ignoreInit = TRUE)
 
 
 
-        # 3. LE RÉCEPTEUR SILENCIEUX
         observeEvent(compass_task$status(), {
             status <- compass_task$status()
 
@@ -606,13 +576,11 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 mat_imputed <- get_imputed_genotypes(prefix_out = res$prefix)
                 cells_to_keep <- rownames(mat_imputed)
 
-                if (length(cells_to_keep) == 0) stop("COMPASS a filtré toutes les cellules (doublets purs).")
+                if (length(cells_to_keep) == 0) stop("COMPASS filtered all cells (pure doublets).")
 
-                # --- FIX CRITIQUE 1 : LA PURGE GLOBALE DE L'ENTONNOIR ---
                 ScIGMA_data$mae <- ScIGMA_data$mae[, cells_to_keep, ]
 
                 # --- FIX CRITIQUE 2 : SYNCHRONISATION SEURAT ---
-                # Si l'utilisateur a déjà généré une UMAP, on expulse les doublets de Seurat
                 if (!is.null(ScIGMA_data$seurat_object)) {
                     valid_seurat_cells <- intersect(cells_to_keep, colnames(ScIGMA_data$seurat_object))
                     ScIGMA_data$seurat_object <- subset(ScIGMA_data$seurat_object, cells = valid_seurat_cells)
@@ -620,14 +588,12 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
 
                 mat_imputed_t <- t(mat_imputed)
 
-                # On crée une matrice de 'Missing' (3L) calquée sur la dimension totale des variants
                 full_imputed <- matrix(3L,
                                        nrow = nrow(ScIGMA_data$mae[["dna_variants"]]),
                                        ncol = length(cells_to_keep))
                 rownames(full_imputed) <- rownames(ScIGMA_data$mae[["dna_variants"]])
                 colnames(full_imputed) <- cells_to_keep
 
-                # On y injecte les cibles calculées par MCMC
                 full_imputed[res$targets, ] <- mat_imputed_t
 
                 SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "compass_imputed") <- full_imputed
@@ -636,23 +602,18 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 #     ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
                 # }
 
-                # Purge stricte des anciens labels pour autoriser l'écrasement
                 ScIGMA_data$dna_clones_renamed <- NULL
 
-                # 2. Inférence data-driven pure (Indépendante de l'UI Heatmap)
-                # Extraction et transposition (Cellules x Variants)
                 mat_imputed_for_clones <- t(full_imputed[res$targets, , drop = FALSE])
 
                 # colnames(mat_imputed_for_clones) <- sub("^([^:]+:)|^:", "", colnames(mat_imputed_for_clones)) # WHY ?!?!? -> CHANGED
 
-                # Extraction stricte de la signature, sans la logique de fusion des "petits" clusters de la Heatmap
                 clustering_res <- generate_clonal_labels(
                     ngt_matrix = mat_imputed_for_clones,
                     target_variants_df = ScIGMA_data$variants.filtered,
-                    ignore_missing = FALSE # COMPASS a tout imputé, plus de NA
+                    ignore_missing = FALSE
                 )
 
-                # Assignation immédiate et verrouillée
                 ScIGMA_data$dna.clones <- setNames(
                     as.factor(clustering_res$cell_metadata$clonal_cluster_id),
                     clustering_res$cell_metadata$cell_barcode
@@ -663,7 +624,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 # Synchronisation UI
                 shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = TRUE)
 
-                # Conservation des métadonnées pour le SVG
                 tree_gv_path <- paste0(res$prefix, "_tree.gv")
                 tree_dot_content <- if (file.exists(tree_gv_path)) paste(readLines(tree_gv_path), collapse = "\n") else NULL
 
@@ -674,30 +634,28 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 )
 
                 shiny::removeNotification(id = "compass_notif")
-                shiny::showNotification("COMPASS terminé : Architecture clonale et Matrice Multi-Omique verrouillées.", duration = 10, type = "message")
+                shiny::showNotification("COMPASS finished: Clonal architecture and Multi-Omics Matrix locked.", duration = 10, type = "message")
                 shinyjs::enable("btn_run_compass")
 
                 trigger("compass_completed")
 
             } else if (status == "error") {
                 shiny::removeNotification(id = "compass_notif")
-                shiny::showNotification(paste("Échec critique C++ :", compass_task$error()$message), duration = NULL, type = "error")
+                shiny::showNotification(paste("Critical C++ failure:", compass_task$error()$message), duration = NULL, type = "error")
                 shinyjs::enable("btn_run_compass")
             }
         }, ignoreInit = TRUE)
 
         output$compass_tree_plot <- DiagrammeR::renderGrViz({
-            # On s'assure que le calcul est terminé et que l'objet contient l'arbre
             watch("compass_completed")
             req(ScIGMA_data$mae)
 
             tree_content <- S4Vectors::metadata(ScIGMA_data$mae)$compass$tree_dot
-            req(tree_content) # Ne s'affiche que si l'arbre existe
+            req(tree_content)
 
             DiagrammeR::grViz(tree_content)
         })
 
-        # Gestionnaire de téléchargement Vectoriel (SVG Q1 Standard)
         output$btn_download_tree <- shiny::downloadHandler(
             filename = function() {
                 paste0("ScIGMA_compass_phylogeny_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".svg")
@@ -708,7 +666,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 req(tree_content)
 
                 # Conversion native du DOT vers un format Vectoriel pur
-                # Protège contre les crashs de librairies graphiques UNIX
                 svg_code <- DiagrammeRsvg::export_svg(DiagrammeR::grViz(tree_content))
 
                 writeLines(svg_code, file)

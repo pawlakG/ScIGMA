@@ -15,7 +15,6 @@ mod_welcome_ui <- function(id) {
             card_header(HTML("Welcome to ScIGMA: Single-cell Integrated Genomic & Multi-omics Analyzer")),
             # NEW: Insert graphical abstract with responsive constraints
             card_body(
-                # UPDATED : Custom padding layout (top=1%, right=8%, bottom=0%, left=8%)
                 div(
                     style = "padding: 4% 8% 0% 8%; width: 100%;",
                     tags$img(

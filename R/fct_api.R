@@ -48,7 +48,6 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
     dplyr::filter(canonical == 1)                                                                                                                         
   
   # ----------------------------------------------------------------------------                                                                   
-  # SÉCURITÉ STRUCTURELLE
   # ----------------------------------------------------------------------------                                                                   
   expected_cols <- c("hgvsc", "hgvsp")                                                                             
   for (col in expected_cols) {                                                                                                                     
@@ -80,10 +79,8 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
       CLINVAR = purrr::map2_chr(colocated_variants, original_variant, ~ {
         if (is.null(.x) || !is.data.frame(.x)) return(NA_character_)
         
-        # 1. Extraction de l'allèle alternatif (ALT) du patient
         alt_allele <- stringr::str_extract(.y, "[^/]+$")
         
-        # 2. Filtrage Haute Résolution via clin_sig_allele
         if ("clin_sig_allele" %in% names(.x)) {
             pattern <- paste0("\\b", alt_allele, ":([^;]+)")
             extracted <- stringr::str_match(unlist(.x$clin_sig_allele), pattern)[, 2]
@@ -91,7 +88,6 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
             if (length(extracted) > 0) return(paste(unique(extracted), collapse = ","))
         }
         
-        # 3. Filtrage Fallback structuré
         if ("allele_string" %in% names(.x) && "clin_sig" %in% names(.x)) {
             valid_rows <- stringr::str_detect(.x$allele_string, paste0("\\b", alt_allele, "\\b"))
             if (any(valid_rows, na.rm = TRUE)) {
@@ -217,7 +213,6 @@ filter_and_annotate_variants <- function(obj,
 
         merged_rowdata$variant_id[is.na(merged_rowdata$variant_id)] <- paste0("Unmapped:",rownames(merged_rowdata))[is.na(merged_rowdata$variant_id)]
 
-        # 7. In-place MAE injection
         SummarizedExperiment::rowData(obj$mae[["dna_variants"]]) <- S4Vectors::DataFrame(merged_rowdata)
         message("Annotation matrix successfully integrated into MAE rowData.")
 
@@ -227,17 +222,12 @@ filter_and_annotate_variants <- function(obj,
 
     message("Calculating variant cell proportions...")
 
-    # 1. Extraction du pointeur de la matrice (Aucune donnée chargée en RAM)
     vaf_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
 
-    # 2. Calcul vectorisé Out-Of-Core sur les lignes (Variants)
-    # L'opérateur > 0 exclut nativement les Wild-Type (0) et les génotypes non-fiables (-1)
     mutated_cells_count <- DelayedMatrixStats::rowSums2(vaf_mtx > 0)
 
-    # Le registre absolu des cellules dicte le dénominateur
     total_cells <- ncol(vaf_mtx)
 
-    # 3. Injection directe et in-place dans le registre d'annotation
     SummarizedExperiment::rowData(obj$mae[["dna_variants"]])$cell_proportion <- round(mutated_cells_count / total_cells, 2)
 
     message("Cell proportions successfully added to rowData.")

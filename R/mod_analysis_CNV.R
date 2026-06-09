@@ -172,7 +172,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
         },{
             output$cnv_plot_parameters <- renderUI({
 
-                # UPDATED : Silent DOM collapse. Returns NULL until filtration is triggered.
                 if (is.null(ScIGMA_data$cnv_dp_filtered)){
                     return(NULL)
                 } else {
@@ -222,7 +221,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
             message("Rendering cnv_plot_additionalParameters")
             output$cnv_plot_additionalParameters <- renderUI({
                 if(is.null(input$cnv_plotType)){
-                    return(NULL) # L'interface reste propre sans message d'erreur moche
+                    return(NULL)
                 } else {
                     clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
                     clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
@@ -277,7 +276,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 shiny::req(ScIGMA_data$mae)
                 shiny::req(input$cnv_filter_button > 0)
                 if (isTRUE(input$cnv_use_compass_imputed)) {
-                    # Sécurité : vérifier que COMPASS existe
                     if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
                         shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "error")
                         shinyWidgets::updateMaterialSwitch(session, "cnv_use_compass_imputed", value = FALSE)
@@ -297,7 +295,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                     active_clones <- ScIGMA_data$dna.clones
                 }
 
-                # Sauvegarde locale pour le module CNV
                 ScIGMA_data$cnv.active.clones <- active_clones
                 # ------------------------------------------------------
 
@@ -318,7 +315,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 ScIGMA_data$is_cnv_filtered <- TRUE
                 trigger("CNV_filtered")
 
-                # FIX: Force UI update for pickerInputs after renaming to bypass Shiny DOM diffing caching
                 clone_choices <- levels(active_clones)[levels(active_clones) != "small"]
                 shinyWidgets::updatePickerInput(
                     session = session,
@@ -339,7 +335,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                          req(ScIGMA_data$cnv_dp_filtered)
                          message("Recomputing ploidy ...")
 
-                         # FIX : Utilisation des clones actifs du CNV
                          clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
 
                          ploidy_data <- process_cnv_to_clonal_profile(
@@ -355,7 +350,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                          trigger("CNV_ploidy_computed")
                      })
 
-        # 1. NEW : Observer dédié UNIQUEMENT à la mise à jour des choix de l'axe X (Casse la boucle infinie)
         observeEvent({
             watch("CNV_ploidy_computed")
             input$cnv_xAxis_projection
@@ -363,7 +357,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
         }, {
             req(ScIGMA_data$ploidy.mtx)
 
-            # Détection du changement de mode de visualisation
             plot_type_changed <- input$cnv_plotType != prev_plot_type()
             prev_plot_type(input$cnv_plotType)
 
@@ -377,12 +370,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 label_text <- "Select Gene(s)"
             }
 
-            # Récupération de la sélection actuelle
             current_sel <- isolate(input$cnv_xAxis)
 
-            # NEW LOGIC : Si on a changé de type de plot (Heatmap <-> Lineplot),
-            # on force le reset à NULL pour éviter les collisions de données.
-            # Sinon, on conserve ce qui est encore valide.
             final_selection <- if(plot_type_changed) NULL else current_sel[current_sel %in% new_choices]
 
             shinyWidgets::updatePickerInput(
@@ -394,7 +383,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
             )
         }, ignoreInit = TRUE)
 
-        # 2. UPDATED : Observer dédié UNIQUEMENT au calcul et rendu du graphique
         observeEvent({
             watch("CNV_ploidy_computed")
             watch("CNV_ui_cnv_plot_additionalParameters_rendered")
@@ -426,17 +414,16 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
                     tmp_var <- cnv_id_table_tmp |> dplyr::filter(dna_id %in% colnames(mat_data_tmp))
 
-                    # NEW : Détection de l'intention (Chromosome strict vs Gène)
                     is_chr_focus <- any(grepl("^chr([0-9]+|[XYM])$", cnv_xAxis, ignore.case = TRUE))
 
                     if (!is_chr_focus) {
                         tmp_annot <- annotate_genomic_regions(region_data = tmp_var, build = genome_v_tmp)
                         valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
-                        show_genes <- TRUE # Force l'annotation gène sur la Heatmap
+                        show_genes <- TRUE
                     } else {
                         tmp_var$chr_lit <- paste0("chr", tmp_var$chrom)
                         valid_ids <- tmp_var$dna_id[tmp_var$chr_lit %in% cnv_xAxis]
-                        show_genes <- FALSE # Force l'annotation chr
+                        show_genes <- FALSE
                     }
                     filtered_ploidy <- t(mat_data_tmp[, colnames(mat_data_tmp) %in% valid_ids, drop=FALSE])
                 }
@@ -473,7 +460,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
                 # --- Filtrage Lineplot ---
                 if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
-                    # Détection d'intention : si ça commence par 'chr', c'est un chromosome
                     is_chr <- any(grepl("^chr", cnv_xAxis, ignore.case = TRUE))
 
                     if (is_chr) {
@@ -485,8 +471,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                     }
                 }
 
-                # FIX CRITIQUE : Empêche l'erreur seq.default
-                # Si la région sélectionnée est trop petite, on affiche un message au lieu de crasher.
                 shiny::validate(
                     shiny::need(nrow(tmp_var_table) >= 2,
                                 "The selected region contains fewer than 2 amplicons. Please expand your selection to view the Lineplot.")

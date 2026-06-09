@@ -146,7 +146,6 @@ filter_variant_ScIGMA <- function(
     invisible(filtered)
 }
 
-# UPDATED: filter_variant_ScIGMA_mae (Orienté strict Features x Cells)
 #' @importFrom SummarizedExperiment assay assay<-
 #' @importFrom DelayedMatrixStats rowSums2 colSums2
 #' @importFrom DelayedArray realize
@@ -185,13 +184,11 @@ filter_variant_ScIGMA_mae <- function(
     gt_mtx[!keep_mask] <- 3L
     vaf_mtx[gt_mtx == 3L] <- -1
 
-    # DIMENSIONS CANONIQUES : Lignes = Variants, Colonnes = Cellules
     num_variants <- nrow(gt_mtx)
     num_cells    <- ncol(gt_mtx)
 
     gt_mtx_realized <- DelayedArray::realize(gt_mtx)
 
-    # ---- 3. Variant filtering (Calculé sur les LIGNES) ----
     cell_cover_per_variant <- DelayedMatrixStats::rowSums2(gt_mtx_realized != 3L, BPPARAM = bp)
     mut_cells_per_variant  <- DelayedMatrixStats::rowSums2((gt_mtx_realized == 1L) | (gt_mtx_realized == 2L), BPPARAM = bp)
 
@@ -201,17 +198,13 @@ filter_variant_ScIGMA_mae <- function(
     variant_keep_tf <- (cell_cover_per_variant > num_cells * (min.cell.pt / 100)) &
         (mut_cells_per_variant > num_cells * (min.mut.cell.pt / 100))
 
-    # ---- 4. Cell filtering (Calculé sur les COLONNES) ----
     cell_keep_tf <- DelayedMatrixStats::colSums2(gt_mtx_realized != 3L, BPPARAM = bp) > num_variants * (min.cell.pt / 100)
 
     # ---- 5. MAE Subsetting ----
-    # Subsetting global des cellules (colonnes) pour toutes les omiques
     mae_filtered <- obj$mae[, cell_keep_tf, drop = FALSE]
 
-    # Subsetting spécifique des variants (lignes) pour l'expérience ADN uniquement
     mae_filtered[["dna_variants"]] <- mae_filtered[["dna_variants"]][variant_keep_tf, , drop = FALSE]
 
-    # Injection des matrices corrigées (-1 et 3L) aux bonnes dimensions
     SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "vaf") <- vaf_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
     SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "gt")  <- gt_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
 
@@ -293,7 +286,6 @@ normalize_amplicon_counts <- function(count_matrix,
 #'   or 3/NA (MISS).
 #' @param target_variants_df Data.frame. Must contain a `variant_id` column
 #'   with full variant nomenclatures (e.g., used as ground truth for labels).
-#' @param ignore_missing Logical. If TRUE, cells with missing genotype data
 #'   (`MISS`) for any target variant are flagged as 'unassigned'. Default FALSE.
 #'
 #' @return A named list containing two elements:
@@ -452,26 +444,21 @@ generate_dna_variant_heatmap <- function(obj,
                                          heatmap_include_all_samples = TRUE,
                                          use_imputed = FALSE) { # <-- NEW ARGUMENT
 
-    # 1. Extraction des identifiants (La source de vérité)
     target_variants <- selected_variants_df$variant_id
 
-    # Création des noms courts pour l'affichage et le clustering en aval
     short_variants <- sub(x = target_variants, pattern = "^([^:]+:)|^:", "")
 
-    # 2. Aiguillage des matrices (Brute vs Imputée par COMPASS)
     if (isTRUE(use_imputed)) {
 
         if (!"compass_imputed" %in% SummarizedExperiment::assayNames(obj$mae[["dna_variants"]])) {
-            stop("Erreur : L'Assay 'compass_imputed' est introuvable. Veuillez relancer l'inférence COMPASS.")
+            stop("Error : 'compass_imputed' Assay not found. Please rerun COMPASS inference.")
         }
         gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "compass_imputed")
 
-        # Sécurité : Vérifier que les variants existent dans le MAE
         if (!all(short_variants %in% rownames(gt_full))) {
-            stop("Erreur : Certains variants sélectionnés n'existent pas dans la matrice.")
+            stop("Error : Some selected variants do not exist in the matrix.")
         }
 
-        # COMPASS a déjà géré le bruit. On génère un masque totalement vierge (0L).
         msk_full <- matrix(0L, nrow = nrow(gt_full), ncol = ncol(gt_full),
                            dimnames = dimnames(gt_full))
 
@@ -481,16 +468,13 @@ generate_dna_variant_heatmap <- function(obj,
         msk_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "variant_filter_mask")
     }
 
-    # 3. Transposition immédiate pour le clustering (Format requis : Cells x Variants)
     gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
     msk <- t(as.matrix(msk_full[short_variants, , drop = FALSE])) != 0
 
-    # Réassignation des noms courts sur les colonnes
     colnames(gt) <- short_variants
     colnames(msk) <- short_variants
     selected_variants <- short_variants
 
-    # 4. Alignement (Sécurité)
     common_rows <- intersect(rownames(gt), rownames(msk))
     common_cols <- intersect(colnames(gt), colnames(msk))
 
@@ -504,7 +488,6 @@ generate_dna_variant_heatmap <- function(obj,
     # Set value 3 for filtered genotypes
     gt_filtered[cbind(row(msk)[msk], col(msk)[msk])] <- 3
 
-    # 6. Séparation avec/sans données manquantes (Ajout de drop=FALSE pour éviter les vecteurs)
     tmp_heamtap_matrix_filtered_noMissing <- gt_filtered[rowSums(gt_filtered == 3) == 0, , drop = FALSE]
     tmp_heamtap_matrix_filtered_withMissing <- gt_filtered[rowSums(gt_filtered == 3) > 0, , drop = FALSE]
 
@@ -512,7 +495,6 @@ generate_dna_variant_heatmap <- function(obj,
         tmp_heamtap_matrix_filtered_withMissing[tmp_heamtap_matrix_filtered_withMissing == 3] <- NA
     }
 
-    ## 7. Génération des labels clonaux
     results_clustering <- generate_clonal_labels(
         ngt_matrix = tmp_heamtap_matrix_filtered_noMissing,
         target_variants_df = selected_variants_df,
@@ -622,9 +604,7 @@ generate_dna_variant_heatmap <- function(obj,
 }
 
 # NEW
-# File: fct_DNA.R (ou script dédié à COMPASS)
 
-#' Build matrices for COMPASS (Joint SNV/CNV Phylogeny)
 #'
 #' @description
 #' Extracts and formats data from a ScIGMA_object MAE to feed the COMPASS MCMC backend.
@@ -646,30 +626,23 @@ build_compass_matrices <- function(obj, selected_variants) {
 
     message("Building COMPASS topological and count matrices...")
 
-    # ---- 1. Extraction et Calcul des matrices SNV (M_ref, M_alt) ----
     # Extraction depuis le MAE (Variants x Cellules)
     dp_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
     vaf_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
 
-    # Subsetting stricte sur les variants sélectionnés
     dp_sub <- as.matrix(dp_full[selected_variants, , drop = FALSE])
     vaf_sub <- as.matrix(vaf_full[selected_variants, , drop = FALSE])
 
-    # Transposition au standard ML (Cellules x Variants)
     dp_mat <- t(dp_sub)
     vaf_mat <- t(vaf_sub)
 
-    # Dérivation probabiliste des comptes d'allèles
-    # VAF est en pourcentage (0-100) dans Tapestri
     M_alt <- round(dp_mat * (vaf_mat / 100))
     M_ref <- dp_mat - M_alt
 
-    # Gestion du bruit de fond (VAF = -1 pour les génotypes non fiables)
     missing_mask <- vaf_mat < 0
     M_alt[missing_mask] <- NA
     M_ref[missing_mask] <- NA
 
-    # ---- 2. Extraction et Agrégation des CNV (Matrice C) ----
     amp_full <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
 
@@ -679,12 +652,10 @@ build_compass_matrices <- function(obj, selected_variants) {
     cnv_annotated <- annotate_genomic_regions(cnv_id_table, build = genome_v)
     cnv_annotated$symbol[is.na(cnv_annotated$symbol)] <- "Unknown"
 
-    # FIX CRITIQUE : Formatage strict attendu par le C++ (CHR_GENE)
     cnv_annotated$compass_region <- paste0(cnv_annotated$chrom, "_", cnv_annotated$symbol)
 
     amp_mat <- t(as.matrix(amp_full))
 
-    # Agrégation Spatiale sur le nouveau format
     C_mat <- aggregate_matrix_by_mappingTable(
         numeric_matrix = amp_mat,
         mapping_table = cnv_annotated,
@@ -699,7 +670,6 @@ build_compass_matrices <- function(obj, selected_variants) {
     tmp_x <- data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon)
     tmp_y <- cnv_annotated[, c("dna_id", "compass_region")]
 
-    # Jointure sur le nouveau format
     snv_to_gene <- merge(
         x = data.frame(variant_id = rownames(snv_info), amplicon = snv_info$amplicon),
         y = cnv_annotated[, c("dna_id", "compass_region")],
@@ -720,7 +690,6 @@ build_compass_matrices <- function(obj, selected_variants) {
     gene_cols <- colnames(C_mat)
     locus_regions <- match(snv_to_gene$compass_region, gene_cols) - 1L
 
-    # Fail-Fast : Arrêt si un variant tombe dans le vide topologique
     if (any(is.na(locus_regions))) {
         stop("Fatal: Some selected variants could not be mapped to a valid region in matrix C.")
     }
@@ -746,7 +715,6 @@ build_compass_matrices <- function(obj, selected_variants) {
 #' Triggers the COMPASS CLI via system call. Isolates MCMC memory overhead
 #' from the main R process.
 #'
-#' @param input_dir Character. Path to matrices directory.
 #' @param output_dir Character. Path for COMPASS output.
 #' @param compass_exec Character. Path or alias to COMPASS executable.
 #' @param n_iters Integer. Number of MCMC iterations per chain.
@@ -789,9 +757,7 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
     invisible(TRUE)
 }
 
-#' Infer Clonal Architecture and Filter Doublets
 #'
-#' Executes COMPASS MCMC inference, imputes missing genotypes, and purges
 #' doublet cells globally from the MultiAssayExperiment object. Results are
 #' stored non-destructively in the MAE metadata slot.
 #'
@@ -883,7 +849,6 @@ infer_clonal_architecture <- function(scigma_data, target_variants,
         stop("Fatal: No singlet cells returned by COMPASS inference.")
     }
 
-    # Global MAE subsetting (purges doublets across all assays)
     scigma_data$mae <- scigma_data$mae[, cells_to_keep, ]
 
     # Matrix alignment
@@ -909,13 +874,11 @@ generate_clone_palette <- function(clone_levels) {
     unique_clones <- unique(as.character(clone_levels))
     unique_clones <- unique_clones[!is.na(unique_clones)]
 
-    # Identification des catégories de données manquantes
     missing_tags <- c("Missing", "Missing/ADO", "NA", "Unknown", "missing")
     is_missing <- unique_clones %in% missing_tags
 
     base_clones <- sort(unique_clones[!is_missing])
 
-    # Attribution des couleurs (Turbo pour un contraste maximal)
     clone_colors <- c()
     if (length(base_clones) > 0) {
         clone_colors <- viridisLite::turbo(n = length(base_clones))

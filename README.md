@@ -30,18 +30,28 @@ ScIGMA (Single-cell Integrated Genomic & Multi-omics Analyzer) is an advanced R-
 
 ## Installation
 
-The framework requires R version >= 4.2.0 and relies on a rigorously defined package environment.
+ScIGMA is distributed as a self-contained R package containing a native C++ backend (COMPASS). Installation requires R version >= 4.2.0 and a standard C++ compiler appropriate for your operating system.
 
-```bash
-git clone https://github.com/pawlakG/ScIGMA.git
-cd ScIGMA
-Rscript -e "shiny::runApp('.')"
-```
+### 1. System Requirements (Compiler Toolchain)
+Before installing the package, ensure your machine has the necessary compiler tools to build the C++ objects:
+- **Windows**: Install [Rtools](https://cran.r-project.org/bin/windows/Rtools/) (ensure the version matches your R version).
+- **macOS**: Open Terminal and run `xcode-select --install` to install the Command Line Tools.
+- **Linux**: Install the build-essential tools via terminal: `sudo apt-get install build-essential r-base-dev`.
 
-Environment restoration via `renv` is highly recommended to ensure reproducibility:
+### 2. Package Installation
+Install ScIGMA directly from the GitHub repository. The `remotes` package will automatically download the source code, compile the C++ binaries locally for your specific CPU architecture, and resolve all R dependencies.
 
 ```r
-renv::restore()
+if (!require("remotes")) install.packages("remotes")
+remotes::install_github("pawlakG/ScIGMA", dependencies = TRUE)
+```
+
+### 3. Launching the Application
+Once the package is installed, the Shiny interface and the underlying analytic engines are fully encapsulated. Launch the environment using the native package entry point:
+
+```r
+library(ScIGMA)
+ScIGMA::run_app()
 ```
 
 ## Protocol Overview

@@ -248,6 +248,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
             datatable(tmp_variant_annotation,
                       selection = 'multiple',
                       rownames = FALSE, # Désactivé car variant_id est déjà présent
+                      colnames = stringr::str_replace_all(names(tmp_variant_annotation), "_", " "),
                       options = list(pageLength = 5,
                                      lengthMenu = c(5, 10, 15)))
         })
@@ -400,7 +401,32 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                          # ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
 
                          output$rename_cluster_ui <- renderUI({
-                             # (Ré-exécution du code renderUI existant pour rafraîchir le pickerInput)
+                             tagList(
+                                 p("Here you can rename a cluster, select a cluster name on drop list on the left, write its new name in right box and click on 'Apply New Labels' button."),
+                                 fluidRow(column(6,
+                                                 pickerInput(
+                                                     inputId = ns("rename_cluster_ui_oldName"),
+                                                     label = "Style : primary",
+                                                     choices = levels(ScIGMA_data$dna.clones),
+                                                     options = pickerOptions(container = "body",
+                                                                             style = "btn-outline-primary"),
+                                                     width = "100%"
+                                                 )
+                                 ),
+                                 column(6,
+                                        textInput(ns("rename_cluster_ui_newName"),
+                                                  "New name")
+                                 )
+                                 ),
+                                 div(
+                                     actionButton(
+                                         inputId = ns("btn_update_cluster_labels"),
+                                         label = "Apply New Labels",
+                                         icon = icon("check"),
+                                         class = "btn-primary w-100"
+                                     ), style = "margin-top:10px;"
+                                 )
+                             )
                          })
 
 

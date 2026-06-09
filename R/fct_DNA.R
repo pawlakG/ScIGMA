@@ -366,9 +366,12 @@ generate_clonal_labels <- function(ngt_matrix,
     # 6. Build cluster lookup table (Definitions)
     cluster_definitions <- processed_cells %>%
         filter(is_valid) %>%
-        distinct(signature_string) %>%
-        arrange(signature_string) %>%
-        mutate(clonal_cluster_id = row_number()) %>%
+        group_by(signature_string) %>%
+        mutate(n_cells = n()) %>%
+        ungroup() %>%
+        distinct(signature_string, n_cells) %>%
+        arrange(desc(n_cells), signature_string) %>%
+        mutate(clonal_cluster_id = sprintf("clone_%02d", row_number())) %>%
         select(clonal_cluster_id, genotype_signature = signature_string)
 
     # 7. Final assignment via relational join
@@ -527,7 +530,7 @@ generate_dna_variant_heatmap <- function(obj,
     small_cluster <- clustered_samples[clustered_samples == "small"] |> as.factor()
     nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |> sort() |> as.factor()
     nonSmall_cluster <- forcats::fct_infreq(nonSmall_cluster)
-    levels(nonSmall_cluster) <- as.character(1:length(levels(nonSmall_cluster)))
+    levels(nonSmall_cluster) <- sprintf("clone_%02d", 1:length(levels(nonSmall_cluster)))
 
     clustered_samples <- forcats::fct_c(nonSmall_cluster, small_cluster)
     names(clustered_samples) <- c(names(nonSmall_cluster), names(small_cluster))

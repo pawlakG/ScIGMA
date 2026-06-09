@@ -502,7 +502,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
                                         by = "Variant_ID")
 
-            plot_df_joined$Variant <- paste(plot_df_joined$protein,
+            plot_df_joined$protein_or_gene <- ifelse(is.na(plot_df_joined$protein) | plot_df_joined$protein == "NA",
+                                                     plot_df_joined$gene,
+                                                     plot_df_joined$protein)
+            plot_df_joined$Variant <- paste(plot_df_joined$protein_or_gene,
                                             plot_df_joined$cdna, sep = "<br>")
 
             plotly::plot_ly(

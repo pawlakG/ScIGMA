@@ -1,0 +1,8 @@
+f <- factor(c("1", "2", "3", "1", "1", "2"))
+names(f) <- c("cellA", "cellB", "cellC", "cellD", "cellE", "cellF")
+f_infreq <- forcats::fct_infreq(f)
+print("Before renaming levels:")
+print(f_infreq)
+levels(f_infreq) <- sprintf("clone_%02d", 1:length(levels(f_infreq)))
+print("After renaming levels:")
+print(f_infreq)

@@ -398,6 +398,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 # En mettant "Other" en premier, Plotly va dessiner le nuage gris au fond,
                 # et le clone coloré par-dessus.
                 plot_df$Genotype <- factor(plot_df$Genotype, levels = c("Other", input$color_genotype))
+                plot_df <- plot_df[order(plot_df$Genotype), ]
 
                 color_formula <- ~Genotype
 

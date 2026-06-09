@@ -29,12 +29,15 @@ ScIGMA_object <- R6::R6Class(
         #' @description
         #' Renomme un clone et synchronise sa couleur
         update_dna_clone_names = function(old_name, new_name) {
+            # Use forcats::fct_recode to safely rename levels and preserve order/integers exactly
+            levels_map <- stats::setNames(old_name, new_name)
+            
             if (!is.null(self$dna.clones)) {
-                levels(self$dna.clones)[levels(self$dna.clones) == old_name] <- new_name
+                self$dna.clones <- forcats::fct_recode(self$dna.clones, !!!levels_map)
                 self$dna_clones_renamed <- self$dna.clones
             }
             if (!is.null(self$dna.clones_pre_compass)) {
-                levels(self$dna.clones_pre_compass)[levels(self$dna.clones_pre_compass) == old_name] <- new_name
+                self$dna.clones_pre_compass <- forcats::fct_recode(self$dna.clones_pre_compass, !!!levels_map)
             }
             if (!is.null(self$dna_clone_colors)) {
                 names(self$dna_clone_colors)[names(self$dna_clone_colors) == old_name] <- new_name

@@ -62,7 +62,7 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
   # 5. Data Engineering & Mapping 1-Lettre                                                                                                                
   annotation_table <- annotation_table %>%                                                                                                         
     dplyr::mutate(                                                                                                                                        
-      consequence_terms = purrr::map_chr(consequence_terms, ~ paste(.x, collapse = ",")),
+      consequence_terms = purrr::map_chr(consequence_terms, ~ if (length(.x) > 0) .x[1] else NA_character_),
       cDNA = dplyr::if_else(!is.na(hgvsc), stringr::str_extract(hgvsc, "c\\..+"), NA_character_),
       
       extracted_p = stringr::str_extract(hgvsp, "p\\..+"),
@@ -75,15 +75,38 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
         TRUE ~ paste0(gene_symbol, ":", extracted_p)
       ),
       
-      CLINVAR = purrr::map_chr(colocated_variants, ~ {
-        if (is.null(.x) || !is.data.frame(.x) || !"clin_sig" %in% names(.x)) return(NA_character_)
-        sigs <- unlist(.x$clin_sig)
-        if (length(sigs) == 0) return(NA_character_)
-        paste(unique(sigs[!is.na(sigs)]), collapse = ",")
-      }),
-      original_variant = custom_variant_vector[match(input, hgvs_queries)]
+      original_variant = custom_variant_vector[match(input, hgvs_queries)],
+      
+      CLINVAR = purrr::map2_chr(colocated_variants, original_variant, ~ {
+        if (is.null(.x) || !is.data.frame(.x)) return(NA_character_)
+        
+        # 1. Extraction de l'allèle alternatif (ALT) du patient
+        alt_allele <- stringr::str_extract(.y, "[^/]+$")
+        
+        # 2. Filtrage Haute Résolution via clin_sig_allele
+        if ("clin_sig_allele" %in% names(.x)) {
+            pattern <- paste0("\\b", alt_allele, ":([^;]+)")
+            extracted <- stringr::str_match(unlist(.x$clin_sig_allele), pattern)[, 2]
+            extracted <- extracted[!is.na(extracted)]
+            if (length(extracted) > 0) return(paste(unique(extracted), collapse = ","))
+        }
+        
+        # 3. Filtrage Fallback structuré
+        if ("allele_string" %in% names(.x) && "clin_sig" %in% names(.x)) {
+            valid_rows <- stringr::str_detect(.x$allele_string, paste0("\\b", alt_allele, "\\b"))
+            if (any(valid_rows, na.rm = TRUE)) {
+                sigs <- unlist(.x$clin_sig[valid_rows])
+                if (length(sigs) > 0) return(paste(unique(sigs[!is.na(sigs)]), collapse = ","))
+            }
+        }
+        return(NA_character_)
+      })
     ) %>%
     dplyr::filter(!is.na(cDNA)) %>%
+    dplyr::mutate(
+      consequence_terms = stringr::str_replace_all(consequence_terms, "_", " "),
+      CLINVAR = stringr::str_replace_all(CLINVAR, "_", " ")
+    ) %>%
     dplyr::select(
       original_variant,
       gene = gene_symbol,
@@ -94,6 +117,9 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
       gene_function = consequence_terms,
       clinvar = CLINVAR
     )
+  
+  print("=== TABLE D'ANNOTATION ===")
+  print(annotation_table)
   
   return(annotation_table)
 }

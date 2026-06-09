@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Wraps an expression to measure time and memory RAM impact,
-#' prints a report and saves it to a file.
+#' and prints a report.
 #'
 #' @param step_name Character. The name of the profiled step.
 #' @param expr Expression. The R code to profile.
@@ -70,10 +70,6 @@ ScIGMA_profile <- function(step_name, expr, filepath = NULL) {
     )
 
     message(report)
-    tryCatch({
-        cat(report, file = "ScIGMA_profiling_report.txt", append = TRUE)
-    }, error = function(e) NULL)
-
     if (res$visible) {
         return(res$value)
     } else {

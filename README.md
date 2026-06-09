@@ -1,100 +1,79 @@
-# SingleCellProtExplorer
+# ScIGMA: Single-cell Integrated Genomic & Multi-omics Analyzer
 
-**Interactive R Shiny application for exploration and analysis of single-cell proteogenomic data**
+**An interactive computational framework for the exploration and integrative analysis of single-cell proteogenomic data.**
 
-## Overview
+## Abstract
 
-SingleCellProtExplorer is an R Shiny-based application designed to empower researchers and clinicians with an intuitive interface to explore, visualize, and analyze single-cell proteogenomic datasets. The app enables the integration of transcriptomic and proteomic single-cell data, offering a multi-modal perspective on cellular heterogeneity in complex biological systems, such as cancer.
+ScIGMA (Single-cell Integrated Genomic & Multi-omics Analyzer) is an advanced R-based application designed to process, integrate, and analyze multi-modal single-cell datasets. Built for precision medicine and systems biology, the framework specializes in the simultaneous evaluation of Single Nucleotide Variants (SNVs), Copy Number Variations (CNVs), and targeted cell-surface protein expression. By resolving the technical noise inherent to single-cell sequencing and coupling genomic phylogenies with phenotypic states, ScIGMA provides a comprehensive mapping of cellular heterogeneity and clonal evolution.
 
-This tool aims to bridge the gap between advanced bioinformatics pipelines and non-computational users, facilitating data-driven discoveries in precision medicine and systems biology.
+## Core Capabilities and Architecture
 
----
+### 1. High-Fidelity Data Ingestion
+- **Matrix Processing**: Native extraction and parsing of multi-assay hierarchical data formats (HDF5 / `.h5`), highly optimized for architectures such as the Mission Bio Tapestri platform.
+- **Rigorous Filtering**: Dynamic, threshold-based exclusion of low-quality cells, doublets, and uninformative variants prior to downstream statistical modeling.
 
-## Features
+### 2. Probabilistic Clonal Inference
+- **MCMC Genotype Imputation**: ScIGMA implements a native `Rcpp` interface to the COMPASS C++ backend. This integration allows for rigorous Markov Chain Monte Carlo (MCMC) inference to resolve allele dropouts and technical missingness.
+- **Phylogenetic Reconstruction**: Joint probabilistic modeling of SNVs and CNVs to construct robust clonal architectures, returning objective, data-driven single-cell phylogenies.
 
-- 🔬 **Multi-omic integration**: Joint exploration of scRNA-seq and single-cell proteomic data.
-- 🧠 **Intuitive user interface**: Designed for ease of use by biologists, clinicians, and researchers.
-- 📊 **Interactive visualizations**:
-  - UMAP/t-SNE embedding with modality overlay
-  - Feature plots for gene/protein expression
-  - Cluster and cell-type annotations
-- 📈 **Custom analysis modules**:
-  - Differential expression analysis
-  - Gene/protein co-expression exploration
-  - Trajectory inference (optional)
-- 🧩 **Modular design**: Easily extensible with new panels and functions.
-- 💾 **Support for standard formats**: Compatible with `.h5ad`, `.csv`, and `.rds` input files.
+### 3. Automated Variant Annotation
+- **Clinical and Biological Mapping**: Integrated RESTful communication with the Ensembl Variant Effect Predictor (VEP) API. 
+- **Consequence Stratification**: Strict extraction of the most severe biological consequence (e.g., missense, splice-site) and mapping of pathogenic status via ClinVar, resolving complex multi-allelic annotations into singular, clinically relevant metrics.
 
----
+### 4. Proteogenomic Dimensionality Reduction
+- **Protein Space Mapping**: Utilization of UMAP algorithms for the dimensionality reduction of targeted protein assays.
+- **Integrative Projection**: Capability to cross-project inferred phylogenetic clones directly onto immunophenotypic spatial coordinates, quantifying the genotype-to-phenotype continuous transitions.
+
+### 5. System Infrastructure
+- **Object-Oriented Design**: Built upon an encapsulated `R6` object system, ensuring immutable raw data states and strict version control of imputed layers.
+- **Memory Optimization**: Leverages `SummarizedExperiment` and `MultiAssayExperiment` classes from Bioconductor for memory-efficient matrix operations and metadata handling.
 
 ## Installation
 
-To install and launch the app locally:
+The framework requires R version >= 4.2.0 and relies on a rigorously defined package environment.
 
 ```bash
-git clone https://github.com/<your-username>/SingleCellProtExplorer.git
-cd SingleCellProtExplorer
+git clone https://github.com/pawlakG/ScIGMA.git
+cd ScIGMA
 Rscript -e "shiny::runApp('.')"
 ```
 
-**Dependencies**: R ≥ 4.2, and packages listed in `DESCRIPTION` or `renv.lock`. You can restore the environment using `renv`:
+Environment restoration via `renv` is highly recommended to ensure reproducibility:
 
 ```r
 renv::restore()
 ```
 
----
+## Protocol Overview
 
-## Getting Started
+1. **Upload**: Load raw `.h5` assay matrices containing DNA variants and corresponding protein expression data.
+2. **Pre-processing**: Define strict filtering parameters (e.g., minimum depth, VAF thresholds) to clean the mutational matrices.
+3. **Inference**: Execute the COMPASS MCMC algorithms to impute missing genotypes and extract the clonal tree.
+4. **Annotation**: Trigger the API module to functionally annotate selected variants against Ensembl and ClinVar.
+5. **Integration**: Reduce protein dimensions, define phenotypic subpopulations, and compute the mathematical intersection between genomic clones and protein profiles.
 
-1. Prepare your input files:
-   - A normalized scRNA-seq matrix (`.rds`, `.csv`, or `.h5ad`)
-   - Optional: matching proteomic data (same format, same cells)
-   - Optional: metadata table with annotations
+## Target Domains
 
-2. Launch the application and upload your datasets.
-
-3. Explore clusters, expression profiles, correlations, and more via the app's interface.
-
----
-
-## Use Cases
-
-This application is particularly suited for:
-- Single-cell studies in oncology, immunology, or developmental biology
-- Integration of CITE-seq or REAP-seq datasets
-- Analysis of tumor microenvironment heterogeneity
-- Translational research and biomarker discovery
-
----
+This computational tool is specifically tailored for:
+- Systems Oncology and Hematology (e.g., Multiple Myeloma, Leukemias).
+- Dissection of the tumor microenvironment and intra-tumoral heterogeneity.
+- Tracking of sub-clonal resistance mechanisms during therapeutic pressure.
+- High-resolution biomarker discovery via paired DNA/Protein analysis.
 
 ## Citation
 
-If you use this tool in your research, please cite:
+If you utilize ScIGMA in your research or analytical pipelines, please cite:
 
-> Pawlak G., *et al.* (2025). SingleCellProtExplorer: a modular R Shiny app for interactive exploration of single-cell proteogenomic data. _In preparation_.
-
----
+> Pawlak G., *et al.* (2026). ScIGMA: A computational framework for the interactive exploration of single-cell proteogenomic architecture. *In preparation*.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
-
----
+This project is licensed under the GNU General Public License v3.0 (GPLv3). See the `LICENSE` file for full terms and conditions.
 
 ## Contact
 
-For questions, feature requests, or bug reports, please open an issue or contact:
+For academic inquiries, methodological questions, or system bug reports:
 
-**Geoffrey Pawlak**  
-PharmD, PhD in Bioinformatics & Systems Oncology  
-[LinkedIn](https://www.linkedin.com/in/geoffreypawlak) | pawlak.geo [at] pm.me
-
----
-
-## Future Development
-
-Planned features include:
-- Integration with public datasets (e.g., Human Cell Atlas, CPTAC)
-- Support for spatial transcriptomics and proteomics
-- AI-powered biomarker recommendation
+**Geoffrey Pawlak**
+PharmD, PhD in Bioinformatics & Systems Oncology
+pawlak.geo [at] pm.me

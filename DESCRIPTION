@@ -4,7 +4,7 @@ Version: 0.0.0.1
 Authors@R: 
     person("Geoffrey", "Pawlak", , "pawlak.geoffrey@gmail.com", role = c("aut", "cre"))
 Description: PKG_DESC.
-License: What license is it under?
+License: GPL (>= 3)
 Imports: 
     BiocParallel,
     bslib,

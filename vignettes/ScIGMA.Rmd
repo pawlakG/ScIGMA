@@ -1,0 +1,56 @@
+---
+title: "Introduction to ScIGMA"
+author: 
+  - name: "Geoffrey Pawlak"
+    affiliation: "Systems Oncology & Bioinformatics"
+date: "`r Sys.Date()`"
+output: BiocStyle::html_document
+vignette: >
+  %\VignetteIndexEntry{Introduction to ScIGMA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+**ScIGMA** (Single-cell Integrated Genomic & Multi-omics Analyzer) is a comprehensive computational framework for exploring single-cell proteogenomic architecture. This vignette demonstrates the basic usage of the ScIGMA interactive application.
+
+## Launching the Application
+
+ScIGMA is primarily designed to be run as an interactive Shiny application. Once the package is installed, you can launch the interface using the `run_app()` function.
+
+```{r setup, eval=FALSE}
+library(ScIGMA)
+
+# Launch the interactive interface
+ScIGMA::run_app()
+```
+
+## Data Input Requirements
+
+The application expects high-dimensional single-cell data, primarily targeting `.h5` objects generated from systems like Mission Bio Tapestri. 
+The expected matrices include:
+- Single Nucleotide Variants (SNV) matrices (Genotype, Depth, Allele Frequency)
+- Copy Number Variations (CNV) matrices
+- Protein Expression matrices
+
+## Downstream Analysis
+
+Once data is loaded into the interactive interface, ScIGMA allows for:
+1. **Filtering**: Removal of low-quality cells and non-informative variants.
+2. **Inference**: Imputation of missing genotypes and inference of clonal architecture using the underlying COMPASS C++ engine via MCMC.
+3. **Annotation**: Direct mapping of clinical significance and variant consequences via Ensembl VEP API.
+4. **Integration**: UMAP dimensionality reduction of the protein space and manual/automated gating of immunophenotypes.
+
+# Session Information
+
+```{r sessionInfo}
+sessionInfo()
+```

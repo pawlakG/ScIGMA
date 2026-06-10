@@ -10,3 +10,5 @@ $run_dev.*
 ^\.positai$
 ^\.claude$
 ^LICENSE\.md$
+^\.vscode$
+^results$

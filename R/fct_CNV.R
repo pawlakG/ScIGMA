@@ -31,14 +31,14 @@
 #'   dimnames = list(paste0("Sample_", 1:5), dna_ids_example)
 #' )
 #'
-#' mapping <- tibble(
+#' mapping <- data.frame(
 #'   variant_id = dna_ids_example,
 #'   amplicon_group = c(
 #'     rep("NRAS_1", 3), rep("KIT_2", 4), rep("FLT3_3", 3)
 #'   )
 #' )
 #'
-#' aggregated_data <- aggregate_matrix_by_amplicon(
+#' aggregated_data <- aggregate_matrix_by_mappingTable(
 #'   numeric_matrix = data_matrix,
 #'   mapping_table = mapping,
 #'   feature_column_name = variant_id,
@@ -46,6 +46,7 @@
 #' )
 #' print(aggregated_data)
 #'
+#' @noRd
 aggregate_matrix_by_mappingTable<- function(numeric_matrix,
                                             mapping_table,
                                             feature_column_name,
@@ -161,7 +162,7 @@ aggregate_matrix_by_mappingTable<- function(numeric_matrix,
 #'     \item{\strong{amplicon_meanCellRead_summary}: A table summarizing the
 #'       number of amplicons that passed/failed the mean read depth filter.}
 #'   }
-#' @export
+#' @noRd
 #'
 #' @examples
 #' # The 'aggregate_matrix_by_amplicon' function is not defined here.
@@ -252,7 +253,7 @@ filter_cnv_matrix_by_completeness <- function(
 #' @param exclude_clone A character string of a clone to exclude from the final profile
 #'   (e.g., "small" or NA).
 #'
-#' @export
+#' @noRd
 #'
 #' @return A matrix where rows are genomic regions (amplicons) and columns are
 #'   clonal profiles, normalized to the diploid reference.
@@ -397,6 +398,7 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 #' mixed_list <- c("1", "22", "chrY", "chr5", "chr13")
 #' sort_genomic_chromosomes(mixed_list)
 #' # [1] "chr1" "chr5" "chr13" "chr22" "chrY"
+#' @export
 sort_genomic_chromosomes <- function(chromosome_vector) {
 
     # 1. Cleaning and Normalization: Remove "chr" prefix and normalize case for sex chromosomes.
@@ -434,6 +436,7 @@ sort_genomic_chromosomes <- function(chromosome_vector) {
 
 #' Rander annotation table
 #'
+#' @noRd
 render_annotation_table <- function(obj, ploidy_data){
     mat_data <- t(ploidy_data)
 
@@ -471,7 +474,7 @@ render_annotation_table <- function(obj, ploidy_data){
 #' @importFrom dplyr filter arrange mutate
 #' @importFrom stats quantile setNames
 #'
-#' @export
+#' @noRd
 plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 
     mat_data <- t(ploidy_data)
@@ -550,7 +553,7 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
 #'   'gene_biotype'. The output is filtered to retain only distinct
 #'   protein-coding genes with valid HGNC symbols.
 #'
-#' @export
+#' @noRd
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom EnsDb.Hsapiens.v75 EnsDb.Hsapiens.v75
 #' @importFrom GenomicRanges GRanges findOverlaps
@@ -620,7 +623,7 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
 
 #' Plot Genomic CNV Profile (Ploidy) - Bold & Larger Labels
-#' @export
+#' @noRd
 plot_cnv_genome <- function(cnv_matrix,
                             gene_annotation = NULL,
                             sub_indices = NULL,
@@ -922,7 +925,7 @@ get_genes_memory_safe <- function(input_df) {
 #'
 #' @param mae MultiAssayExperiment object
 #' @return MultiAssayExperiment with updated amplicons rowData
-#' @export
+#' @noRd
 annotate_amplicons_exact <- function(mae) {
     if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr required")
 

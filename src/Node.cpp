@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <Rcpp.h>
 #include <random>
 #include <iostream>
 
@@ -160,15 +161,15 @@ void Node::update_genotype(Node* parent){
 
     // Make sure that the CNAs are valid. If yes, apply them. Otherwise discard them.
     CNAs_to_remove.clear();
-    for (const std::tuple<int,int,std::vector<int>> CNA: CNA_events){
+    for (const std::tuple<int,int,std::vector<int>>& CNA : CNA_events){
         int region = std::get<0>(CNA);
         int gain_loss = std::get<1>(CNA);
         const std::vector<int>& alleles = std::get<2>(CNA);
-        if (parameters.verbose) std::cout<<"CNA"<<gain_loss<<" in " <<data.region_to_name[region]<<std::endl;
+        if (parameters.verbose) Rcpp::Rcout<<"CNA"<<gain_loss<<" in " <<data.region_to_name[region]<<std::endl;
         if (gain_loss!=0) affected_regions.insert(region);
 
         // Check that the CNA is valid (region ends up with a copy number in {1,2,3} and affected alleles have copy number >0)
-        bool valid_CNA=(cn_regions[region]+gain_loss>=1 & cn_regions[region]+gain_loss<=3);
+        bool valid_CNA=(cn_regions[region]+gain_loss>=1 && cn_regions[region]+gain_loss<=3);
         for (int i=0;i<data.region_to_loci[region].size();i++){
             int locus = data.region_to_loci[region][i];
             if (alleles[i]==0 && n_ref_allele[locus]==0) valid_CNA=false;
@@ -291,7 +292,7 @@ void Node::compute_attachment_scores_parent(bool use_CNA, Node* parent,const std
 int Node::remove_random_mutation(){
     // Randomly remove one of the mutations and return it
     // This method should only be called if the node has at least one somatic mutation.
-    int idx = std::rand()%mutations.size();
+    int idx = ((int)(R::runif(0,1) * 2147483647))%mutations.size();
     int mutation = mutations[idx];
     mutations.erase(mutations.begin()+idx);
     return mutation;
@@ -301,7 +302,7 @@ int Node::remove_random_mutation(){
 std::tuple<int,int,std::vector<int>> Node::remove_random_CNA(){
     // Randomly remove one of the existing CNA events and return it. 
     // This method should only be called if the node has at least one CNA event.
-    int index_to_remove = std::rand()%CNA_events.size();
+    int index_to_remove = ((int)(R::runif(0,1) * 2147483647))%CNA_events.size();
     std::tuple<int,int,std::vector<int>> CNA = *std::next(CNA_events.begin(), index_to_remove);
     CNA_events.erase(CNA); 
     return CNA;
@@ -329,7 +330,7 @@ double Node::exchange_Loss_CNLOH(std::vector<int> candidate_regions){
     if (n_CN_loss + n_CNLOH ==0){
         return 0.0;
     }
-    int event_ind = std::rand()%(n_CN_loss+n_CNLOH);
+    int event_ind = ((int)(R::runif(0,1) * 2147483647))%(n_CN_loss+n_CNLOH);
     if (event_ind < n_CNLOH){ // transform CNLOH event into a CNA event
         std::tuple<int,int,std::vector<int>> CNLOH_event = *std::next(CNLOH_events_exchangeable.begin(), event_ind);
         int region = std::get<0>(CNLOH_event);
@@ -355,13 +356,13 @@ void Node::change_alleles_CNA(){
     for (auto CNA:CNA_events){
         if (std::get<2>(CNA).size()>0) CNA_with_muts.push_back(CNA);
     }
-    std::tuple<int,int,std::vector<int>> CNA = CNA_with_muts[std::rand()%CNA_with_muts.size()];
+    std::tuple<int,int,std::vector<int>> CNA = CNA_with_muts[((int)(R::runif(0,1) * 2147483647))%CNA_with_muts.size()];
     // Replace the affected alleles
     int region = std::get<0>(CNA);
     int type = std::get<1>(CNA);
     std::vector<int> alleles{};
     for (int i=0;i<data.region_to_loci[region].size();i++){
-        int allele = std::rand()%2;
+        int allele = ((int)(R::runif(0,1) * 2147483647))%2;
         alleles.push_back(allele);
     }
     CNA_events.erase(CNA);
@@ -380,7 +381,7 @@ void Node::change_alleles_CNA_locus(int locus, bool heterozygous){
             for (int a=0;a<alleles.size();a++){
                 if (locus==data.region_to_loci[region][a]){
                     if (heterozygous){
-                        new_alleles.push_back(std::rand()%2);
+                        new_alleles.push_back(((int)(R::runif(0,1) * 2147483647))%2);
                     }
                     else{
                         new_alleles.push_back(0);

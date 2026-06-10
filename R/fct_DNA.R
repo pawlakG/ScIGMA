@@ -54,7 +54,7 @@
 #' - `DelayedMatrixStats` for efficient matrix operations when using DelayedArray objects.
 #' - The original `filter_variant` function from the optima package for conceptual inspiration.
 #'
-#' @export
+#' @noRd
 filter_variant_ScIGMA <- function(
         obj,
         min.dp = 10, min.gq = 30,
@@ -232,7 +232,7 @@ normalize_amplicon_counts <- function(count_matrix,
                                       epsilon = 1e-8,         # numerical stability to avoid division by zero
                                       use_nonzero_for_median = FALSE) {
     # --- Checks ---
-    if (!class(count_matrix) == "DelayedMatrix") {
+    if (!inherits(count_matrix, "DelayedMatrix")) {
         stop("count_matrix must be a DelayedMatrix (amplicons x cells).")
     }
     count_matrix <- as.matrix(count_matrix)
@@ -298,7 +298,7 @@ normalize_amplicon_counts <- function(count_matrix,
 #' @importFrom tidyr unite
 #' @importFrom stringr str_detect
 #' @importFrom tibble as_tibble
-#' @export
+#' @noRd
 generate_clonal_labels <- function(ngt_matrix,
                                    target_variants_df,
                                    ignore_missing = FALSE) {
@@ -341,7 +341,7 @@ generate_clonal_labels <- function(ngt_matrix,
 
         # Step B: Prefix states with full variant nomenclature via lookup map
         mutate(across(all_of(short_variant_ids),
-                      ~ paste0(variant_map[cur_column()], ":", .))) %>%
+                      ~ paste0(variant_map[dplyr::cur_column()], ":", .))) %>%
 
         # Step C: Concatenate into a strict clonal signature string
         unite(col = "signature_string", all_of(short_variant_ids),
@@ -421,7 +421,7 @@ generate_clonal_labels <- function(ngt_matrix,
 #' @importFrom ComplexHeatmap Heatmap rowAnnotation
 #' @importFrom colorBlindness paletteMartin
 #' @importFrom stringr str_detect
-#' @export
+#' @noRd
 #'
 #' @examples
 #' # The example below is illustrative and will not run without the necessary
@@ -621,7 +621,7 @@ generate_dna_variant_heatmap <- function(obj,
 #'   - locus_regions: Integer vector (0-based) mapping each variant to its column in C.
 #'   - regions_names: Character vector of the region (Gene) names in order.
 #'
-#' @export
+#' @noRd
 build_compass_matrices <- function(obj, selected_variants) {
 
     message("Building COMPASS topological and count matrices...")
@@ -722,7 +722,7 @@ build_compass_matrices <- function(obj, selected_variants) {
 #' @param threads Integer. Cores allocated for parallel chains.
 #'
 #' @return Logical. TRUE if successful.
-#' @export
+#' @noRd
 run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
                              n_iters = 100000, restarts = 10, threads = 8) {
     if (!dir.exists(input_dir)) {
@@ -768,7 +768,7 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
 #'   tempdir() for strict BioConductor compliance.
 #' @return Updated scigma_data object containing only singlet cells and
 #'   COMPASS results in MAE metadata.
-#' @export
+#' @noRd
 infer_clonal_architecture <- function(scigma_data, target_variants,
                                       chain_length = 500L,
                                       output_dir = tempdir()) {

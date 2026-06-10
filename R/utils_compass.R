@@ -6,7 +6,7 @@
 #' @param regions_file Path to the [sample]_regions.csv file
 #'
 #' @return A list formatted strictly for run_compass_mcmc() API
-#' @export
+#' @noRd
 prepare_compass_from_csv <- function(variants_file, regions_file) {
     # Fast I/O and vectorized string ops
     if (!requireNamespace("data.table", quietly = TRUE) ||
@@ -78,7 +78,7 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
 
 #' Reconstruct imputed single-cell genotypes from COMPASS outputs
 #'
-#' @export
+#' @noRd
 get_imputed_genotypes <- function(prefix_out) {
 
     nodes_gt_file <- paste0(prefix_out, "_nodes_genotypes.tsv")

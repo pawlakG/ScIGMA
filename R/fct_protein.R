@@ -2,7 +2,7 @@
 #' Protein matrix normalization
 #'
 #' Normalizes the protein matrix within a `ScIGMA_object` using the
-#' centered log‑ratio (CLR) transform, inspired by the analogous function
+#' centered log-ratio (CLR) transform, inspired by the analogous function
 #' in the optima package.
 #'
 #' @param ScIGMA_object A `ScIGMA_object` (R6).
@@ -10,7 +10,7 @@
 #' @return The input `ScIGMA_object` with `protein.mtx` normalized and
 #'  `protein.normalize.method` set to "normalized".
 #' @keywords ScIGMA protein normalization
-#' @export
+#' @noRd
 #' @examples
 #' \dontrun{
 #' scigma <- normalizeProtein(scigma)
@@ -35,7 +35,7 @@ normalizeProtein <- function(ScIGMA_object) {
 }
 
 #' Render ridge plot with ggplot2 and plotly
-#' @export
+#' @noRd
 render_protein_ridge_plot <- function(obj){
     # On extrait l'assay CLR s'il existe, sinon on fallback sur counts
     # assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
@@ -55,7 +55,7 @@ render_protein_ridge_plot <- function(obj){
     plotly::ggplotly(tmp_plot)
 }
 
-#' @export
+#' @noRd
 plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
 
     ptn_mtx <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
@@ -100,7 +100,7 @@ plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution")
 #' corrected data (robust estimation of distribution spread).
 #'
 #' @return A numeric matrix of normalized (and optionally scaled) values.
-#' @export
+#' @noRd
 normalize_linear_regression <- function(raw_matrix,
                                         use_log = TRUE,
                                         add_mean = TRUE,
@@ -181,7 +181,7 @@ normalize_linear_regression <- function(raw_matrix,
 #' @return A matrix of UMAP coordinates (Cells x n_components) with row names
 #' matching the input matrix. Column names are "UMAP_1", "UMAP_2", etc.
 #'
-#' @export
+#' @noRd
 #'
 #' @examples
 #' # 1. Normalize data first (Crucial!)
@@ -263,7 +263,7 @@ run_umap_protein <- function(expression_matrix,
 #' @param k Number of neighbors for local structure evaluation
 #' @param sample_size Number of cells to sample for exact calculation
 #' @return A list of metric scores
-#' @export
+#' @noRd
 compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size = 1000) {
 
     common_cells <- intersect(rownames(high_dim_mat), rownames(low_dim_mat))

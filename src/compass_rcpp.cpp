@@ -216,7 +216,7 @@ int run_compass_inference_cpp(
 #pragma omp parallel for
 #endif
         for ( int i = 0; i < n_chains; i++ ) {
-            std::srand(i);
+            //std::srand(i);
             Inference infer{"", 10.0, i};
             best_trees[i] = infer.find_best_tree(use_cna, chain_length, burn_in);
             results[i] = best_trees[i].log_score;

@@ -1,3 +1,4 @@
+#include <Rcpp.h>
 #include <random>
 #include <cmath>
 #include <cfloat>
@@ -26,7 +27,7 @@ Tree::Tree(Scores* cache, bool use_CNA):
     use_CNA(use_CNA)
 {
     cache_scores = cache;
-    n_nodes = 3+ (std::rand()%8);
+    n_nodes = 3+ (((int)(R::runif(0,1) * 2147483647))%8);
     dropout_rates = std::vector<double>(n_loci,0.05);
     dropout_rates_ref = std::vector<double>(n_loci,0.05);
     dropout_rates_alt = std::vector<double>(n_loci,0.05);
@@ -35,7 +36,7 @@ Tree::Tree(Scores* cache, bool use_CNA):
     parents.resize(n_nodes);
     parents[0]=-1; //root
     for (int i=1;i<n_nodes;i++){
-        parents[i]=std::rand()%i; // new node attached randomly to one of the existing nodes.
+        parents[i]=((int)(R::runif(0,1) * 2147483647))%i; // new node attached randomly to one of the existing nodes.
     }
     children.resize(n_nodes);
     compute_children();
@@ -50,7 +51,7 @@ Tree::Tree(Scores* cache, bool use_CNA):
 
     //randomly assign each somatic mutation to a node and compute the genotypes
     for (int i=0;i<n_loci;i++){
-        nodes[std::rand()%n_nodes]->add_mutation(i);
+        nodes[((int)(R::runif(0,1) * 2147483647))%n_nodes]->add_mutation(i);
     }
     compute_nodes_genotypes();
 
@@ -591,7 +592,7 @@ void Tree::to_dot(std::string filename, bool simplified){
     out_file <<"digraph G{"<<std::endl;
     out_file <<"node [color=dimgray fontsize=24 fontcolor=black fontname=Helvetica penwidth=5];"<<std::endl;
     for (int i=1;i<n_nodes;i++){
-        if (parameters.verbose) std::cout<<i<< " is a child of "<<parents[i]<<std::endl;
+        if (parameters.verbose) Rcpp::Rcout<<i<< " is a child of "<<parents[i]<<std::endl;
         out_file<<parents[i]<<" -> "<<i<<" [color=dimgray penwidth=4 weight=2];"<<std::endl;
     }
 
@@ -635,13 +636,13 @@ void Tree::to_dot(std::string filename, bool simplified){
 
     out_file <<"}"<<std::endl;
     out_file.close();
-    if (parameters.verbose) std::cout<<"Node probabilities"<<std::endl;
+    if (parameters.verbose) Rcpp::Rcout<<"Node probabilities"<<std::endl;
     for (int n=0;n<n_nodes;n++){
-        if (parameters.verbose) std::cout<<n<<": "<<node_probabilities[n]<<std::endl;
+        if (parameters.verbose) Rcpp::Rcout<<n<<": "<<node_probabilities[n]<<std::endl;
     }
-    if (parameters.verbose) std::cout<<"Dropout rates"<<std::endl;
+    if (parameters.verbose) Rcpp::Rcout<<"Dropout rates"<<std::endl;
     for (int i=0;i<n_loci;i++){
-        if (parameters.verbose) std::cout<<i<<" ("<<data.locus_to_name[i]<<"): "<<dropout_rates[i]<<" (ref:" <<dropout_rates_ref[i]<<", alt:"<<dropout_rates_alt[i]<<")"<<std::endl;
+        if (parameters.verbose) Rcpp::Rcout<<i<<" ("<<data.locus_to_name[i]<<"): "<<dropout_rates[i]<<" (ref:" <<dropout_rates_ref[i]<<", alt:"<<dropout_rates_alt[i]<<")"<<std::endl;
     }
 
     if (full_output){
@@ -676,7 +677,7 @@ void Tree::to_dot(std::string filename, bool simplified){
             out_file_cell_assignment_probs<<"\tNode "<<k;
         }
         /*if (parameters.use_doublets){
-            std::cout<<cells_attach_loglik[0].size()<<std::endl;
+            Rcpp::Rcout<<cells_attach_loglik[0].size()<<std::endl;
                 for (int k=0;k<n_nodes;k++){
                     for (int l=k;l<n_nodes;l++){
                         out_file_cell_assignment_probs << "\tDoublet "<<k<<","<<l;
@@ -1014,8 +1015,8 @@ bool Tree::select_regions(int index){
                 }
             }
             if (node_newroot==-1 || (!CNLOH_in_tree)){
-                if (index >=0) std::cout<<"Chain "<<std::to_string(index)<<": ";
-                std::cout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs."<<std::endl;
+                if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+                Rcpp::Rcout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs."<<std::endl;
                 return false; // not enough cells attached to the root: cannot find CNAs
             }
             else{
@@ -1039,8 +1040,8 @@ bool Tree::select_regions(int index){
 
         if (data.predetermined_region_weights.size()==0){
             if (nodes_regionprobs[k][root].size()<std::max(40.0,0.015*n_cells)){
-                if (index >=0) std::cout<<"Chain "<<std::to_string(index)<<": ";
-                std::cout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs.."<<std::endl;
+                if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+                Rcpp::Rcout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs.."<<std::endl;
                 return false; // not enough cells attached to the root: cannot find CNAs
             }
             double rootprob=0;
@@ -1067,8 +1068,8 @@ bool Tree::select_regions(int index){
         }
     }
     if (candidate_regions.size()==0){
-        if (index >=0) std::cout<<"Chain "<<std::to_string(index)<<": ";
-        std::cout<<"In the tree inferred without CNAs, there were no regions whose coverage in one node were different from the root, so COMPASS could not identify any CNAs."<<std::endl;
+        if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+        Rcpp::Rcout<<"In the tree inferred without CNAs, there were no regions whose coverage in one node were different from the root, so COMPASS could not identify any CNAs."<<std::endl;
         return false;
     }
 
@@ -1082,12 +1083,12 @@ bool Tree::select_regions(int index){
         }
     }
     if (true || parameters.verbose){
-        if (index >=0) std::cout<<"Chain "<<std::to_string(index)<<": ";
-        std::cout<<"After the first phase (inferring the best tree without CNAs), COMPASS identified the following candidate regions which might contain CNAs: ";
+        if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+        Rcpp::Rcout<<"After the first phase (inferring the best tree without CNAs), COMPASS identified the following candidate regions which might contain CNAs: ";
         for (int i: candidate_regions){
-            std::cout<<data.region_to_name[i]<<",";
+            Rcpp::Rcout<<data.region_to_name[i]<<",";
         }
-        std::cout<<std::endl;
+        Rcpp::Rcout<<std::endl;
     }
 
     return true;
@@ -1101,7 +1102,7 @@ void Tree::add_node(int parent){
     parents.push_back(parent);
     node_probabilities.resize(n_nodes);
     for (int child: children[parent]){
-        if (std::rand()%2==0) parents[child] = n_nodes-1;
+        if (((int)(R::runif(0,1) * 2147483647))%2==0) parents[child] = n_nodes-1;
     }
     compute_children();
 }
@@ -1136,7 +1137,7 @@ void Tree::prune_reattach(){
     }
 
     // Randomly select one node (apart from the root) to prune and reattach
-    int pruned_node_id = ( std::rand() % (n_nodes-1) ) + 1;
+    int pruned_node_id = ( ((int)(R::runif(0,1) * 2147483647)) % (n_nodes-1) ) + 1;
 
     // Find all nodes that are not a descendant of the pruned node
     // Perform a DFT from the pruned node to identify all its descendants
@@ -1158,7 +1159,7 @@ void Tree::prune_reattach(){
     }
 
     // Sample one attachment point among all nodes that are not descendant of the pruned node
-    int attachment_point_id = candidate_attachment_points[std::rand()%candidate_attachment_points.size()];
+    int attachment_point_id = candidate_attachment_points[((int)(R::runif(0,1) * 2147483647))%candidate_attachment_points.size()];
 
     // Update the tree accordingly, and recompute the genotypes
     parents[pruned_node_id] = attachment_point_id;
@@ -1173,8 +1174,8 @@ void Tree::swap_node_labels(){
         hastings_ratio=0.0;
         return;
     }
-    int node1 = std::rand()%n_nodes;
-    int node2 = std::rand()%(n_nodes-1);
+    int node1 = ((int)(R::runif(0,1) * 2147483647))%n_nodes;
+    int node2 = ((int)(R::runif(0,1) * 2147483647))%(n_nodes-1);
     if (node2==node1) node2 = n_nodes-1;
     // Exchange the nodes
     Node* temp = nodes[node1];
@@ -1193,23 +1194,23 @@ void Tree::move_SNV(){
     }
     int initial_nb_nodes_with_events = nodes_with_event.size();
     int new_nb_nodes_with_events = initial_nb_nodes_with_events;
-    int source_node = nodes_with_event[std::rand() % nodes_with_event.size()];
+    int source_node = nodes_with_event[((int)(R::runif(0,1) * 2147483647)) % nodes_with_event.size()];
     hastings_ratio=1.0 * initial_nb_nodes_with_events * nodes[source_node]->get_number_mutations();
 
     // Select the destination node (either an existing or a new node)
     int destination_node;
     double new_node_prob=0.2;
     if (n_nodes<=1) new_node_prob = 1.0;
-    if (1.0*std::rand()/RAND_MAX<new_node_prob){
+    if (1.0*((int)(R::runif(0,1) * 2147483647))/2147483647.0<new_node_prob){
         // Move the event to a new node.
-        int parent = std::rand()%n_nodes; // Select the parent of the new node
+        int parent = ((int)(R::runif(0,1) * 2147483647))%n_nodes; // Select the parent of the new node
         hastings_ratio*= 1/new_node_prob * n_nodes * std::pow(2,children[parent].size());
         add_node(parent);
         destination_node = n_nodes-1;
     }
     else{
         // Move the event to an existing node
-        destination_node = std::rand()%(n_nodes-1);
+        destination_node = ((int)(R::runif(0,1) * 2147483647))%(n_nodes-1);
         if (destination_node==source_node) destination_node = n_nodes-1;
         hastings_ratio*= 1/(1.0-new_node_prob) * (n_nodes-1);
 
@@ -1254,9 +1255,9 @@ void Tree::split_merge_node(){
     double merge_probability = default_merge_probability;
     if (n_nodes<=1) merge_probability =0.0; //cannot merge nodes if there is only one node.
 
-    if ( (1.0*std::rand())/RAND_MAX <= merge_probability){ // merge nodes
+    if ( (1.0*((int)(R::runif(0,1) * 2147483647)))/2147483647.0 <= merge_probability){ // merge nodes
         // Select one node which is not the root
-        int node1 = std::rand()%(n_nodes-1) + 1;
+        int node1 = ((int)(R::runif(0,1) * 2147483647))%(n_nodes-1) + 1;
         int node2 = parents[node1];
         // Move the events of node 1 into node 2
         while (nodes[node1]->get_number_mutations()>0){
@@ -1281,18 +1282,18 @@ void Tree::split_merge_node(){
         hastings_ratio *= 1.0/ std::pow(2.0,children[node2].size());
     }
     else{ // Split node
-        int node = std::rand()%n_nodes;
+        int node = ((int)(R::runif(0,1) * 2147483647))%n_nodes;
         add_node(node); // The new node is a child of the original node, and the children of the original node are randomly distributed between the 2 nodes.
 
         //Randomly split the events between the two nodes (choosing a random number of events to move)
         if (nodes[node]->get_number_mutations()>0){
-            int n_events_moved = std::rand()%(nodes[node]->get_number_mutations()+1) ; // we can move from 0 to all of the mutations
+            int n_events_moved = ((int)(R::runif(0,1) * 2147483647))%(nodes[node]->get_number_mutations()+1) ; // we can move from 0 to all of the mutations
             for (int i=0;i<n_events_moved;i++){
                 nodes[n_nodes-1]->add_mutation(nodes[node]->remove_random_mutation());
             }
         }
         if (nodes[node]->get_number_CNA()>0){
-            int n_events_moved = std::rand()%(nodes[node]->get_number_CNA()+1) ;
+            int n_events_moved = ((int)(R::runif(0,1) * 2147483647))%(nodes[node]->get_number_CNA()+1) ;
             for (int i=0;i<n_events_moved;i++){
                 std::tuple<int,int,std::vector<int>> CNA = nodes[node]->remove_random_CNA();
                 nodes[n_nodes-1]->add_CNA(CNA);
@@ -1334,23 +1335,23 @@ void Tree::add_remove_CNA(bool use_CNA){
 
 
 
-    if ( (1.0*std::rand())/RAND_MAX <= add_probability){ // add CNA event
+    if ( (1.0*((int)(R::runif(0,1) * 2147483647)))/2147483647.0 <= add_probability){ // add CNA event
         // Select node, type (gain, loss, CNLOH), region and alleles
-        int node = std::rand()%(2*n_nodes); // can add the CNA to an existing node, or to a new node below an existing node
+        int node = ((int)(R::runif(0,1) * 2147483647))%(2*n_nodes); // can add the CNA to an existing node, or to a new node below an existing node
         int type=0;
         int n_possible_types = 1;
         if (use_CNA && candidate_regions.size() >0){
             n_possible_types=3;
-            type = 1 - (std::rand()%3);
+            type = 1 - (((int)(R::runif(0,1) * 2147483647))%3);
         }
         int region=-1;
         int n_candidate_regions=-1;
         if (type==0){
-            region = candidate_regions_CNLOH[std::rand()%candidate_regions_CNLOH.size()];
+            region = candidate_regions_CNLOH[((int)(R::runif(0,1) * 2147483647))%candidate_regions_CNLOH.size()];
             n_candidate_regions = candidate_regions_CNLOH.size();
         }
         else{
-            region = candidate_regions[std::rand()%candidate_regions.size()];
+            region = candidate_regions[((int)(R::runif(0,1) * 2147483647))%candidate_regions.size()];
             n_candidate_regions = candidate_regions.size();
         }
 
@@ -1367,7 +1368,7 @@ void Tree::add_remove_CNA(bool use_CNA){
         }
         std::vector<int> alleles{};
         for (int i=0;i<data.region_to_loci[region].size();i++){
-            int allele =std::rand()%2; //0: CNA affects ref allele; 1: CNA affects alt allele
+            int allele =((int)(R::runif(0,1) * 2147483647))%2; //0: CNA affects ref allele; 1: CNA affects alt allele
             // Can only gain/lose lose one allele if we had at least one copy of it !
             if (allele==0 && nodes[parent]->get_n_ref_allele(data.region_to_loci[region][i])==0) allele=1;
             if (allele==1 && nodes[parent]->get_n_alt_allele(data.region_to_loci[region][i])==0) allele=0;
@@ -1384,7 +1385,7 @@ void Tree::add_remove_CNA(bool use_CNA){
     }
     else{ // remove CNA event
         // Select a node which has a CNA event
-        int node = nodes_with_events[std::rand()%nodes_with_events.size()];
+        int node = nodes_with_events[((int)(R::runif(0,1) * 2147483647))%nodes_with_events.size()];
         auto CNA = nodes[node]->remove_random_CNA();
         int n_alleles = std::get<2>(CNA).size();
         int n_possible_types=1;
@@ -1420,7 +1421,7 @@ void Tree::move_CNA(){
     }
 
     double new_node_prob=0.20;
-    int source_node = nodes_with_event[std::rand() % nodes_with_event.size()];
+    int source_node = nodes_with_event[((int)(R::runif(0,1) * 2147483647)) % nodes_with_event.size()];
     hastings_ratio=1.0 * initial_nb_nodes_with_events * nodes[source_node]->get_number_CNA();
     std::tuple<int,int,std::vector<int>> CNA = nodes[source_node]->remove_random_CNA();
     if (source_node !=0 && nodes[source_node]->is_empty()){
@@ -1438,16 +1439,16 @@ void Tree::move_CNA(){
 
     int destination_node;
     if (n_nodes<=1) new_node_prob = 1.0;
-    if (1.0*std::rand()/RAND_MAX<new_node_prob){
+    if (1.0*((int)(R::runif(0,1) * 2147483647))/2147483647.0<new_node_prob){
         // Move the event to a new node.
-        int parent = std::rand()%n_nodes; // Select the parent of the new node
+        int parent = ((int)(R::runif(0,1) * 2147483647))%n_nodes; // Select the parent of the new node
         hastings_ratio*= 1.0/new_node_prob * n_nodes * std::pow(2,children[parent].size());
         add_node(parent);
         destination_node = n_nodes-1;
     }
     else{
         // Move the event to an existing node
-        destination_node = std::rand()%(n_nodes-1);
+        destination_node = ((int)(R::runif(0,1) * 2147483647))%(n_nodes-1);
         if (destination_node==source_node) destination_node = n_nodes-1;
         hastings_ratio*= 1.0/(1.0-new_node_prob) * (n_nodes-1);
     }
@@ -1493,7 +1494,7 @@ void Tree::merge_or_duplicate_CNA(){
     }
 
 
-    int event_index = std::rand()%(duplicate_CNAs.size() + nodes_with_CNA_and_multiple_children.size());
+    int event_index = ((int)(R::runif(0,1) * 2147483647))%(duplicate_CNAs.size() + nodes_with_CNA_and_multiple_children.size());
     if (event_index < duplicate_CNAs.size()){
         // Merge 2 CNAs
         auto CNA = duplicate_CNAs[event_index];
@@ -1503,8 +1504,8 @@ void Tree::merge_or_duplicate_CNA(){
                 if (CNA==CNA_node) nodes_containing_CNA.push_back(n);
             }
         }
-        int index1 = std::rand()%nodes_containing_CNA.size();
-        int index2 = std::rand()%(nodes_containing_CNA.size()-1);
+        int index1 = ((int)(R::runif(0,1) * 2147483647))%nodes_containing_CNA.size();
+        int index2 = ((int)(R::runif(0,1) * 2147483647))%(nodes_containing_CNA.size()-1);
         if (index1==index2) index2=nodes_containing_CNA.size()-1;
         int node1 = nodes_containing_CNA[index1];
         int node2 = nodes_containing_CNA[index2];
@@ -1514,7 +1515,7 @@ void Tree::merge_or_duplicate_CNA(){
         nodes[node1]->remove_CNA(CNA);
         nodes[node2]->remove_CNA(CNA);
         int new_n_nodes_with_CNA_and_multiple_children = nodes_with_CNA_and_multiple_children.size();
-        if (std::rand()%2==0){
+        if (((int)(R::runif(0,1) * 2147483647))%2==0){
             add_node(ancestor);
             nodes[n_nodes-1]->add_CNA(CNA);
             new_n_nodes_with_CNA_and_multiple_children+=1;
@@ -1578,15 +1579,15 @@ void Tree::merge_or_duplicate_CNA(){
         // Duplicate 1 CNA
 
         //Select the node and the CNA event to duplicate
-        int node_ancestor = nodes_with_CNA_and_multiple_children[std::rand()%nodes_with_CNA_and_multiple_children.size()];
+        int node_ancestor = nodes_with_CNA_and_multiple_children[((int)(R::runif(0,1) * 2147483647))%nodes_with_CNA_and_multiple_children.size()];
         std::vector<std::tuple<int,int,std::vector<int>>> CNAs_node{};
         for (auto CNA: nodes[node_ancestor]->get_CNA_events()) CNAs_node.push_back(CNA);
-        auto CNA = CNAs_node[std::rand()%CNAs_node.size()];
+        auto CNA = CNAs_node[((int)(R::runif(0,1) * 2147483647))%CNAs_node.size()];
 
         // Select the 2 nodes where to add the CNA
-        int child1=children[node_ancestor][std::rand()%children[node_ancestor].size()];
-        int child2=children[node_ancestor][std::rand()%children[node_ancestor].size()];
-        while (child1==child2) child2=children[node_ancestor][std::rand()%children[node_ancestor].size()];
+        int child1=children[node_ancestor][((int)(R::runif(0,1) * 2147483647))%children[node_ancestor].size()];
+        int child2=children[node_ancestor][((int)(R::runif(0,1) * 2147483647))%children[node_ancestor].size()];
+        while (child1==child2) child2=children[node_ancestor][((int)(R::runif(0,1) * 2147483647))%children[node_ancestor].size()];
 
         std::vector<int> descendants1{};
         std::stack<int> stk;
@@ -1605,8 +1606,8 @@ void Tree::merge_or_duplicate_CNA(){
             for (int child: children[top]) stk.push(child);
             descendants2.push_back(top);
         }
-        int node1 = descendants1[std::rand()%descendants1.size()];
-        int node2 = descendants2[std::rand()%descendants2.size()];
+        int node1 = descendants1[((int)(R::runif(0,1) * 2147483647))%descendants1.size()];
+        int node2 = descendants2[((int)(R::runif(0,1) * 2147483647))%descendants2.size()];
 
         nodes[node_ancestor]->remove_CNA(CNA);
         if (node_ancestor>0 && nodes[node_ancestor]->is_empty()) delete_node(node_ancestor);
@@ -1625,7 +1626,6 @@ void Tree::merge_or_duplicate_CNA(){
         }
 
         hastings_ratio= 1.0 / nodes_with_CNA_and_multiple_children.size() * (duplicate_CNAs.size() + nodes_with_CNA_and_multiple_children.size());
-        hastings_ratio*=
         hastings_ratio*= 1.0 * nodes_with_CNA_and_multiple_children.size() * (nodes[node_ancestor]->get_number_CNA()+1.0)
                              * children[node_ancestor].size() *descendants1.size() * descendants2.size();
         //Reverse
@@ -1641,7 +1641,7 @@ void Tree::exchange_Loss_CNLOH(){
     }
     if (nodes_with_event.size()==0) hastings_ratio=0.0;
     else{
-        int node = nodes_with_event[std::rand() % nodes_with_event.size()];
+        int node = nodes_with_event[((int)(R::runif(0,1) * 2147483647)) % nodes_with_event.size()];
         hastings_ratio = nodes[node]->exchange_Loss_CNLOH(candidate_regions);
     }
 }
@@ -1654,7 +1654,7 @@ void Tree::change_alleles_CNA(){
     }
     if (nodes_with_event.size()==0) hastings_ratio=0.0;
     else{
-        int node = nodes_with_event[std::rand() % nodes_with_event.size()];
+        int node = nodes_with_event[((int)(R::runif(0,1) * 2147483647)) % nodes_with_event.size()];
         nodes[node]->change_alleles_CNA();
     }
 }
@@ -1669,11 +1669,11 @@ double Tree::get_regionprobs_variance(){
         }
     }
     mean = mean / n_reliable_regions;
-    std::cout<<"mean "<<mean<<std::endl;
+    Rcpp::Rcout<<"mean "<<mean<<std::endl;
     double variance=0;
     for (int k=0;k<n_regions;k++){
         if (data.region_is_reliable[k]){
-            std::cout<<k<<": "<<region_probabilities[k] * n_regions<<std::endl;
+            Rcpp::Rcout<<k<<": "<<region_probabilities[k] * n_regions<<std::endl;
             variance+= std::pow(region_probabilities[k]*n_regions - mean ,2);
         }
     }

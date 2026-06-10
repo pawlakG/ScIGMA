@@ -8,7 +8,7 @@
 #' @param expr Expression. The R code to profile.
 #' @param filepath Character (optional). Path to the loaded file to compute RAM/File size ratio.
 #' @return The result of the expression.
-#' @export
+#' @noRd
 ScIGMA_profile <- function(step_name, expr, filepath = NULL) {
     # File size in MB
     file_size_mb <- NA

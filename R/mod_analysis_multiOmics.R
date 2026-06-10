@@ -1,6 +1,7 @@
 #' analysis_multiomics UI Function
 #' @importFrom shiny NS tagList uiOutput plotOutput
-#' @importFrom bslib card navset_card_underline nav_panel grid_card
+#' @importFrom bslib card navset_card_underline nav_panel
+#' @noRd
 mod_analysis_multiomics_ui <- function(id) {
     ns <- shiny::NS(id)
 
@@ -10,6 +11,7 @@ mod_analysis_multiomics_ui <- function(id) {
 }
 
 #' analysis_multiomics Server Functions
+#' @noRd
 mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns

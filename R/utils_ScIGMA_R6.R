@@ -2,7 +2,8 @@
 #' @importFrom MultiAssayExperiment MultiAssayExperiment
 #' @importFrom DelayedArray DelayedArray realize
 #' @importFrom HDF5Array setHDF5DumpDir setHDF5DumpFile
-#' @keywords classes
+#' @keywords internal
+#' @noRd
 ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
     public = list(

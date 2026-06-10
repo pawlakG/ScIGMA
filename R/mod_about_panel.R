@@ -20,13 +20,13 @@ mod_about_panel_ui <- function(id) {
 ### ScIGMA: an open-source application for genotype and immunophenotype implementation for scDNA-seq data
 
 
-Geoffrey Pawlak<sup>1,2,†</sup>, Benjamin Podvin<sup>2,3,†</sup>, Claude Preudhomme<sup>2,3</sup>, Salomon Manier<sup>2,4</sup>, Nicolas Duployez<sup>2,3</sup>, Augustin Boudry<sup>2,3</sup>
+Geoffrey Pawlak<sup>1,2,*</sup>, Benjamin Podvin<sup>2,3,*</sup>, Claude Preudhomme<sup>2,3</sup>, Salomon Manier<sup>2,4</sup>, Nicolas Duployez<sup>2,3</sup>, Augustin Boudry<sup>2,3</sup>
 
 <sup>1</sup> **University of Lille**, ULR 2694 METRICS, Lille, France<br>
-<sup>2</sup> **PERSTIM**, University of Lille, INSERM, CHU Lille, CNRS, Institut Pasteur of Lille, U1366-UMR9020 – CRCLille – Cancer Research Center of Lille, F-59000 Lille, France<br>
+<sup>2</sup> **PERSTIM**, University of Lille, INSERM, CHU Lille, CNRS, Institut Pasteur of Lille, U1366-UMR9020 - CRCLille - Cancer Research Center of Lille, F-59000 Lille, France<br>
 <sup>3</sup> **Laboratory of Hematology**, Lille University Hospital, Lille, France<br>
 <sup>4</sup> **Department of Clinical Hematology**, Lille University Hospital, Lille, France<br>
-<sup>†</sup> *These authors contributed equally.*
+<sup>*</sup> *These authors contributed equally.*
 
 ---
 

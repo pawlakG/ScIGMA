@@ -30,9 +30,6 @@ or `"intersect"` (keep only common features; reorder consistently). Default `"id
 
 \item{verbose}{Logical. Print progress messages.}
 }
-\value{
-A merged `ScIGMA_object` (all matrices HDF5-backed).
-}
 \description{
 Reads all `.h5` files from a directory, converts each into an
 HDF5-backed `ScIGMA_object`, and **merges them by cells** using `rbind`.

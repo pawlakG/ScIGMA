@@ -18,7 +18,7 @@ NULL
 #' @param patient_sex Character. "female" or "male".
 #'
 #' @return Logical TRUE on success.
-#' @export
+#' @noRd
 run_compass_mcmc <- function(
         variant_matrices,
         locus_regions,
@@ -94,7 +94,7 @@ run_compass_mcmc <- function(
         if (file.exists(cna_file)) {
             output_files$nodes_copynumbers <- cna_file
         } else {
-            message("⚠️ COMPASS ignored CNA inference (unable to estimate region weights, potentially due to lack of cells at the 'wild-type' root). Final tree relies solely on SNVs.")
+            message(" COMPASS ignored CNA inference (unable to estimate region weights, potentially due to lack of cells at the 'wild-type' root). Final tree relies solely on SNVs.")
         }
     }
 

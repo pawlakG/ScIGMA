@@ -11,7 +11,7 @@
 #' @param min_probability Numeric. Minimum MCMC assignment probability (0 to 1).
 #'
 #' @return Integer matrix. A new imputed GT matrix.
-#' @export
+#' @noRd
 impute_compass_genotypes <- function(
         gt_matrix,
         output_prefix,

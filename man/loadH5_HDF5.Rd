@@ -20,26 +20,18 @@ loadH5_HDF5(
 
 \item{block.size}{Target DelayedArray block size in bytes (e.g., `100e6`).}
 }
-\value{
-A `ScIGMA_object` with all matrices HDF5‑backed.
-}
 \description{
 `ScIGMA_object` is an R6 class designed to manage large single-cell
-genomics/proteomics matrices using the **DelayedArray/HDF5Array** backend.
-All heavy matrices are expected to be HDF5-backed `DelayedArray` objects,
 allowing out-of-memory processing and block-wise computation without
 materializing the full data in RAM.
 }
 \details{
 The class stores cell- and feature-level metadata along with several
-assay matrices (VAF, genotype, depth, genotype quality, amplicon counts,
 proteins, and optional ploidy). A convenience method `realize_all()` can
 persist any delayed computations to a single HDF5 file, with control over
 chunking and compression.
 
 **Important:** matrix-like fields (those ending with `*.mtx`) must be
-`DelayedArray`-compatible objects (typically `HDF5Array`). The class does
-not implicitly coerce to in-memory matrices.
 }
 \section{Fields}{
 
@@ -75,9 +67,8 @@ not implicitly coerce to in-memory matrices.
 - `summary()`: Returns a list with counts and key matrix dimensions.
 - `add_variant(variant)`: Add a new variant ID (de-duplicated).
 - `filter_variants(filter_fun)`: Keep variants for which `filter_fun(id)` is TRUE.
-- `realize_all(dir, file, chunkdim, level)`: Persist delayed matrices to a
    single HDF5 file with optional chunking/compression control.
 )
-Load an H5 file into an HDF5‑backed ScIGMA_object
+Load an H5 file into an HDF5-backed ScIGMA_object
 }
 

@@ -8,7 +8,7 @@
 #' @param output_prefix Character. Prefix for the output results.
 #'
 #' @return Integer exit code from the system process (0 indicates success).
-#' @export
+#' @noRd
 execute_compass_binary <- function(input_file, output_prefix) {
     # system.file will look into the 'inst' folder of the installed package
     binary_path <- system.file("bin", "COMPASS", package = "your_package")

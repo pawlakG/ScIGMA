@@ -47,7 +47,7 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
 #' @param variant_ids Character vector of targeted variants
 #' @param cell_barcodes Character vector of barcodes in the population
 #' @param use_compass Logical to use imputed data
-#' @export
+#' @noRd
 compute_population_genotype_distribution <- function(mae_data,
                                                      variant_ids,
                                                      cell_barcodes,

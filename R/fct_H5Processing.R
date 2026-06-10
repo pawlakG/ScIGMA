@@ -1,5 +1,5 @@
 
-# ScIGMA — HDF5‑backed (DelayedArray/HDF5Array)
+# ScIGMA - HDF5-backed (DelayedArray/HDF5Array)
 # ----------------------------------------------------
 # Dependencies:
 #   - BiocManager::install(c("DelayedArray", "HDF5Array", "BiocParallel", "rhdf5"))
@@ -209,11 +209,11 @@ suppressPackageStartupMessages({
 
 
 # ----------------------------------------------------
-# 100% HDF5‑backed import function
+# 100% HDF5-backed import function
 # ----------------------------------------------------
-# are HDF5Array/DelayedArray (no full in‑RAM copies).
+# are HDF5Array/DelayedArray (no full in-RAM copies).
 
-#' Load an H5 file into an HDF5‑backed ScIGMA_object
+#' Load an H5 file into an HDF5-backed ScIGMA_object
 #' @param filepath Path to the `.h5` file.
 #' @param sample.name Sample name (stored in `meta.data`).
 #' @param omic.type Either "DNA+protein" or "DNA".
@@ -382,9 +382,9 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 #' corresponding column-name vectors, this helper aligns features across files
 #' according to a specified policy:
 #' \itemize{
-#'   \item \code{"identical"} — require that all feature sets (and their order)
+#'   \item \code{"identical"} - require that all feature sets (and their order)
 #'         are exactly the same across files; otherwise, throw an error.
-#'   \item \code{"intersect"} — keep only the intersection of features shared by
+#'   \item \code{"intersect"} - keep only the intersection of features shared by
 #'         all files, and reorder each matrix consistently.
 #' }
 #'
@@ -472,7 +472,7 @@ loadH5_dir_HDF5 <- function(dir,
     files <- list.files(dir, pattern = pattern, full.names = TRUE, recursive = recursive)
     if (length(files) == 0) stop("No .h5 files found in: ", dir)
 
-    if (verbose) message(sprintf("[ScIGMA] Found %d file(s). Loading as HDF5-backed…", length(files)))
+    if (verbose) message(sprintf("[ScIGMA] Found %d file(s). Loading as HDF5-backed...", length(files)))
     objs <- lapply(files, function(f) {
         if (verbose) message("  - ", basename(f))
         loadH5_HDF5(f, sample.name = tools::file_path_sans_ext(basename(f)),
@@ -745,7 +745,7 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 #'
 #' @param mae MultiAssayExperiment object
 #' @return Sanitized MultiAssayExperiment
-#' @export
+#' @noRd
 sanitize_mae_strings <- function(mae) {
 
     clean_char_vector <- function(x) {
@@ -796,7 +796,7 @@ sanitize_mae_strings <- function(mae) {
 #' @return Character vector of sanitized alphanumeric names.
 #'
 #' @importFrom stringr str_replace_all
-#' @export
+#' @noRd
 sanitize_protein_markers <- function(marker_names) {
     greek_map <- c(
         "\u03B1" = "alpha",   "\u0391" = "Alpha",

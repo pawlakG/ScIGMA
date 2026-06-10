@@ -67,7 +67,6 @@ mod_analysis_left_server <- function(id, ScIGMA_data){
                 if (file.info(filePath)$isdir) {
                     ScIGMA_data$data <- tryCatch(
                         loadH5_dir_HDF5(dir = filePath,
-                                    sample.name = sampleName,
                                     feature_policy = "intersect",
                                     omic.type = fileType),
                         error = function(e){

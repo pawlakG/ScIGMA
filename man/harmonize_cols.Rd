@@ -2,7 +2,14 @@
 % Please edit documentation in R/fct_H5Processing.R
 \name{harmonize_cols}
 \alias{harmonize_cols}
-\title{Harmonize columns (features) across multiple matrices}
+\title{corresponding column-name vectors, this helper aligns features across files
+according to a specified policy:
+\itemize{
+  \item \code{"identical"} - require that all feature sets (and their order)
+        are exactly the same across files; otherwise, throw an error.
+  \item \code{"intersect"} - keep only the intersection of features shared by
+        all files, and reorder each matrix consistently.
+}}
 \usage{
 harmonize_cols(
   mtx_list,
@@ -29,13 +36,12 @@ if \code{mtx_list} or \code{cols_list} is \code{NULL}. Throws an error when
 feature sets violate the selected policy (e.g., no common features).
 }
 \description{
-Given a list of matrices (typically `DelayedArray`/`HDF5Array`) and their
 corresponding column-name vectors, this helper aligns features across files
 according to a specified policy:
 \itemize{
-  \item \code{"identical"} — require that all feature sets (and their order)
+  \item \code{"identical"} - require that all feature sets (and their order)
         are exactly the same across files; otherwise, throw an error.
-  \item \code{"intersect"} — keep only the intersection of features shared by
+  \item \code{"intersect"} - keep only the intersection of features shared by
         all files, and reorder each matrix consistently.
 }
 }

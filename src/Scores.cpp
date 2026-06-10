@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <string>
 #include <iostream>
+#include <Rcpp.h>
 #include <random>
 
 #include "Scores.h"
@@ -82,7 +83,7 @@ std::vector<double> Scores::compute_SNV_loglikelihoods(int c_ref,int c_alt,int l
     
     // If homozygous, the copy number of the only allele is irrelevant for the allelic proportion
     if (c_ref==0) c_alt=1;
-    else if (c_alt==0) c_ref==1;
+    else if (c_alt==0) c_ref=1;
 
     long int hash = c_ref+ 20*c_alt + 400*locus ;
     
@@ -206,7 +207,7 @@ std::vector<double> Scores::compute_CNA_loglikelihoods(int region, double region
 
 std::vector<double> Scores::get_dropoutref_counts_genotype(int c_ref,int c_alt, int locus,double dropout_rate_ref,double dropout_rate_alt){
     if (c_ref==0) c_alt=1;
-    else if (c_alt==0) c_ref==1;
+    else if (c_alt==0) c_ref=1;
     if (c_ref==0 || c_alt==0){
         dropout_rate_ref=0.1;
         dropout_rate_alt=0.1;
@@ -228,7 +229,7 @@ std::vector<double> Scores::get_dropoutref_counts_genotype(int c_ref,int c_alt, 
 
 std::vector<double> Scores::get_dropoutalt_counts_genotype(int c_ref,int c_alt, int locus,double dropout_rate_ref,double dropout_rate_alt){
     if (c_ref==0) c_alt=1;
-    else if (c_alt==0) c_ref==1;
+    else if (c_alt==0) c_ref=1;
     if (c_ref==0 || c_alt==0){
         dropout_rate_ref=0.1;
         dropout_rate_alt=0.1;

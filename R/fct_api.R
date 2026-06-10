@@ -3,7 +3,7 @@
 #' @param custom_variant_vector Character vector of variants (e.g. "chr1-115256669-G-A")
 #' @param genome_build Genome build, default "grch37"
 #' @return A tibble with annotations
-#' @export
+#' @noRd
 fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build = "grch37") {                                                       
   
   # DICTIONNAIRE TRANSLATION (3-lettres -> 1-lettre clinique)
@@ -37,7 +37,7 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
     body = body_json                                                                                                                               
   )                                                                                                                                                
   
-  if (httr::status_code(response) != 200) stop(sprintf("🛑 [FATAL] API VEP Error %s: %s", httr::status_code(response), httr::content(response, "text")))             
+  if (httr::status_code(response) != 200) stop(sprintf(" [FATAL] API VEP Error %s: %s", httr::status_code(response), httr::content(response, "text")))             
   
   # 4. Flattening & Filtrage Initial                                                                                                               
   raw_data <- httr::content(response, "parsed", simplifyVector = TRUE)                                                                                   
@@ -133,7 +133,7 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
 #' @param min_mut_cell_pt Numeric. Minimum percentage of mutated cells.
 #' @param batch_size Integer. Batch size for API calls.
 #' @return Filtered and annotated ScIGMA_object.
-#' @export
+#' @noRd
 filter_and_annotate_variants <- function(obj,
                                          paths,
                                          min_dp = 10,

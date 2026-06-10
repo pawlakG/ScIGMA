@@ -197,20 +197,20 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             req(ScIGMA_data$mae)
 
             cells <- colnames(ScIGMA_data$mae)[["dna_variants"]]
-            print("cells")
-            print(head(cells))
+            # print("cells")
+            # print(head(cells))
 
             meta_df <- data.frame(Cell_Barcode = cells, stringsAsFactors = FALSE)
 
             # 2. Clones ADN
             if (isTRUE(input$export_use_compass_clones) && !is.null(ScIGMA_data$dna.clones)) {
-                print("compile_global_metadata test 0")
+                # print("compile_global_metadata test 0")
                 meta_df$DNA_Clone <- as.character(ScIGMA_data$dna.clones[cells])
-                print("compile_global_metadata test 1")
+                # print("compile_global_metadata test 1")
             } else if (!is.null(ScIGMA_data$dna.clones_pre_compass)) {
-                print("compile_global_metadata test 2")
+                # print("compile_global_metadata test 2")
                 meta_df$DNA_Clone <- as.character(ScIGMA_data$dna.clones_pre_compass[cells])
-                print("compile_global_metadata test 3")
+                # print("compile_global_metadata test 3")
             } else {
                 meta_df$DNA_Clone <- "Unassigned"
             }

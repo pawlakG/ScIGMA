@@ -34,7 +34,7 @@ sanitize_filename <- function(filename, replacement = "_") {
 #' @description
 #' Update cluster labels safely.
 #' @param new_labels A named vector where names are old levels and values are new labels.
-update_cluster_labels = function(new_labels) {
+update_cluster_labels <- function(new_labels) {
     if (is.null(self$meta_data) || is.null(self$dna.clones)) {
         stop("No clusters found in meta_data")
     }

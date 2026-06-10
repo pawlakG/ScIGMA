@@ -803,7 +803,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                     as.data.frame()
-                umap_cluster$cluster = ScIGMA_data$seurat_object$seurat_clusters[rownames(umap_cluster)]
+                umap_cluster$cluster <- ScIGMA_data$seurat_object$seurat_clusters[rownames(umap_cluster)]
 
                 # 2. Rendering-
                 output$umap_clustering_plot <- renderPlotly({

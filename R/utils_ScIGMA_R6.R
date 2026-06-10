@@ -64,11 +64,11 @@ ScIGMA_object <- R6::R6Class(
         },
 
         print = function(...) {
-            cat("ScIGMA_object (HDF5-backed MultiAssayExperiment wrapper)\n")
+            message("ScIGMA_object (HDF5-backed MultiAssayExperiment wrapper)\n")
             if (!is.null(self$mae)) {
-                print(self$mae)
+                methods::show(self$mae)
             } else {
-                cat("Empty object.\n")
+                message("Empty object.\n")
             }
             invisible(self)
         },

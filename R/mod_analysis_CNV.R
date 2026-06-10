@@ -152,8 +152,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
         output$cnv_placeholder <- renderUI({
             watch("CNV_filtered")
-            print("ScIGMA_data$cnv_dp_filtered")
-            print(ScIGMA_data$cnv_dp_filtered)
+            # print("ScIGMA_data$cnv_dp_filtered")
+            # print(ScIGMA_data$cnv_dp_filtered)
             if (is.null(ScIGMA_data$cnv_dp_filtered)) {
                 bslib::card(
                     br(),
@@ -483,7 +483,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
                 tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
 
-                gene_annotation = data.frame('Gene' = tmp_split_vec$symbol,
+                gene_annotation <- data.frame('Gene' = tmp_split_vec$symbol,
                                              'Chromosome' = tmp_split_vec$chrom,
                                              'Probe' = tmp_split_vec$dna_id,
                                              'Chrom_pos' = factor(tmp_split_vec$chr_lit,

@@ -273,8 +273,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                 selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
                 ScIGMA_data$variants.filtered <- selected_df
 
-                print("selected_df")
-                print(selected_df)
+                # print("selected_df")
+                # print(selected_df)
 
                 ht_res <- generate_dna_variant_heatmap(
                     obj = ScIGMA_data,
@@ -366,10 +366,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data){
                          # levels <- oldName
                          # names(levels) <- newName
 
-                         print("input$rename_cluster_ui_oldName")
-                         print(input$rename_cluster_ui_oldName)
-                         print("input$rename_cluster_ui_newName")
-                         print(input$rename_cluster_ui_newName)
+                         # print("input$rename_cluster_ui_oldName")
+                         # print(input$rename_cluster_ui_oldName)
+                         # print("input$rename_cluster_ui_newName")
+                         # print(input$rename_cluster_ui_newName)
 
                          ScIGMA_data$update_dna_clone_names(
                              old_name = input$rename_cluster_ui_oldName,

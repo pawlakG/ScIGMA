@@ -406,10 +406,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 "Unknown" = "#000000"      # Noir (Anomalie)
             )
 
-            print("plot_df")
-            print(head(plot_df))
-            print(str(plot_df))
-            print(table(plot_df$Variant_Genotype))
+            # print("plot_df")
+            # print(head(plot_df))
+            # print(str(plot_df))
+            # print(table(plot_df$Variant_Genotype))
 
             # 7. Rendu Plotly (Hardware Accelerated via scattergl)
             p <- plotly::plot_ly(

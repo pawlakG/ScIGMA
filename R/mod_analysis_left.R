@@ -48,8 +48,8 @@ mod_analysis_left_server <- function(id, ScIGMA_data){
         # --------------------------------------------------------------- #
         # Init watcher
         init("preprocessFile")
-        print("ScIGMA_data_begin_left")
-        print(ScIGMA_data)
+        # print("ScIGMA_data_begin_left")
+        # print(ScIGMA_data)
         # --------------------------------------------------------------- #
         # Uploaded file
         message(whereami::whereami())

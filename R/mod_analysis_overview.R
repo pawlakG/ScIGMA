@@ -146,8 +146,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         # Render Summary UI
         output$overview <- renderUI({
             watch("dataLoaded")
-            print("ScIGMA_data render UI")
-            print(ScIGMA_data)
+            # print("ScIGMA_data render UI")
+            # print(ScIGMA_data)
             message(whereami::whereami())
 
             has_mae <- !is.null(ScIGMA_data$mae)
@@ -305,7 +305,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 )
             }, error = function(e) {
                 remove_modal_spinner()
-                print(e)
+                # print(e)
                 message("Error during DNA variant filtering and annotation")
                 shiny::showNotification(e$message, type = "error", duration = 10)
                 req(FALSE)

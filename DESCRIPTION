@@ -5,6 +5,7 @@ Authors@R:
     person("Geoffrey", "Pawlak", , "pawlak.geoffrey@gmail.com", role = c("aut", "cre"))
 Description: PKG_DESC.
 License: GPL (>= 3)
+biocViews: SingleCell, Software
 Imports:
     httr,
     jsonlite, 

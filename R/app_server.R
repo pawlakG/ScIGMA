@@ -47,7 +47,7 @@ app_server <- function(input, output, session) {
          "multiomics_annotated",
          "clusters_computed",
          "gating_updated")
-    print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
+    # print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
     # --------------------------------------------------------------- #
     on("dataLoaded", {
@@ -57,8 +57,8 @@ app_server <- function(input, output, session) {
         # scenario_check <- ScIGMA_data$experiment_type == "multi_omics"
 
         show_advanced_tabs <- FALSE
-        print("ScIGMA_data$filetype app_server")
-        print(ScIGMA_data$filetype )
+        # print("ScIGMA_data$filetype app_server")
+        # print(ScIGMA_data$filetype )
         if (ScIGMA_data$filetype == "DNA+protein") {
                 show_advanced_tabs <- TRUE
         } else {

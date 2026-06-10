@@ -114,8 +114,8 @@ fetch_clinical_vep_annotations <- function(custom_variant_vector, genome_build =
       clinvar = CLINVAR
     )
   
-  print("=== TABLE D'ANNOTATION ===")
-  print(annotation_table)
+  # print("=== TABLE D'ANNOTATION ===")
+  # print(annotation_table)
   
   return(annotation_table)
 }

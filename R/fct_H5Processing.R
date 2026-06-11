@@ -133,7 +133,7 @@ suppressPackageStartupMessages({
 #' @keywords internal
 .h5_read_metadata_group <- function(file, group_path) {
     # List all entries in the HDF5 file
-    all <- h5ls(file, recursive = TRUE, datasetinfo = FALSE)
+    all <- rhdf5::h5ls(file, recursive = TRUE, datasetinfo = FALSE)
 
     # Keep only direct children of the target group
     ls <- subset(all, group == group_path)

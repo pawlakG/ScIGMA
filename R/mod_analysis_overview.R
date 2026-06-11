@@ -299,7 +299,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             temp_scigma_obj <- tryCatch({
                 filter_and_annotate_variants(
                     obj = ScIGMA_data,
-                    paths = cfg$paths, # Make sure cfg$paths is accessible here
+                    paths = get_config_paths(), # Safely access config paths
                     min_cell_pt = overview_preprocess_minCellPt,
                     min_mut_cell_pt = overview_preprocess_minMutCellPt
                 )

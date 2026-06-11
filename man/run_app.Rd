@@ -43,8 +43,8 @@ A `shiny.appobj` representing the ScIGMA application.
 Run the Shiny Application
 }
 \examples{
-\donttest{
-run_app()
+if (interactive()) {
+  run_app()
 }
 
 }

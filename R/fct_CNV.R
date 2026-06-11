@@ -398,7 +398,7 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 #' mixed_list <- c("1", "22", "chrY", "chr5", "chr13")
 #' sort_genomic_chromosomes(mixed_list)
 #' # [1] "chr1" "chr5" "chr13" "chr22" "chrY"
-#' @export
+#' @noRd
 sort_genomic_chromosomes <- function(chromosome_vector) {
 
     # 1. Cleaning and Normalization: Remove "chr" prefix and normalize case for sex chromosomes.

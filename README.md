@@ -39,10 +39,17 @@ Before installing the package, ensure your machine has the necessary compiler to
 - **Linux**: Install the build-essential tools via terminal: `sudo apt-get install build-essential r-base-dev`.
 
 ### 2. Package Installation
-Install ScIGMA directly from the GitHub repository. The `remotes` package will automatically download the source code, compile the C++ binaries locally for your specific CPU architecture, and resolve all R dependencies.
+Install ScIGMA via the `remotes` package, which will automatically fetch dependencies from CRAN and Bioconductor before compiling the C++ binaries locally for your specific CPU architecture.
 
+**Option A: Install from local source tarball**
 ```r
-if (!require("remotes")) install.packages("remotes")
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+remotes::install_local("ScIGMA_0.99.0.tar.gz", dependencies = TRUE)
+```
+
+**Option B: Install directly from GitHub**
+```r
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
 remotes::install_github("pawlakG/ScIGMA", dependencies = TRUE)
 ```
 

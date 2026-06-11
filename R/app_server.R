@@ -23,9 +23,7 @@ app_server <- function(input, output, session) {
     nav_hide(id = "tabs_analysis_inner", target = "tab_multi_omics")
 
     # --------------------------------------------------------------- #
-    # Source config
-    source("R/utils-config.R")
-
+    # --------------------------------------------------------------- #
     # --------------------------------------------------------------- #
     # Initialize lens object
     ScIGMA_data <- ScIGMA_object$new()

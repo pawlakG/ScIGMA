@@ -285,13 +285,19 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     gq_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/GQ"))
     if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(gq_mtx) <- list(dna_sample_ids, dna_id)
 
+    safe_read_col <- function(path) {
+        val <- .h5read_char(filepath, path)
+        if (length(val) == 0) return(rep(NA, length(dna_id)))
+        val
+    }
+
     dna_id_table <- data.frame(dna_id  = dna_id,
-                               amplicon = .h5read_char(filepath, "/assays/dna_variants/ca/amplicon"),
-                               chrom = .h5read_char(filepath, "/assays/dna_variants/ ca/CHROM"),
-                               pos = .h5read_char(filepath, "/assays/dna_variants/ca/POS"),
-                               ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"),
-                               ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),
-                               filtered = .h5read_char(filepath, "/assays/dna_variants/ca/filtered"))
+                               amplicon = safe_read_col("/assays/dna_variants/ca/amplicon"),
+                               chrom = safe_read_col("/assays/dna_variants/ca/CHROM"),
+                               pos = safe_read_col("/assays/dna_variants/ca/POS"),
+                               ado_gt_cells = safe_read_col("/assays/dna_variants/ca/ado_gt_cells"),
+                               ado_rate = safe_read_col("/assays/dna_variants/ca/ado_rate"),
+                               filtered = safe_read_col("/assays/dna_variants/ca/filtered"))
 
     cnv_id_table <- data.frame(dna_id  = .h5read_char(filepath, "/assays/dna_read_counts/ca/id"),
                                chrom = .h5read_char(filepath, "/assays/dna_read_counts/ca/CHROM"),
@@ -661,14 +667,20 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 
     if (length(assays_list) == 0) stop("Critical failure: DNA assays dimension mismatch.")
 
-    dna_id_table <- S4Vectors::DataFrame(
-        dna_id = dna_id,
-        amplicon = .h5read_char(filepath, "/assays/dna_variants/ca/amplicon"),
-        chrom = .h5read_char(filepath, "/assays/dna_variants/ca/CHROM"),
-        pos = .h5read_char(filepath, "/assays/dna_variants/ca/POS"),
-        ado_gt_cells = .h5read_char(filepath, "/assays/dna_variants/ca/ado_gt_cells"),
-        ado_rate = .h5read_char(filepath, "/assays/dna_variants/ca/ado_rate"),
-        filtered = .h5read_char(filepath, "/assays/dna_variants/ca/filtered"),
+    safe_read_col_biocond <- function(path) {
+        val <- .h5read_char(filepath, path)
+        if (length(val) == 0) return(rep(NA, length(dna_id)))
+        val
+    }
+
+    dna_id_table <- data.frame(
+        dna_id  = dna_id,
+        amplicon = safe_read_col_biocond("/assays/dna_variants/ca/amplicon"),
+        chrom = safe_read_col_biocond("/assays/dna_variants/ca/CHROM"),
+        pos = safe_read_col_biocond("/assays/dna_variants/ca/POS"),
+        ado_gt_cells = safe_read_col_biocond("/assays/dna_variants/ca/ado_gt_cells"),
+        ado_rate = safe_read_col_biocond("/assays/dna_variants/ca/ado_rate"),
+        filtered = safe_read_col_biocond("/assays/dna_variants/ca/filtered"),
         row.names = dna_id
     )
 

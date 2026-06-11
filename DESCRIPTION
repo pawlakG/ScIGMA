@@ -35,7 +35,6 @@ Imports:
     ggridges,
     golem,
     grid,
-    gridlayout,
     HDF5Array,
     InteractiveComplexHeatmap,
     IRanges,

@@ -199,7 +199,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                         bslib::accordion_panel(
                             title = "DNA clones",
                             shiny::fluidRow(
-                                grid_card(
+                                bslib::card(
                                     area = "main",
                                     shiny::h3("Clonal Distribution"),
                                     plotly::plotlyOutput(ns("plot_clust_clones"), height = "500px")
@@ -213,7 +213,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                         bslib::accordion_panel(
                             title = "DNA Variants",
                             shiny::fluidRow(
-                                grid_card(
+                                bslib::card(
                                     area = "main",
                                     shiny::h3("Variant Genotypes"),
                                     plotly::plotlyOutput(ns("plot_clust_variants"),

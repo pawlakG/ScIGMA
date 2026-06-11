@@ -108,7 +108,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         fluidRow(
                             column(
                                 3,
-                                grid_card(
+                                bslib::card(
                                     area = "sidebar",
                                     h3("Controls"),
                                     selectInput(ns("xvar"),
@@ -146,12 +146,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                             # ---- 2. Visualisation (Bi-plot) ----
                             column(
                                 6,
-                                grid_card(area = "main", uiOutput(ns("biplot_container")))
+                                bslib::card(uiOutput(ns("biplot_container")))
                             ),
                             # ---- 3. Arborescence (Tree) ----
                             column(
                                 3,
-                                grid_card(
+                                bslib::card(
                                     area = "subsets",
                                     h3("Sub-samples"),
                                     uiOutput(ns("subsets_ui")),
@@ -173,7 +173,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                       fluidRow(
                                           column(3,
                                                  tagList(
-                                                     grid_card(
+                                                     bslib::card(
                                                          area = "umap_accordion_first",
                                                          h3("UMAP parameters"),
 
@@ -211,7 +211,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                  )
                                           ),
                                           column(9,
-                                                 grid_card(
+                                                 bslib::card(
                                                      area = "main", h3("2D Projection"),
                                                      plotlyOutput(ns("umap_plot_build"), height = "600px")
                                                  )
@@ -241,7 +241,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                           fluidRow(
                                               column(3,
                                                      tagList(
-                                                         grid_card(
+                                                         bslib::card(
                                                              area = "sidebar",
                                                              h3("Clustering parameters"),
                                                              numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
@@ -251,7 +251,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                                      )
                                               ),
                                               column(9,
-                                                     grid_card(
+                                                     bslib::card(
                                                          area = "main", h3("2D Projection"),
                                                          plotlyOutput(ns("umap_clustering_plot"), height = "600px")
                                                      )
@@ -865,7 +865,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     fluidRow(
                         tagList(
                             column(3,
-                                   grid_card(
+                                   bslib::card(
                                        area = "umap_marker_select",
                                        virtualSelectInput(
                                            inputId = ns("protein_umap_markers"),
@@ -929,7 +929,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     fluidRow(
                         tagList(
                             column(3,
-                                   grid_card(
+                                   bslib::card(
                                        area = "umap_clone_select",
                                        virtualSelectInput(
                                            inputId = ns("umap_clones_to_project"),

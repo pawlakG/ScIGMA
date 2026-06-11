@@ -1,16 +1,28 @@
 .Rproj.user
 .Rhistory
-.Rdata
+.RData
+.Ruserdata
 .httr-oauth
 .DS_Store
 .quarto
-.results
-Trash/
-src/*.o
 .positai
+.vscode/
 
-#Dev folder
-dev/article/
+# Ignore compiled C/C++ objects
+src/*.o
+src/*.so
+src/*.dll
 
-# Performance log
+# Ignore heavy local dev/results folders
+results/
+.results/
+Trash/
+dev/
+ScIGMA.BiocCheck/
+
+# Ignore performance logs
 *.txt
+
+# EXPLICITLY KEEP TARBALLS (Overrides any blanket ignore)
+!*.tar.gz
+!ScIGMA_*.tar.gz

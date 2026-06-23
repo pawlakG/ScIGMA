@@ -125,14 +125,35 @@ mod_analysis_DNA_ui <- function(id) {
                             names. Please rename your clones only after your
                             final architecture is computed."),
                     shiny::br(),
-                    div(
-                        sliderTextInput(
-                            inputId = ns("run_compass_length_chains"),
-                            label = "Markov Chains length",
-                            choices = seq(100, 5000, 50),
-                            grid = TRUE,
-                            selected = 800,
-                            width = "150%"
+                    fluidRow(
+                        column(4,
+                            shiny::radioButtons(
+                                inputId = ns("patient_sex"),
+                                label = "Sex",
+                                choices = c("Female" = "female", "Male" = "male"),
+                                selected = "female",
+                                inline = TRUE
+                            )
+                        ),
+                        column(4,
+                            sliderTextInput(
+                                inputId = ns("run_compass_n_chains"),
+                                label = "Number of Markov Chains",
+                                choices = 1:8,
+                                grid = TRUE,
+                                selected = 4,
+                                width = "100%"
+                            )
+                        ),
+                        column(4,
+                            sliderTextInput(
+                                inputId = ns("run_compass_length_chains"),
+                                label = "Markov Chains length",
+                                choices = seq(100, 5000, 50),
+                                grid = TRUE,
+                                selected = 800,
+                                width = "100%"
+                            )
                         ),
                         align = "center"
                     ),
@@ -492,7 +513,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
         })
 
         compass_task <- shiny::ExtendedTask$new(
-            function(compass_length_chains, variant_matrices, vec_locus_regions, mat_cna,
+            function(compass_length_chains, compass_n_chains, patient_sex, variant_matrices, vec_locus_regions, mat_cna,
                     vec_locus_names, vec_locus_chrom,
                     vec_region_names, vec_region_chrom, use_cna, target_vars) {
                 # FIX CRITIQUE : future_promise() au lieu de future()
@@ -514,10 +535,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                                 locus_chromosomes  = vec_locus_chrom,
                                 region_names       = vec_region_names,
                                 region_chromosomes = vec_region_chrom,
-                                chains             = 4L,
+                                chains             = as.integer(compass_n_chains),
                                 # chain_length       = 500L,
                                 chain_length       = compass_length_chains,
-                                patient_sex        = "female",
+                                patient_sex        = patient_sex,
                                 use_cna            = use_cna
                             )
                         })
@@ -570,6 +591,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 }
 
                 compass_length_chains <- input$run_compass_length_chains
+                compass_n_chains <- input$run_compass_n_chains
+                patient_sex <- input$patient_sex
 
                 compass_inputs <- build_compass_matrices(obj = ScIGMA_data, selected_variants = target_vars)
 
@@ -610,7 +633,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 )
 
                 compass_task$invoke(
-                    compass_length_chains, variant_matrices, vec_locus_regions, mat_cna,
+                    compass_length_chains, compass_n_chains, patient_sex, variant_matrices, vec_locus_regions, mat_cna,
                     vec_locus_names, vec_locus_chrom,
                     vec_region_names, vec_region_chrom, use_cna, target_vars
                 )

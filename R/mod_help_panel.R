@@ -57,6 +57,65 @@ mod_help_panel_ui <- function(id) {
                             )
                         )
                     ),
+                    shiny::fluidRow(
+                        shiny::column(4,
+                            shiny::div(class = "card border-secondary mb-3",
+                                shiny::div(class = "card-header bg-light font-weight-bold", "Minimum Depth (Min DP)"),
+                                shiny::div(class = "card-body text-dark",
+                                    shiny::markdown("
+                * **Definition:** The minimum read depth (total reads) required across a locus for a single cell to be considered callable.
+                * **Optimization Guideline:** Increase to >20 for high-confidence structural calling, or decrease for inherently shallow amplicons.
+                ")
+                                )
+                            )
+                        ),
+                        shiny::column(4,
+                            shiny::div(class = "card border-secondary mb-3",
+                                shiny::div(class = "card-header bg-light font-weight-bold", "Minimum Genotype Quality (Min GQ)"),
+                                shiny::div(class = "card-body text-dark",
+                                    shiny::markdown("
+                * **Definition:** The Phred-scaled probability that the genotype call is accurate.
+                * **Optimization Guideline:** Maintain at 30 (99.9% accuracy) for clinical confidence. Decrease only to recover calls in high-noise single-cell assays.
+                ")
+                                )
+                            )
+                        ),
+                        shiny::column(4,
+                            shiny::div(class = "card border-secondary mb-3",
+                                shiny::div(class = "card-header bg-light font-weight-bold", "Max VAF Reference (VAF Ref)"),
+                                shiny::div(class = "card-body text-dark",
+                                    shiny::markdown("
+                * **Definition:** The maximum Variant Allele Frequency (%) tolerated to still assign a homozygous reference (Wild-Type) genotype.
+                * **Optimization Guideline:** Default is 5% to account for ambient sequencing noise.
+                ")
+                                )
+                            )
+                        )
+                    ),
+                    shiny::fluidRow(
+                        shiny::column(6,
+                            shiny::div(class = "card border-secondary mb-3",
+                                shiny::div(class = "card-header bg-light font-weight-bold", "Max VAF Heterozygous (VAF Het)"),
+                                shiny::div(class = "card-body text-dark",
+                                    shiny::markdown("
+                * **Definition:** The lower bound VAF (%) threshold to define a heterozygous state.
+                * **Optimization Guideline:** Increase to prevent false-positive heterozygous calls from low-level PCR amplification bias.
+                ")
+                                )
+                            )
+                        ),
+                        shiny::column(6,
+                            shiny::div(class = "card border-secondary mb-3",
+                                shiny::div(class = "card-header bg-light font-weight-bold", "Min VAF Homozygous (VAF Hom)"),
+                                shiny::div(class = "card-body text-dark",
+                                    shiny::markdown("
+                * **Definition:** The minimum VAF (%) required to assign a homozygous alternate (Mutated) genotype.
+                * **Optimization Guideline:** Set high (e.g. >95%) to strictly define true homozygous mutations vs copy number-induced allele imbalances.
+                ")
+                                )
+                            )
+                        )
+                    ),
                     shiny::markdown("
         *Note: This execution takes several seconds as it filters out low-coverage elements, normalizes surface proteomic counts (if applicable), and builds the initial PCA space.*
         "),

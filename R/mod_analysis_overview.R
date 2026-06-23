@@ -56,11 +56,7 @@ mod_analysis_overview_ui <- function(id) {
                 card_header("Summary"),
                 uiOutput(ns("overview"))
             ),
-            card(
-                card_header("Preprocess"),
-                uiOutput(ns("preprocess")),
-                uiOutput(ns("dnaFilterResults"))
-            )
+            uiOutput(ns("preprocess_card"))
         )
     )
 }
@@ -214,62 +210,42 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
         })
 
         # ---------------------------- #
+        # Render Preprocess Card Container
+        output$preprocess_card <- renderUI({
+            watch("dataLoaded")
+            if (!is.null(ScIGMA_data$mae)) {
+                card(
+                    card_header("Preprocess"),
+                    uiOutput(ns("preprocess")),
+                    uiOutput(ns("dnaFilterResults"))
+                )
+            }
+        })
+
+        # ---------------------------- #
         # Render Preprocess UI
         output$preprocess <- renderUI({
             watch("dataLoaded")
             message(whereami::whereami())
-            if (!is.null(ScIGMA_data)) {
+            if (!is.null(ScIGMA_data$mae)) {
                 tagList(
                     fluidRow(
                         h5("Filter Cells and DNA variants:"),
                         div(
-                            HTML("DNA Variant filtering step has two parameters : </br>"),
+                            HTML("Adjust genotyping and variant thresholds:</br>"),
                             align = "justify"
                         )
                     ),
                     fluidRow(
-                        column(
-                            6,
-                            div(
-                                HTML("<b>min.cell.pt</b>	Minimum threshold for cell percentage that has valid
-                                    variant call (GT = 0, 1 or 2) after
-                applying the filter. When to change: If the variant of interest is in a high GC content
-                region, then PCR amplification is hard. In such cases, you may choose to decrease the percent to 30 or 40
-                so that your interested variant could come through the filter.</br>"),
-                                align = "justify"
-                            ),
-                            div(
-                                sliderTextInput(
-                                    inputId = ns("overview_preprocess_minCellPt"),
-                                    label = "min.cell.pt",
-                                    choices = seq(1, 100, 1),
-                                    grid = TRUE,
-                                    selected = 50
-                                ),
-                                align = "center"
-                            )
-                        ),
-                        column(
-                            6,
-                            div(
-                                HTML("<b>min.mut.cell.pt</b>
-                                    Minimum threshold for cell percentage that has mutated genotype (GT = 1 or 2) after
-                applying the filter.
-                When to change: If you know the variant is rare in the data, then you could try lower threshold to try to
-                keep the variant in your dataset."),
-                                align = "justify"
-                            ),
-                            div(
-                                sliderTextInput(
-                                    inputId = ns("overview_preprocess_minMutCellPt"),
-                                    label = "min.mut.cell.pt",
-                                    choices = seq(1, 30, 1),
-                                    grid = TRUE,
-                                    selected = 1
-                                ),
-                                align = "center"
-                            )
-                        )
+                        column(3, numericInput(ns("overview_preprocess_minDp"), "Min DP", value = 10, min = 0)),
+                        column(3, numericInput(ns("overview_preprocess_minGq"), "Min GQ", value = 30, min = 0)),
+                        column(3, numericInput(ns("overview_preprocess_vafRef"), "Max VAF Ref (%)", value = 5, min = 0, max = 100)),
+                        column(3, numericInput(ns("overview_preprocess_vafHom"), "Min VAF Hom (%)", value = 95, min = 0, max = 100))
+                    ),
+                    fluidRow(
+                        column(4, numericInput(ns("overview_preprocess_vafHet"), "Max VAF Het (%)", value = 30, min = 0, max = 100)),
+                        column(4, numericInput(ns("overview_preprocess_minCellPt"), "min.cell.pt (%)", value = 50, min = 0, max = 100)),
+                        column(4, numericInput(ns("overview_preprocess_minMutCellPt"), "min.mut.cell.pt (%)", value = 1, min = 0, max = 100))
                     ),
                     fluidRow(
                         actionBttn(
@@ -282,10 +258,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
                         )
                     )
                 )
-            } else {
-                fluidRow(
-                    h5("No data provided")
-                )
             }
         })
 
@@ -295,9 +267,19 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
             filePath <- input$file_h5file$datapath
             overview_preprocess_minCellPt <- input$overview_preprocess_minCellPt
             overview_preprocess_minMutCellPt <- input$overview_preprocess_minMutCellPt
+            overview_preprocess_minDp <- input$overview_preprocess_minDp
+            overview_preprocess_minGq <- input$overview_preprocess_minGq
+            overview_preprocess_vafRef <- input$overview_preprocess_vafRef
+            overview_preprocess_vafHom <- input$overview_preprocess_vafHom
+            overview_preprocess_vafHet <- input$overview_preprocess_vafHet
 
             req(overview_preprocess_minCellPt)
             req(overview_preprocess_minMutCellPt)
+            req(overview_preprocess_minDp)
+            req(overview_preprocess_minGq)
+            req(overview_preprocess_vafRef)
+            req(overview_preprocess_vafHom)
+            req(overview_preprocess_vafHet)
             req(ScIGMA_data$mae)
 
             message(whereami::whereami())
@@ -308,7 +290,10 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
             w$show()
 
             # ---------------------------- #
-            # Store initial cell and DNA variant info (Utilisation du MAE)
+            # Reset pipeline to raw data to prevent recursive subsetting overhead
+            ScIGMA_data$reset_analysis()
+
+            # Store initial cell and DNA variant info (Utilisation du MAE_RAW)
             init_metrics$init_number_cell <- ncol(ScIGMA_data$mae)
             init_metrics$init_number_dna_variant <- nrow(ScIGMA_data$mae[["dna_variants"]])
 
@@ -321,6 +306,11 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
                     filter_and_annotate_variants(
                         obj = ScIGMA_data,
                         paths = get_config_paths(), # Safely access config paths
+                        min_dp = overview_preprocess_minDp,
+                        min_gq = overview_preprocess_minGq,
+                        vaf_ref = overview_preprocess_vafRef,
+                        vaf_hom = overview_preprocess_vafHom,
+                        vaf_het = overview_preprocess_vafHet,
                         min_cell_pt = overview_preprocess_minCellPt,
                         min_mut_cell_pt = overview_preprocess_minMutCellPt
                     )

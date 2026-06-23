@@ -8,7 +8,7 @@ ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
     public = list(
         mae = NULL,
-        mae_raw = NULL,         # Dataset d'origine (immuable)
+        mae_raw = NULL, # Dataset d'origine (immuable)
         backing_files = list(),
         filetype = NULL,
         dna.clones = NULL,
@@ -32,7 +32,7 @@ ScIGMA_object <- R6::R6Class(
         update_dna_clone_names = function(old_name, new_name) {
             # Use forcats::fct_recode to safely rename levels and preserve order/integers exactly
             levels_map <- stats::setNames(old_name, new_name)
-            
+
             if (!is.null(self$dna.clones)) {
                 self$dna.clones <- forcats::fct_recode(self$dna.clones, !!!levels_map)
                 self$dna_clones_renamed <- self$dna.clones
@@ -46,13 +46,11 @@ ScIGMA_object <- R6::R6Class(
             gargoyle::trigger("dna_clones_renamed")
             invisible(self)
         },
-
-
         initialize = function(mae = NULL,
-                              mae_raw = NULL,
-                              backing_files = list(),
-                              filetype = NULL,
-                              seurat_object = NULL) {
+                                mae_raw = NULL,
+                                backing_files = list(),
+                                filetype = NULL,
+                                seurat_object = NULL) {
             if (!is.null(mae) && !inherits(mae, "MultiAssayExperiment")) {
                 stop("mae must be a MultiAssayExperiment object.")
             }
@@ -62,7 +60,6 @@ ScIGMA_object <- R6::R6Class(
             self$filetype <- filetype
             self$seurat_object <- seurat_object
         },
-
         print = function(...) {
             message("ScIGMA_object (HDF5-backed MultiAssayExperiment wrapper)\n")
             if (!is.null(self$mae)) {
@@ -72,7 +69,6 @@ ScIGMA_object <- R6::R6Class(
             }
             invisible(self)
         },
-
         reset_analysis = function() {
             if (!is.null(self$mae_raw)) {
                 self$mae <- self$mae_raw
@@ -98,11 +94,10 @@ ScIGMA_object <- R6::R6Class(
             }
             invisible(self)
         },
-
         realize_all = function(dir,
-                               file = "scigma_store.h5",
-                               chunkdim = NULL,
-                               level = 6) {
+                                file = "scigma_store.h5",
+                                chunkdim = NULL,
+                                level = 6) {
             if (is.null(self$mae)) stop("No MAE object to realize.")
             HDF5Array::setHDF5DumpDir(dir)
             HDF5Array::setHDF5DumpFile(file)

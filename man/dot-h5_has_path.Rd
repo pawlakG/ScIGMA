@@ -20,7 +20,7 @@ exists within an HDF5 file. It safely opens the file, checks for
 the path, and closes the file afterwards.
 }
 \examples{
-\dontrun{
+\donttest{
 # Check if a dataset exists inside the file
 .h5_has_path("file.h5", "/assays/dna_variants/layers/AF")
 }

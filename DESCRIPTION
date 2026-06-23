@@ -2,10 +2,15 @@ Package: ScIGMA
 Title: ScIGMA – Single-cell Integrated Genomic & Multi-omics Analyzer
 Version: 0.99.1
 Authors@R: 
-    person("Geoffrey", "Pawlak", , "pawlak.geoffrey@gmail.com", role = c("aut", "cre"))
-Description: PKG_DESC.
-License: GPL (>= 3)
+    person("Geoffrey", "Pawlak", 
+    email = "pawlak.geoffrey@gmail.com", 
+    role = c("aut", "cre", "fnd"),
+    comment = c("ORCID" = "0000-0001-8882-1441"))
+Description: Analyse targeted single-cell multi-omics data with an open-source, user-friendly R application that provides a code-free graphical user interface for the integrative analysis of paired single-cell DNA and surface protein datasets.
+License: GPL (>= 3) + file LICENSE
 biocViews: SingleCell, Software
+URL: https://github.com/pawlakG/ScIGMA
+BugReports: https://github.com/pawlakG/ScIGMA/issues
 Imports:
     httr,
     jsonlite, 
@@ -82,6 +87,6 @@ LinkingTo:
     Rcpp
 Config/testthat/edition: 3
 Encoding: UTF-8
-LazyData: true
+LazyData: false
 RoxygenNote: 7.3.3
 VignetteBuilder: knitr

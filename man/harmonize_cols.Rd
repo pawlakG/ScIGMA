@@ -46,7 +46,7 @@ according to a specified policy:
 }
 }
 \examples{
-\dontrun{
+\donttest{
 mtxs <- list(m1, m2, m3)
 cols <- list(colnames(m1), colnames(m2), colnames(m3))
 

@@ -1,4 +1,3 @@
-
 #' Aggregate Matrix Columns by Amplicon Mean
 #'
 #' This function aggregates columns of a numeric matrix (e.g., variant data)
@@ -25,33 +24,32 @@
 #' # Simulate data (5 samples, 10 DNA IDs, 3 Amplicons)
 #' dna_ids_example <- paste0("chr1:115256", 568:577, ":C/T")
 #' data_matrix <- matrix(
-#'   runif(5 * 10, 0, 1),
-#'   nrow = 5,
-#'   ncol = 10,
-#'   dimnames = list(paste0("Sample_", 1:5), dna_ids_example)
+#'     runif(5 * 10, 0, 1),
+#'     nrow = 5,
+#'     ncol = 10,
+#'     dimnames = list(paste0("Sample_", 1:5), dna_ids_example)
 #' )
 #'
 #' mapping <- data.frame(
-#'   variant_id = dna_ids_example,
-#'   amplicon_group = c(
-#'     rep("NRAS_1", 3), rep("KIT_2", 4), rep("FLT3_3", 3)
-#'   )
+#'     variant_id = dna_ids_example,
+#'     amplicon_group = c(
+#'         rep("NRAS_1", 3), rep("KIT_2", 4), rep("FLT3_3", 3)
+#'     )
 #' )
 #'
 #' aggregated_data <- aggregate_matrix_by_mappingTable(
-#'   numeric_matrix = data_matrix,
-#'   mapping_table = mapping,
-#'   feature_column_name = variant_id,
-#'   group_column_name = amplicon_group
+#'     numeric_matrix = data_matrix,
+#'     mapping_table = mapping,
+#'     feature_column_name = variant_id,
+#'     group_column_name = amplicon_group
 #' )
 #' print(aggregated_data)
 #'
 #' @noRd
-aggregate_matrix_by_mappingTable<- function(numeric_matrix,
+aggregate_matrix_by_mappingTable <- function(numeric_matrix,
                                             mapping_table,
                                             feature_column_name,
                                             group_column_name) {
-
     # Ensure necessary packages are loaded
     if (!requireNamespace("Matrix", quietly = TRUE)) {
         stop("Package 'Matrix' is required for performance. Please install it with install.packages('Matrix').")
@@ -74,10 +72,12 @@ aggregate_matrix_by_mappingTable<- function(numeric_matrix,
 
     # Check for missing features
     missing_features <- setdiff(matrix_columns, mapping_filtered %>%
-                                    dplyr::pull(!!rlang::sym(feature_col)))
+        dplyr::pull(!!rlang::sym(feature_col)))
     if (length(missing_features) > 0) {
-        warning(paste(length(missing_features), "features in the matrix were not found in the mapping table and will be dropped:",
-                      paste(head(missing_features, 5), collapse = ", ")))
+        warning(paste(
+            length(missing_features), "features in the matrix were not found in the mapping table and will be dropped:",
+            paste(head(missing_features, 5), collapse = ", ")
+        ))
         # Drop missing features from the matrix
         numeric_matrix <- numeric_matrix[, !matrix_columns %in% missing_features]
         matrix_columns <- colnames(numeric_matrix) # Update columns
@@ -85,7 +85,7 @@ aggregate_matrix_by_mappingTable<- function(numeric_matrix,
 
     # Align the mapping table to the exact order of the matrix columns
     mapping_aligned <- mapping_filtered[match(matrix_columns, mapping_filtered %>%
-                                                  dplyr::pull(!!rlang::sym(feature_col))), ]
+        dplyr::pull(!!rlang::sym(feature_col))), ]
 
     # --- Core Matrix Aggregation ---
 
@@ -171,21 +171,19 @@ aggregate_matrix_by_mappingTable<- function(numeric_matrix,
 #' # Assuming 'obj' is a list with 'amp.mtx', 'dp.mtx', 'dna_id_table' and
 #' # 'aggregate_matrix_by_amplicon' is a defined function.
 #' filtered_data <- filter_cnv_matrix_by_completeness(
-#'   obj = my_obj,
-#'   amp_completeness = 80,
-#'   amp_readDepth = 10,
-#'   amp_meanCellRead = 10,
-#'   aggregate_matrix_by_amplicon = my_aggregate_func
+#'     obj = my_obj,
+#'     amp_completeness = 80,
+#'     amp_readDepth = 10,
+#'     amp_meanCellRead = 10,
+#'     aggregate_matrix_by_amplicon = my_aggregate_func
 #' )
 #' head(filtered_data$filtered_cnv_mtx)
 #' }
-filter_cnv_matrix_by_completeness <- function(
-        obj,
-        amp_completeness = 80,
-        amp_readDepth = 10,
-        amp_meanCellRead = 10,
-        aggregate_fun = aggregate_matrix_by_mappingTable
-) {
+filter_cnv_matrix_by_completeness <- function(obj,
+                                                amp_completeness = 80,
+                                                amp_readDepth = 10,
+                                                amp_meanCellRead = 10,
+                                                aggregate_fun = aggregate_matrix_by_mappingTable) {
     amp_mtx <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
     dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
     dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
@@ -223,10 +221,10 @@ filter_cnv_matrix_by_completeness <- function(
     tmp_cnv_mtx <- amp_mtx[, cell_ampCompleteness_selected, drop = FALSE]
 
     ## --- Filter according to minimum mean read depth per amplicon ---
-    amplicon_meanCellRead_filter <-  Matrix::rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
+    amplicon_meanCellRead_filter <- Matrix::rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
     meanCellRead_summary <- table(amplicon_meanCellRead_filter)
 
-    filtered_cnv_mtx <-tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
+    filtered_cnv_mtx <- tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
 
     return(list(
         filtered_cnv_mtx = filtered_cnv_mtx,
@@ -259,11 +257,10 @@ filter_cnv_matrix_by_completeness <- function(
 #'   clonal profiles, normalized to the diploid reference.
 #'
 filter_cnv_profile <- function(obj,
-                               dna_variant_clones,
-                               amp_completeness = 80,
-                               amp_readDepth = 10,
-                               amp_meanCellRead = 10) {
-
+                                dna_variant_clones,
+                                amp_completeness = 80,
+                                amp_readDepth = 10,
+                                amp_meanCellRead = 10) {
     # Check if the filtering function exists (assuming it's external)
     if (!exists("filter_cnv_matrix_by_completeness")) {
         stop("Required function 'filter_cnv_matrix_by_completeness' not found.")
@@ -299,10 +296,9 @@ filter_cnv_profile <- function(obj,
 #'   clonal profiles, normalized to the diploid reference.
 #'
 process_cnv_to_clonal_profile <- function(filtered_data,
-                                          dna_variant_clones,
-                                          diploid_ref = "2",
-                                          exclude_clone = "small") {
-
+                                        dna_variant_clones,
+                                        diploid_ref = "2",
+                                        exclude_clone = "small") {
     tmp_clones <- dna_variant_clones
 
     # --- INPUT CHECKS ---
@@ -332,9 +328,11 @@ process_cnv_to_clonal_profile <- function(filtered_data,
     total_reads <- sum(tmp_dna_reandCounts_mtx, na.rm = TRUE)
 
     # Perform normalization (Counts per Million scaled by Total Reads)
-    tmp_dna_reandCounts_mtx_norm <- apply(tmp_dna_reandCounts_mtx,
-                                          2, # Apply across columns (cells)
-                                          function(x) 10^6 * x / total_reads)
+    tmp_dna_reandCounts_mtx_norm <- apply(
+        tmp_dna_reandCounts_mtx,
+        2, # Apply across columns (cells)
+        function(x) 10^6 * x / total_reads
+    )
 
     ## 2. Aggregate normalized data by clone using the median
     clonal_profile <- tmp_dna_reandCounts_mtx_norm |>
@@ -346,7 +344,8 @@ process_cnv_to_clonal_profile <- function(filtered_data,
         group_by(clone_id) |>
         # Use MEDIAN for robust aggregation against outliers (e.g., PCR jackpots)
         summarise(across(where(is.numeric), \(x) median(x, na.rm = TRUE))) |>
-        column_to_rownames("clone_id") |> t()
+        column_to_rownames("clone_id") |>
+        t()
 
     # Remove specified clone from the profile (e.g., "small" or unassigned)
     if (exclude_clone %in% colnames(clonal_profile)) {
@@ -355,7 +354,7 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 
     ## 3. Normalize to the Diploid Reference Clone
     if (!(diploid_ref %in% colnames(clonal_profile))) {
-        stop(paste("Diploid reference clone '", diploid_ref, "' not found in aggregated profiles."))
+        stop(sprintf("Diploid reference clone '%s' not found in aggregated profiles.", diploid_ref))
     }
 
     # Apply diploid normalization: 2 * Observed / Reference
@@ -369,7 +368,6 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 
     return(clonal_profile_diploid)
 }
-
 
 
 #' Sort Chromosome Names in Genomic Order
@@ -400,7 +398,6 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 #' # [1] "chr1" "chr5" "chr13" "chr22" "chrY"
 #' @noRd
 sort_genomic_chromosomes <- function(chromosome_vector) {
-
     # 1. Cleaning and Normalization: Remove "chr" prefix and normalize case for sex chromosomes.
     # We remove "chr" (case-insensitive) to extract the number or the letter.
     chrom_clean <- toupper(gsub("^(CHR|chr)", "", chromosome_vector, ignore.case = TRUE))
@@ -437,7 +434,7 @@ sort_genomic_chromosomes <- function(chromosome_vector) {
 #' Rander annotation table
 #'
 #' @noRd
-render_annotation_table <- function(obj, ploidy_data){
+render_annotation_table <- function(obj, ploidy_data) {
     mat_data <- t(ploidy_data)
 
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
@@ -476,7 +473,6 @@ render_annotation_table <- function(obj, ploidy_data){
 #'
 #' @noRd
 plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
-
     mat_data <- t(ploidy_data)
     mat_data[mat_data > 8] <- 8
 
@@ -493,7 +489,7 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
     tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
     sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
 
-    if (display_gene){
+    if (display_gene) {
         tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
         split_vec <- factor(tmp_split_vec$symbol, levels = unique(tmp_split_vec$symbol))
     } else {
@@ -501,7 +497,7 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
     }
 
     col_fun <- circlize::colorRamp2(
-        breaks = c(quantile(mat_data, c(0, 0.25), na.rm=TRUE), 2, quantile(mat_data, c(0.75, 1), na.rm=TRUE)),
+        breaks = c(quantile(mat_data, c(0, 0.25), na.rm = TRUE), 2, quantile(mat_data, c(0.75, 1), na.rm = TRUE)),
         colors = c("black", "#4575B4", "#F0F0F0", "#D73027", "#67001F")
     )
 
@@ -598,12 +594,14 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     region_data$symbol[valid] <- target_genes$symbol[hits[valid]]
     # Construct the result set using fast indexing
     # Prioritizing protein-coding genes for biological relevance in oncology
-    tmp_y <- data.frame(symbol = target_genes$symbol[subjectHits(overlaps)],
-                        gene_biotype = target_genes$gene_biotype[subjectHits(overlaps)],
-                        dna_id = region_data[queryHits(overlaps), "dna_id"]) |>
+    tmp_y <- data.frame(
+        symbol = target_genes$symbol[subjectHits(overlaps)],
+        gene_biotype = target_genes$gene_biotype[subjectHits(overlaps)],
+        dna_id = region_data[queryHits(overlaps), "dna_id"]
+    ) |>
         filter(gene_biotype == "protein_coding" & !duplicated(dna_id))
 
-    result_df <- region_data |> left_join(y=tmp_y, by = "dna_id")
+    result_df <- region_data |> left_join(y = tmp_y, by = "dna_id")
 
     # Replace NAs
     result_df[is.na(result_df)] <- "Unknown"
@@ -630,7 +628,6 @@ plot_cnv_genome <- function(cnv_matrix,
                             title = "Genomic Ploidy Profile",
                             max_points = 500,
                             lineplot_type = "Genes+amplicons") {
-
     # --- 1. Data Preparation ---
     cnv_matrix[cnv_matrix > 8] <- 8
     if (!is.null(sub_indices)) {
@@ -649,22 +646,19 @@ plot_cnv_genome <- function(cnv_matrix,
     )
     # --- 2. Handling Order & X-Axis Logic ---
 
-    plot_meta$x_index <- 1:nrow(plot_meta)
+    plot_meta$x_index <- seq_len(nrow(plot_meta))
     x_tick_text <- paste0("<b>", probes, "</b>")
     x_tick_vals <- plot_meta$x_index
     separators <- list()
     angle_val <- -90
 
     if (!is.null(gene_annotation)) {
-
         # A. Jointure
-        plot_meta <- suppressMessages(
-            dplyr::left_join(plot_meta, gene_annotation, by = "Probe")
-        )
+        plot_meta <- dplyr::left_join(plot_meta, gene_annotation, by = "Probe")
 
         plot_meta <- plot_meta %>%
             dplyr::mutate(
-                chr_sort = suppressWarnings(as.numeric(Chromosome)),
+                chr_sort = as.numeric(ifelse(grepl("^[0-9]+$", Chromosome), Chromosome, NA)),
                 chr_sort = ifelse(Chromosome == "X", 98, chr_sort),
                 chr_sort = ifelse(Chromosome == "Y", 99, chr_sort)
             ) %>%
@@ -678,7 +672,7 @@ plot_cnv_genome <- function(cnv_matrix,
             unique_groups <- unique(plot_meta$group_label)
 
             plot_meta$x_index <- as.numeric(factor(plot_meta$group_label, levels = unique_groups))
-            x_tick_vals <- 1:length(unique_groups)
+            x_tick_vals <- seq_along(unique_groups)
 
             x_tick_text <- paste0("<b>", unique_groups, "</b>")
 
@@ -688,15 +682,16 @@ plot_cnv_genome <- function(cnv_matrix,
                 sep_pos <- numeric(0)
             }
 
-            tp_mean <- plot_meta |> dplyr::group_by(Gene) |> dplyr::summarize(Mean_Ploidy = mean(Mean_Ploidy, na.rm=TRUE))
+            tp_mean <- plot_meta |>
+                dplyr::group_by(Gene) |>
+                dplyr::summarize(Mean_Ploidy = mean(Mean_Ploidy, na.rm = TRUE))
             tp_mean_vec <- setNames(tp_mean$Mean_Ploidy, nm = tp_mean$Gene)
             plot_meta$Mean_Ploidy <- tp_mean_vec[plot_meta$Gene]
-
         } else {
             # MODE SPREAD (Positions)
             angle_val <- -45
 
-            plot_meta$x_index <- 1:nrow(plot_meta)
+            plot_meta$x_index <- seq_len(nrow(plot_meta))
             plot_meta$group_label <- plot_meta$Chrom_pos
 
             rle_res <- rle(as.character(plot_meta$group_label))
@@ -728,7 +723,6 @@ plot_cnv_genome <- function(cnv_matrix,
 
     n_cells <- nrow(mat_sub)
     if (n_cells > max_points) {
-        set.seed(42)
         mat_viz <- mat_sub[sample(n_cells, max_points), , drop = FALSE]
     } else {
         mat_viz <- mat_sub
@@ -806,27 +800,30 @@ plot_cnv_genome <- function(cnv_matrix,
         ),
         name = "Cells",
         hoverinfo = "text",
-        text = ~paste("<b>Probe:</b>", Probe, "<br><b>Ploidy:</b>", round(Ploidy, 2))
+        text = ~ paste("<b>Probe:</b>", Probe, "<br><b>Ploidy:</b>", round(Ploidy, 2))
     )
 
     # Add Means (Red)
-    p <- p %>% plotly::add_trace(
-        x = plot_meta$x_index,
-        y = plot_meta$Mean_Ploidy,
-        type = "scatter",
-        mode = "markers",
-        marker = list(
-            color = "#cc0000",
-            size = 10,
-            symbol = "circle",
-            line = list(width = 1, color = "black")
-        ),
-        name = "Mean",
-        hoverinfo = "text",
-        text = ~paste("<b>Probe:</b>", plot_meta$Probe,
-                      "<br><b>Gene:</b>", if("Gene" %in% names(plot_meta)) plot_meta$Gene else "N/A",
-                      "<br><b>Mean:</b>", round(plot_meta$Mean_Ploidy, 2))
-    ) %>%
+    p <- p %>%
+        plotly::add_trace(
+            x = plot_meta$x_index,
+            y = plot_meta$Mean_Ploidy,
+            type = "scatter",
+            mode = "markers",
+            marker = list(
+                color = "#cc0000",
+                size = 10,
+                symbol = "circle",
+                line = list(width = 1, color = "black")
+            ),
+            name = "Mean",
+            hoverinfo = "text",
+            text = ~ paste(
+                "<b>Probe:</b>", plot_meta$Probe,
+                "<br><b>Gene:</b>", if ("Gene" %in% names(plot_meta)) plot_meta$Gene else "N/A",
+                "<br><b>Mean:</b>", round(plot_meta$Mean_Ploidy, 2)
+            )
+        ) %>%
         plotly::toWebGL() %>%
         plotly::config(
             displaylogo = FALSE,
@@ -851,23 +848,24 @@ get_genes_memory_safe <- function(input_df) {
         sub_df <- input_df[input_df$genome_version == ver, ]
 
         if (!requireNamespace(paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"), quietly = TRUE)) {
-            warning(paste("Package", paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"), "not installed."))
+            warning(sprintf("Package 'TxDb.Hsapiens.UCSC.%s.knownGene' not installed.", ver))
             next
         }
-        tx_db <- getExportedValue(paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"),
-                                  paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"))
+        tx_db <- getExportedValue(
+            paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"),
+            paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene")
+        )
 
         # Standardize chromosome naming
         query_gr <- GRanges(
             seqnames = if_else(grepl("^chr", sub_df$chrom),
-                               sub_df$chrom, paste0("chr", sub_df$chrom)),
+                sub_df$chrom, paste0("chr", sub_df$chrom)
+            ),
             ranges = IRanges(start = sub_df$start_pos, end = sub_df$end_pos)
         )
 
         # Extract genes with complex structure support
-        all_genes <- suppressMessages(
-            genes(tx_db, single.strand.genes.only = FALSE)
-        )
+        all_genes <- genes(tx_db, single.strand.genes.only = FALSE)
 
         # Join logic
         hits <- mergeByOverlaps(query_gr, all_genes)
@@ -937,26 +935,29 @@ annotate_amplicons_exact <- function(mae) {
 
     # Base R paste0 is significantly faster than tidyr::unite for large vectors
     cna_rd$tmp_key <- paste(cna_rd$chrom, cna_rd$start_pos, cna_rd$end_pos,
-                            sep = "_")
+        sep = "_"
+    )
 
     genes_df <- get_genes_memory_safe(cna_rd)
     genes_df$Chromosome <- sub("^chr", "", genes_df$Chromosome,
-                               ignore.case = TRUE)
+        ignore.case = TRUE
+    )
     genes_df$tmp_key <- paste(genes_df$Chromosome, genes_df$Start_Pos,
-                              genes_df$End_Pos, sep = "_")
+        genes_df$End_Pos,
+        sep = "_"
+    )
 
     merged_rd <- dplyr::left_join(x = cna_rd, y = genes_df, by = "tmp_key")
     merged_rd$tmp_key <- NULL
 
-    if (sum(duplicated(merged_rd$dna_id))>0){
+    if (sum(duplicated(merged_rd$dna_id)) > 0) {
         # Keep first mapped gene
         # Maybe, in the future, we should see if gene pattern match with dna_id
         # and select only gene that match. Problem : How do we deal with
         # vectorization ?
-        merged_rd <- merged_rd[!duplicated(merged_rd$dna_id) ,]
+        merged_rd <- merged_rd[!duplicated(merged_rd$dna_id), ]
     }
     SummarizedExperiment::rowData(mae[["amplicons"]]) <- merged_rd
 
     return(mae)
 }
-

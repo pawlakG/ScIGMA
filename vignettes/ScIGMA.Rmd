@@ -1,20 +1,20 @@
 ---
 title: "Introduction to ScIGMA"
 author: 
-  - name: "Geoffrey Pawlak"
-    affiliation: "Systems Oncology & Bioinformatics"
+    - name: "Geoffrey Pawlak"
+      affiliation: "ULR 2694 METRICS "
 date: "`r Sys.Date()`"
 output: BiocStyle::html_document
 vignette: >
-  %\VignetteIndexEntry{Introduction to ScIGMA}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+    %\VignetteIndexEntry{Introduction to ScIGMA}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+    collapse = TRUE,
+    comment = "#>"
 )
 ```
 

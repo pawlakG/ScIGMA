@@ -8,21 +8,22 @@
 .positai
 .vscode/
 
-# Ignore compiled C/C++ objects
+
 src/*.o
 src/*.so
 src/*.dll
 
-# Ignore heavy local dev/results folders
+
 results/
 .results/
 Trash/
 dev/
 ScIGMA.BiocCheck/
+inst/
 
-# Ignore performance logs
+
 *.txt
 
-# EXPLICITLY KEEP TARBALLS (Overrides any blanket ignore)
+
 !*.tar.gz
 !ScIGMA_*.tar.gz

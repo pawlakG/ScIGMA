@@ -1,4 +1,3 @@
-
 #' --------------------------------------------------------------- #
 #' Filter variants and cells in a ScIGMA_object (R6)
 #'
@@ -41,13 +40,14 @@
 #' @examples
 #' \dontrun{
 #' filtered_obj <- filter_variant_ScIGMA(my_scigma_obj,
-#'                                       min.dp = 15,
-#'                                       min.gq = 40,
-#'                                       vaf.ref = 3,
-#'                                       vaf.hom = 90,
-#'                                       vaf.het = 30,
-#'                                       min.cell.pt = 60,
-#'                                       min.mut.cell.pt = 5)
+#'     min.dp = 15,
+#'     min.gq = 40,
+#'     vaf.ref = 3,
+#'     vaf.hom = 90,
+#'     vaf.het = 30,
+#'     min.cell.pt = 60,
+#'     min.mut.cell.pt = 5
+#' )
 #' }
 #'
 #' @seealso
@@ -55,29 +55,30 @@
 #' - The original `filter_variant` function from the optima package for conceptual inspiration.
 #'
 #' @noRd
-filter_variant_ScIGMA <- function(
-        obj,
-        min.dp = 10, min.gq = 30,
-        vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
-        min.cell.pt = 50, min.mut.cell.pt = 1
-){
+filter_variant_ScIGMA <- function(obj,
+                                min.dp = 10, min.gq = 30,
+                                vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
+                                min.cell.pt = 50, min.mut.cell.pt = 1) {
     # Setup multiprocessing
-    bp <- if (.Platform$OS.type == "windows") SnowParam(workers = parallel::detectCores()-1)
-    else MulticoreParam(workers = parallel::detectCores()-1)
+    bp <- if (.Platform$OS.type == "windows") {
+        SnowParam(workers = parallel::detectCores() - 1)
+    } else {
+        MulticoreParam(workers = parallel::detectCores() - 1)
+    }
 
 
     message("Filtering variant")
     stopifnot(methods::is(obj, "R6"))
     # Shortcuts
     vaf.mtx <- obj$vaf.mtx
-    gt.mtx  <- obj$gt.mtx
-    dp.mtx  <- obj$dp.mtx
-    gq.mtx  <- obj$gq.mtx
+    gt.mtx <- obj$gt.mtx
+    dp.mtx <- obj$dp.mtx
+    gq.mtx <- obj$gq.mtx
 
 
     # 1) Quality masks / VAF vs GT consistency
-    dp.tf      <- dp.mtx < min.dp
-    gq.tf      <- gq.mtx < min.gq
+    dp.tf <- dp.mtx < min.dp
+    gq.tf <- gq.mtx < min.gq
     vaf.ref.tf <- (vaf.mtx > vaf.ref) & (gt.mtx == 0)
     vaf.hom.tf <- (vaf.mtx < vaf.hom) & (gt.mtx == 2)
     vaf.het.tf <- (vaf.mtx < vaf.het) & (gt.mtx == 1)
@@ -88,22 +89,22 @@ filter_variant_ScIGMA <- function(
     gt.mtx[!keep] <- 3L
     vaf.mtx[gt.mtx == 3L] <- -1
 
-    num.cells    <- nrow(gt.mtx)
+    num.cells <- nrow(gt.mtx)
     num.variants <- ncol(gt.mtx)
 
     # 3) Variant filtering criteria
     gt.mtx_realized <- DelayedArray::realize(gt.mtx)
     cell.cover.per.variant <- colSums2(gt.mtx_realized != 3L, BPPARAM = bp)
-    mut.cells.per.variant  <- colSums2((gt.mtx_realized == 1L) | (gt.mtx_realized == 2L), BPPARAM = bp)
+    mut.cells.per.variant <- colSums2((gt.mtx_realized == 1L) | (gt.mtx_realized == 2L), BPPARAM = bp)
 
-    cell.num.keep.tf <- cell.cover.per.variant > num.cells * (min.cell.pt/100)
-    mut.cell.num.keep.tf <- mut.cells.per.variant > num.cells * (min.mut.cell.pt/100)
+    cell.num.keep.tf <- cell.cover.per.variant > num.cells * (min.cell.pt / 100)
+    mut.cell.num.keep.tf <- mut.cells.per.variant > num.cells * (min.mut.cell.pt / 100)
     variant.keep.tf <- cell.num.keep.tf & mut.cell.num.keep.tf
 
     # 4) Cell filtering criteria
-    cell.variants.keep.tf <- rowSums2(gt.mtx_realized != 3L, BPPARAM = bp) > num.variants * (min.cell.pt/100)
+    cell.variants.keep.tf <- rowSums2(gt.mtx_realized != 3L, BPPARAM = bp) > num.variants * (min.cell.pt / 100)
     # 5) Subsetting
-    keep_cells    <- which(cell.variants.keep.tf)
+    keep_cells <- which(cell.variants.keep.tf)
     keep_variants <- which(variant.keep.tf)
 
     # 6) Protein handling
@@ -120,25 +121,25 @@ filter_variant_ScIGMA <- function(
     filtered <- obj$clone(deep = TRUE)
     filtered$variant.filter <- "filtered"
 
-    filtered$cell.ids.filtered     <- obj$cell.ids[keep_cells]
-    filtered$cell.labels.filtered  <- obj$cell.labels[keep_cells]
+    filtered$cell.ids.filtered <- obj$cell.ids[keep_cells]
+    filtered$cell.labels.filtered <- obj$cell.labels[keep_cells]
 
-    filtered$variants.filtered     <- obj$variants[variant.keep.tf]
+    filtered$variants.filtered <- obj$variants[variant.keep.tf]
 
-    filtered$vaf.mtx.filtered      <- obj$vaf.mtx[keep_cells, keep_variants, drop = FALSE]
-    filtered$gt.mtx.filtered       <- obj$gt.mtx [keep_cells, keep_variants, drop = FALSE]
-    filtered$dp.mtx.filtered       <- obj$dp.mtx [keep_cells, keep_variants, drop = FALSE]
-    filtered$gq.mtx.filtered       <- obj$gq.mtx [keep_cells, keep_variants, drop = FALSE]
+    filtered$vaf.mtx.filtered <- obj$vaf.mtx[keep_cells, keep_variants, drop = FALSE]
+    filtered$gt.mtx.filtered <- obj$gt.mtx[keep_cells, keep_variants, drop = FALSE]
+    filtered$dp.mtx.filtered <- obj$dp.mtx[keep_cells, keep_variants, drop = FALSE]
+    filtered$gq.mtx.filtered <- obj$gq.mtx[keep_cells, keep_variants, drop = FALSE]
 
-    filtered$amp.mtx.filtered      <- obj$amp.mtx[keep_cells, , drop = FALSE]
+    filtered$amp.mtx.filtered <- obj$amp.mtx[keep_cells, , drop = FALSE]
 
-    filtered$protein.mtx.filtered  <- my.protein.mtx
+    filtered$protein.mtx.filtered <- my.protein.mtx
 
     # Modify variant.filter.mask according to filtered cells
-    filtered$dna.variant.filter.mask.filtered <- filtered$dna.variant.filter.mask[filtered$cell.ids.filtered,]
+    filtered$dna.variant.filter.mask.filtered <- filtered$dna.variant.filter.mask[filtered$cell.ids.filtered, ]
 
     # Summary
-    removed_cells    <- length(cell.variants.keep.tf) - sum(cell.variants.keep.tf)
+    removed_cells <- length(cell.variants.keep.tf) - sum(cell.variants.keep.tf)
     removed_variants <- length(variant.keep.tf) - sum(variant.keep.tf)
     message("Number of cells removed: ", removed_cells)
     message("Number of variants removed: ", removed_variants)
@@ -150,13 +151,10 @@ filter_variant_ScIGMA <- function(
 #' @importFrom DelayedMatrixStats rowSums2 colSums2
 #' @importFrom DelayedArray realize
 #' @importFrom BiocParallel SnowParam MulticoreParam
-filter_variant_ScIGMA_mae <- function(
-        obj,
-        min.dp = 10, min.gq = 30,
-        vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
-        min.cell.pt = 50, min.mut.cell.pt = 1
-) {
-
+filter_variant_ScIGMA_mae <- function(obj,
+                                        min.dp = 10, min.gq = 30,
+                                        vaf.ref = 5, vaf.hom = 95, vaf.het = 35,
+                                        min.cell.pt = 50, min.mut.cell.pt = 1) {
     message("Filtering variants and cells (Matrix: Features x Cells)...")
     if (!inherits(obj, "ScIGMA_object")) stop("obj must be a ScIGMA_object.")
 
@@ -168,13 +166,13 @@ filter_variant_ScIGMA_mae <- function(
 
     # ---- 1. Extraction (Variants x Cellules) ----
     vaf_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
-    gt_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
-    dp_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
-    gq_mtx  <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gq")
+    gt_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
+    dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
+    gq_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gq")
 
     # ---- 2. Quality masks ----
-    dp_tf      <- dp_mtx < min.dp
-    gq_tf      <- gq_mtx < min.gq
+    dp_tf <- dp_mtx < min.dp
+    gq_tf <- gq_mtx < min.gq
     vaf_ref_tf <- (vaf_mtx > vaf.ref) & (gt_mtx == 0L)
     vaf_hom_tf <- (vaf_mtx < vaf.hom) & (gt_mtx == 2L)
     vaf_het_tf <- (vaf_mtx < vaf.het) & (gt_mtx == 1L)
@@ -185,12 +183,12 @@ filter_variant_ScIGMA_mae <- function(
     vaf_mtx[gt_mtx == 3L] <- -1
 
     num_variants <- nrow(gt_mtx)
-    num_cells    <- ncol(gt_mtx)
+    num_cells <- ncol(gt_mtx)
 
     gt_mtx_realized <- DelayedArray::realize(gt_mtx)
 
     cell_cover_per_variant <- DelayedMatrixStats::rowSums2(gt_mtx_realized != 3L, BPPARAM = bp)
-    mut_cells_per_variant  <- DelayedMatrixStats::rowSums2((gt_mtx_realized == 1L) | (gt_mtx_realized == 2L), BPPARAM = bp)
+    mut_cells_per_variant <- DelayedMatrixStats::rowSums2((gt_mtx_realized == 1L) | (gt_mtx_realized == 2L), BPPARAM = bp)
 
     # sum(rowSums2((test == 1L) | (test == 2L), BPPARAM = bp) > ncol(test)*0.01)
 
@@ -206,7 +204,7 @@ filter_variant_ScIGMA_mae <- function(
     mae_filtered[["dna_variants"]] <- mae_filtered[["dna_variants"]][variant_keep_tf, , drop = FALSE]
 
     SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "vaf") <- vaf_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
-    SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "gt")  <- gt_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
+    SummarizedExperiment::assay(mae_filtered[["dna_variants"]], "gt") <- gt_mtx[variant_keep_tf, cell_keep_tf, drop = FALSE]
 
     # ---- 6. R6 Instantiation ----
     filtered_obj <- ScIGMA_object$new(
@@ -228,9 +226,9 @@ filter_variant_ScIGMA_mae <- function(
 # Step 1: Each cell is normalized by its total read count (library size)
 # Step 2: Each amplicon is normalized by its median value across cells
 normalize_amplicon_counts <- function(count_matrix,
-                                      scale_after_cell = 1,   # e.g., 1e6 for CPM, 1 for proportions
-                                      epsilon = 1e-8,         # numerical stability to avoid division by zero
-                                      use_nonzero_for_median = FALSE) {
+                                        scale_after_cell = 1, # e.g., 1e6 for CPM, 1 for proportions
+                                        epsilon = 1e-8, # numerical stability to avoid division by zero
+                                        use_nonzero_for_median = FALSE) {
     # --- Checks ---
     if (!inherits(count_matrix, "DelayedMatrix")) {
         stop("count_matrix must be a DelayedMatrix (amplicons x cells).")
@@ -300,9 +298,8 @@ normalize_amplicon_counts <- function(count_matrix,
 #' @importFrom tibble as_tibble
 #' @noRd
 generate_clonal_labels <- function(ngt_matrix,
-                                   target_variants_df,
-                                   ignore_missing = FALSE) {
-
+                                    target_variants_df,
+                                    ignore_missing = FALSE) {
     # 1. Data preparation and variant mapping
     # Extract full nomenclature (ground truth for biological labels)
     full_variant_ids <- target_variants_df$variant_id
@@ -317,8 +314,10 @@ generate_clonal_labels <- function(ngt_matrix,
     # 2. Integrity check
     missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
     if (length(missing_variants) > 0) {
-        stop(paste("Critical error: Missing variants in the genotype matrix:",
-                   paste(missing_variants, collapse = ", ")))
+        stop(paste(
+            "Critical error: Missing variants in the genotype matrix:",
+            paste(missing_variants, collapse = ", ")
+        ))
     }
 
     # 3. State decoding function
@@ -335,17 +334,18 @@ generate_clonal_labels <- function(ngt_matrix,
     # 4. Vectorized processing
     processed_cells <- as_tibble(ngt_matrix, rownames = "cell_barcode") %>%
         select(cell_barcode, all_of(short_variant_ids)) %>%
-
         # Step A: Decode integers to character states
         mutate(across(all_of(short_variant_ids), decode_genotype)) %>%
-
         # Step B: Prefix states with full variant nomenclature via lookup map
-        mutate(across(all_of(short_variant_ids),
-                      ~ paste0(variant_map[dplyr::cur_column()], ":", .))) %>%
-
+        mutate(across(
+            all_of(short_variant_ids),
+            ~ paste0(variant_map[dplyr::cur_column()], ":", .)
+        )) %>%
         # Step C: Concatenate into a strict clonal signature string
-        unite(col = "signature_string", all_of(short_variant_ids),
-              sep = " & ", remove = FALSE)
+        unite(
+            col = "signature_string", all_of(short_variant_ids),
+            sep = " & ", remove = FALSE
+        )
 
     # 5. Missing data filtering
     if (ignore_missing) {
@@ -369,7 +369,8 @@ generate_clonal_labels <- function(ngt_matrix,
     # 7. Final assignment via relational join
     final_metadata <- processed_cells %>%
         left_join(cluster_definitions,
-                  by = c("signature_string" = "genotype_signature")) %>%
+            by = c("signature_string" = "genotype_signature")
+        ) %>%
         select(cell_barcode, clonal_cluster_id)
 
     # Handle unassigned cells (e.g., filtered due to missing data)
@@ -439,17 +440,16 @@ generate_clonal_labels <- function(ngt_matrix,
 #' # # heatmap_result <- generate_dna_variant_heatmap(obj, selected_variants_df)
 #' # # draw(heatmap_result$heatmap)
 generate_dna_variant_heatmap <- function(obj,
-                                         selected_variants_df,
-                                         min_prop_cluster = 0.01,
-                                         heatmap_include_all_samples = TRUE,
-                                         use_imputed = FALSE) { # <-- NEW ARGUMENT
+                                        selected_variants_df,
+                                        min_prop_cluster = 0.01,
+                                        heatmap_include_all_samples = TRUE,
+                                        use_imputed = FALSE) { # <-- NEW ARGUMENT
 
     target_variants <- selected_variants_df$variant_id
 
     short_variants <- sub(x = target_variants, pattern = "^([^:]+:)|^:", "")
 
     if (isTRUE(use_imputed)) {
-
         if (!"compass_imputed" %in% SummarizedExperiment::assayNames(obj$mae[["dna_variants"]])) {
             stop("Error : 'compass_imputed' Assay not found. Please rerun COMPASS inference.")
         }
@@ -459,9 +459,10 @@ generate_dna_variant_heatmap <- function(obj,
             stop("Error : Some selected variants do not exist in the matrix.")
         }
 
-        msk_full <- matrix(0L, nrow = nrow(gt_full), ncol = ncol(gt_full),
-                           dimnames = dimnames(gt_full))
-
+        msk_full <- matrix(0L,
+            nrow = nrow(gt_full), ncol = ncol(gt_full),
+            dimnames = dimnames(gt_full)
+        )
     } else {
         # Extraction Out-of-Core native (Raw data)
         gt_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
@@ -502,7 +503,8 @@ generate_dna_variant_heatmap <- function(obj,
     )
 
     clustered_samples <- setNames(results_clustering$cell_metadata$clonal_cluster_id,
-                                  nm = results_clustering$cell_metadata$cell_barcode)
+        nm = results_clustering$cell_metadata$cell_barcode
+    )
 
     ### Reassign too small samples clusters
     res_table_clusters <- table(clustered_samples)
@@ -510,7 +512,9 @@ generate_dna_variant_heatmap <- function(obj,
     clustered_samples[clustered_samples %in% too_small_clusters] <- "small"
 
     small_cluster <- clustered_samples[clustered_samples == "small"] |> as.factor()
-    nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |> sort() |> as.factor()
+    nonSmall_cluster <- clustered_samples[clustered_samples != "small"] |>
+        sort() |>
+        as.factor()
     nonSmall_cluster <- forcats::fct_infreq(nonSmall_cluster)
     levels(nonSmall_cluster) <- sprintf("clone_%02d", 1:length(levels(nonSmall_cluster)))
 
@@ -531,15 +535,19 @@ generate_dna_variant_heatmap <- function(obj,
 
     # rbind with samples with missing info
     if (heatmap_include_all_samples) {
-        tmp_heamtap_matrix_filtered_complete_ordered <- rbind(tmp_heamtap_matrix_filtered_noMissing_ordered,
-                                                              tmp_heamtap_matrix_filtered_withMissing)
+        tmp_heamtap_matrix_filtered_complete_ordered <- rbind(
+            tmp_heamtap_matrix_filtered_noMissing_ordered,
+            tmp_heamtap_matrix_filtered_withMissing
+        )
 
-        heatmap_split_vector <- c(as.character(sorted_clusters),
-                                  rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing)))
+        heatmap_split_vector <- c(
+            as.character(sorted_clusters),
+            rep("missing", nrow(tmp_heamtap_matrix_filtered_withMissing))
+        )
 
         heatmap_split_vector <- factor(heatmap_split_vector,
-                                       levels = c(desired_levels, "missing"))
-
+            levels = c(desired_levels, "missing")
+        )
     } else {
         tmp_heamtap_matrix_filtered_complete_ordered <- tmp_heamtap_matrix_filtered_noMissing_ordered
 
@@ -558,7 +566,8 @@ generate_dna_variant_heatmap <- function(obj,
 
     heatmap_true_levels <- levels(clustered_samples)[levels(clustered_samples) != "small"]
     annotationColor <- list(Cluster = setNames(c(colorBlindness::paletteMartin[-1][1:length(heatmap_true_levels)], "grey", "#333333"),
-                                               nm = c(heatmap_true_levels, "missing", "small")))
+        nm = c(heatmap_true_levels, "missing", "small")
+    ))
 
     dna_variant_annotation <- ComplexHeatmap::rowAnnotation(
         Cluster = heatmap_split_vector,
@@ -568,9 +577,9 @@ generate_dna_variant_heatmap <- function(obj,
     )
 
     # Verify colnames before plotting
-    idx_colnames <- sapply(colnames(tmp_heamtap_matrix_filtered_complete_ordered), function(x) {
+    idx_colnames <- lapply(colnames(tmp_heamtap_matrix_filtered_complete_ordered), function(x) {
         which(grepl(x, selected_variants_df$variant_id))
-    }, simplify = FALSE, USE.NAMES = FALSE) |> unlist()
+    }) |> unlist(use.names = FALSE)
 
     new_colnames <- paste0(selected_variants_df$gene[idx_colnames], "   \n", selected_variants_df$cdna[idx_colnames])
 
@@ -599,8 +608,10 @@ generate_dna_variant_heatmap <- function(obj,
         )
     )
 
-    return(list("heatmap" = heatmap,
-                "clones" = clustered_samples))
+    return(list(
+        "heatmap" = heatmap,
+        "clones" = clustered_samples
+    ))
 }
 
 # NEW
@@ -623,7 +634,6 @@ generate_dna_variant_heatmap <- function(obj,
 #'
 #' @noRd
 build_compass_matrices <- function(obj, selected_variants) {
-
     message("Building COMPASS topological and count matrices...")
 
     # Extraction depuis le MAE (Variants x Cellules)
@@ -724,7 +734,7 @@ build_compass_matrices <- function(obj, selected_variants) {
 #' @return Logical. TRUE if successful.
 #' @noRd
 run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
-                             n_iters = 100000, restarts = 10, threads = 8) {
+                            n_iters = 100000, restarts = 10, threads = 8) {
     if (!dir.exists(input_dir)) {
         stop("Fatal: input directory not found.")
     }
@@ -770,9 +780,8 @@ run_compass_mcmc <- function(input_dir, output_dir, compass_exec = "compass",
 #'   COMPASS results in MAE metadata.
 #' @noRd
 infer_clonal_architecture <- function(scigma_data, target_variants,
-                                      chain_length = 500L,
-                                      output_dir = tempdir()) {
-
+                                        chain_length = 500L,
+                                        output_dir = tempdir()) {
     # 1. Matrix extraction
     compass_inputs <- build_compass_matrices(
         obj = scigma_data,
@@ -810,12 +819,14 @@ infer_clonal_architecture <- function(scigma_data, target_variants,
     cna_row_data <- as.data.frame(SummarizedExperiment::rowData(amp_se))
 
     get_gene <- function(x) strsplit(x, "_")[[1]][3]
-    vec_region_names <- paste0(cna_row_data$chrom, "_",
-                               sapply(cna_row_data$dna_id, get_gene))
+    vec_region_names <- paste0(
+        cna_row_data$chrom, "_",
+        vapply(cna_row_data$dna_id, get_gene, character(1))
+    )
     vec_region_names <- unique(vec_region_names)
 
     get_chrom <- function(x) strsplit(x, "_")[[1]][1]
-    vec_region_chrom <- sapply(vec_region_names, get_chrom, USE.NAMES = FALSE)
+    vec_region_chrom <- vapply(vec_region_names, get_chrom, character(1), USE.NAMES = FALSE)
     vec_region_chrom <- sub("^chr", "", vec_region_chrom, ignore.case = TRUE)
 
     # 3. BioConductor compliant I/O

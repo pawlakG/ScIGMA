@@ -25,7 +25,7 @@ returned as a character vector. If the specified dataset does not
 exist or an error occurs, a default value is returned instead.
 }
 \examples{
-\dontrun{
+\donttest{
 # Suppose "sample_names" is stored under /metadata in file.h5
 .h5read_char("file.h5", "/metadata/sample_names")
 

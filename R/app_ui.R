@@ -9,33 +9,26 @@
 app_ui <- function(request) {
     tagList(
         golem_add_external_resources(),
-
         use_waiter(),
-
         page_navbar(
             title = tagList(
                 tags$img(src = "www/logo_noBg.png", height = "70px", style = "vertical-align: bottom; margin-right: -23px; margin-bottom: -5px;"),
                 "cIGMA portal"
             ),
             selected = "welcome_tab",
-
             theme = bs_theme(
                 bootswatch = "lux",
                 font_scale = 1 # Augmente la taille globale de 10% (ajustez selon besoin)
             ),
-
             navbar_options = navbar_options(collapsible = TRUE),
-
             nav_panel(
                 title = HTML("Welcome"),
                 value = "welcome_tab",
                 mod_welcome_ui("welcome_1")
             ),
-
             nav_panel(
                 title = HTML("Analysis"),
                 value = "analysis_tab",
-
                 navset_card_underline(
                     id = "tabs_analysis_inner",
                     nav_panel(

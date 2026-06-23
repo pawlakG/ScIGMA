@@ -33,21 +33,25 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
 
             if (is.null(ScIGMA_data$mae)) {
                 return(
-                    shiny::div(class = "text-center mt-5", style = "padding: 50px;",
-                               shiny::icon("file-import", class = "fa-4x text-muted", style = "margin-bottom: 20px;"),
-                               shiny::h3("No data available for export", class = "text-muted"),
-                               shiny::p("Please upload an H5 file and process it in the 'Analysis' tab first.", class = "text-muted")
+                    shiny::div(
+                        class = "text-center mt-5", style = "padding: 50px;",
+                        shiny::icon("file-import", class = "fa-4x text-muted", style = "margin-bottom: 20px;"),
+                        shiny::h3("No data available for export", class = "text-muted"),
+                        shiny::p("Please upload an H5 file and process it in the 'Analysis' tab first.", class = "text-muted")
                     )
                 )
             }
 
-            choices_list <- c("Cell Metadata" = "metadata",
-                              "DNA Genotypes" = "dna")
+            choices_list <- c(
+                "Cell Metadata" = "metadata",
+                "DNA Genotypes" = "dna"
+            )
 
             if (!is.null(ScIGMA_data$variants.filtered)) {
                 choices_list <- c(choices_list,
-                                  "DNA Variants Info" = "variants",
-                                  "Proteins (Normalized)" = "proteins")
+                    "DNA Variants Info" = "variants",
+                    "Proteins (Normalized)" = "proteins"
+                )
             }
 
             if (!is.null(ScIGMA_data$cnv_dp_filtered)) {
@@ -65,81 +69,87 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                     bslib::card_body(
                         shiny::p("Download your processed data and metadata in standard bioinformatics formats. Options will unlock automatically as you progress through the analysis."),
                         shiny::br(),
-
                         shiny::fluidRow(
                             # --- CONFIGURATION (Left Column) ---
-                            shiny::column(4,
-                                          bslib::card(
-                                              shiny::h4("Export Configuration"),
-                                              shiny::hr(),
+                            shiny::column(
+                                4,
+                                bslib::card(
+                                    shiny::h4("Export Configuration"),
+                                    shiny::hr(),
+                                    shiny::h5("Include Omics Data:"),
+                                    shinyWidgets::checkboxGroupButtons(
+                                        inputId = ns("export_omics_selection"),
+                                        choices = choices_list,
+                                        selected = unname(choices_list),
+                                        direction = "vertical",
+                                        status = "outline-primary",
+                                        width = "100%"
+                                    ),
+                                    shiny::br(),
 
-                                              shiny::h5("Include Omics Data:"),
-                                              shinyWidgets::checkboxGroupButtons(
-                                                  inputId = ns("export_omics_selection"),
-                                                  choices = choices_list,
-                                                  selected = unname(choices_list),
-                                                  direction = "vertical",
-                                                  status = "outline-primary",
-                                                  width = "100%"
-                                              ),
-                                              shiny::br(),
-
-                                              # 2. Options Clonales
-                                              shiny::h5("Clonal Metadata Architecture:"),
-                                              shiny::uiOutput(ns("export_clones_options_ui")),
-                                              shiny::br()
-                                          )
+                                    # 2. Options Clonales
+                                    shiny::h5("Clonal Metadata Architecture:"),
+                                    shiny::uiOutput(ns("export_clones_options_ui")),
+                                    shiny::br()
+                                )
                             ),
 
                             # --- EXPORT ACTIONS (Right Column) ---
-                            shiny::column(8,
-                                          # Option 1: Seurat
-                                          bslib::card(
-                                              shiny::fluidRow(
-                                                  shiny::column(8,
-                                                                shiny::h4(shiny::icon("r-project"), " Seurat Object (.rds)"),
-                                                                shiny::p("The gold standard for single-cell analysis in R. Includes PCA, UMAP, and all selected metadata integrated natively.", class = "text-muted")
-                                                  ),
-                                                  shiny::column(4,
-                                                                shiny::div(
-                                                                    shiny::uiOutput(ns("btn_download_seurat_ui")),
-                                                                    align = "right"
-                                                                )
-                                                  )
-                                              )
-                                          ),
+                            shiny::column(
+                                8,
+                                # Option 1: Seurat
+                                bslib::card(
+                                    shiny::fluidRow(
+                                        shiny::column(
+                                            8,
+                                            shiny::h4(shiny::icon("r-project"), " Seurat Object (.rds)"),
+                                            shiny::p("The gold standard for single-cell analysis in R. Includes PCA, UMAP, and all selected metadata integrated natively.", class = "text-muted")
+                                        ),
+                                        shiny::column(
+                                            4,
+                                            shiny::div(
+                                                shiny::uiOutput(ns("btn_download_seurat_ui")),
+                                                align = "right"
+                                            )
+                                        )
+                                    )
+                                ),
 
-                                          # Option 2: MultiAssayExperiment
-                                          bslib::card(
-                                              shiny::fluidRow(
-                                                  shiny::column(8,
-                                                                shiny::h4(shiny::icon("database"), " MultiAssayExperiment (.rds)"),
-                                                                shiny::p("The native BioConductor format. Contains the raw and processed matrices exactly as managed in the ScIGMA backend.", class = "text-muted")
-                                                  ),
-                                                  shiny::column(4,
-                                                                shiny::div(
-                                                                    shiny::downloadButton(ns("btn_download_mae"), "Download MAE", class = "btn-info w-100"),
-                                                                    align = "right"
-                                                                )
-                                                  )
-                                              )
-                                          ),
+                                # Option 2: MultiAssayExperiment
+                                bslib::card(
+                                    shiny::fluidRow(
+                                        shiny::column(
+                                            8,
+                                            shiny::h4(shiny::icon("database"), " MultiAssayExperiment (.rds)"),
+                                            shiny::p("The native BioConductor format. Contains the raw and processed matrices exactly as managed in the ScIGMA backend.", class = "text-muted")
+                                        ),
+                                        shiny::column(
+                                            4,
+                                            shiny::div(
+                                                shiny::downloadButton(ns("btn_download_mae"), "Download MAE", class = "btn-info w-100"),
+                                                align = "right"
+                                            )
+                                        )
+                                    )
+                                ),
 
-                                          # Option 3: Flat CSV
-                                          bslib::card(
-                                              shiny::fluidRow(
-                                                  shiny::column(8,
-                                                                shiny::h4(shiny::icon("file-csv"), " Flat Tables (.zip)"),
-                                                                shiny::p("Universal format. Generates a ZIP archive containing individual CSV files for matrices and unified cell metadata. Ideal for Python/Pandas.", class = "text-muted")
-                                                  ),
-                                                  shiny::column(4,
-                                                                shiny::div(
-                                                                    shiny::downloadButton(ns("btn_download_csv"), "Download ZIP", class = "btn-secondary w-100"),
-                                                                    align = "right"
-                                                                )
-                                                  )
-                                              )
-                                          )
+                                # Option 3: Flat CSV
+                                bslib::card(
+                                    shiny::fluidRow(
+                                        shiny::column(
+                                            8,
+                                            shiny::h4(shiny::icon("file-csv"), " Flat Tables (.zip)"),
+                                            shiny::p("Universal format. Generates a ZIP archive containing individual CSV files for matrices and unified cell metadata. Ideal for Python/Pandas.", class = "text-muted")
+                                        ),
+                                        shiny::column(
+                                            4,
+                                            shiny::div(
+                                                shiny::downloadButton(ns("btn_download_csv"), "Download ZIP", class = "btn-secondary w-100"),
+                                                align = "right"
+                                            )
+                                        )
+                                    )
+                                )
                             )
                         )
                     )
@@ -155,7 +165,9 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             watch("dataLoaded")
             watch("compass_completed")
 
-            if (is.null(ScIGMA_data$mae)) return(NULL)
+            if (is.null(ScIGMA_data$mae)) {
+                return(NULL)
+            }
 
             compass_exists <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
 
@@ -235,7 +247,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
 
                 valid_ids <- setdiff(names(gates), "root")
                 if (length(valid_ids) > 0) {
-                    depths <- sapply(valid_ids, function(id) meta[[id]]$depth)
+                    depths <- vapply(valid_ids, function(id) meta[[id]]$depth, numeric(1))
                     ordered_ids <- valid_ids[order(depths)]
 
                     all_cell_barcodes <- colnames(ScIGMA_data$mae[["proteins"]])
@@ -245,7 +257,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                         cell_barcodes <- all_cell_barcodes[cell_indices]
 
                         valid_barcodes <- intersect(cell_barcodes, meta_df$Cell_Barcode)
-                        if(length(valid_barcodes) > 0){
+                        if (length(valid_barcodes) > 0) {
                             meta_df$Immunophenotype_Gate[match(valid_barcodes, meta_df$Cell_Barcode)] <- meta[[sid]]$name
                         }
                     }
@@ -319,11 +331,15 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 current_colData$Cell_Barcode <- rownames(current_colData)
 
                 merged_colData <- merge(current_colData, global_meta, by = "Cell_Barcode", all.x = TRUE)
-                merged_colData <- merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
-                                                       merged_colData$Cell_Barcode), ]
+                merged_colData <- merged_colData[match(
+                    colnames(export_mae)[["dna_variants"]],
+                    merged_colData$Cell_Barcode
+                ), ]
                 rownames(merged_colData) <- merged_colData$Cell_Barcode
-                SummarizedExperiment::colData(export_mae) <- S4Vectors::DataFrame(merged_colData[match(colnames(export_mae)[["dna_variants"]] ,
-                                                                                                       merged_colData$Cell_Barcode), ])
+                SummarizedExperiment::colData(export_mae) <- S4Vectors::DataFrame(merged_colData[match(
+                    colnames(export_mae)[["dna_variants"]],
+                    merged_colData$Cell_Barcode
+                ), ])
 
                 saveRDS(export_mae, file = file)
             }
@@ -396,7 +412,6 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 zip::zip(zipfile = file, files = basename(files_to_zip))
             }
         )
-
     })
 }
 ## To be copied in the UI

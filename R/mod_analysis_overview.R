@@ -14,40 +14,47 @@ mod_analysis_overview_ui <- function(id) {
     add_busy_spinner(spin = "fading-circle", color = "#112446")
     tagList(
         fluidRow(
-            column(4,
-                   card(
-                       fileInput(ns("file_h5file"),
-                                 label = "1. Upload you H5 file.",
-                                 accept = ".h5")
-                   )
+            column(
+                4,
+                card(
+                    fileInput(ns("file_h5file"),
+                        label = "1. Upload you H5 file.",
+                        accept = ".h5"
+                    )
+                )
             ),
-            column(4,
-                   card(
-                       radioGroupButtons(
-                           inputId = ns("file_fileType"),
-                           label = "2. DNA or DNA+protein ?",
-                           choices = c("DNA only"="DNA",
-                                       "DNA & protein"="DNA+protein"),
-                           justified = TRUE
-                       )
-                   )
+            column(
+                4,
+                card(
+                    radioGroupButtons(
+                        inputId = ns("file_fileType"),
+                        label = "2. DNA or DNA+protein ?",
+                        choices = c(
+                            "DNA only" = "DNA",
+                            "DNA & protein" = "DNA+protein"
+                        ),
+                        justified = TRUE
+                    )
+                )
             ),
-            column(4,
-                   h6(HTML("3. Process")),
-                   actionBttn(
-                       inputId = ns("file_process"),
-                       label = "Load file",
-                       color = "success",
-                       style = "unite",
-                       icon = icon("magnifying-glass-chart"),
-                       block = TRUE
-                   )
+            column(
+                4,
+                h6(HTML("3. Process")),
+                actionBttn(
+                    inputId = ns("file_process"),
+                    label = "Load file",
+                    color = "success",
+                    style = "unite",
+                    icon = icon("magnifying-glass-chart"),
+                    block = TRUE
+                )
             )
         ),
         fluidRow(
             br(),
-            card(card_header("Summary"),
-                 uiOutput(ns("overview"))
+            card(
+                card_header("Summary"),
+                uiOutput(ns("overview"))
             ),
             card(
                 card_header("Preprocess"),
@@ -64,8 +71,8 @@ mod_analysis_overview_ui <- function(id) {
 #' @import tools
 #' @import Seurat
 #' @import MultiAssayExperiment
-mod_analysis_overview_server <- function(id, ScIGMA_data){
-    moduleServer(id, function(input, output, session){
+mod_analysis_overview_server <- function(id, ScIGMA_data) {
+    moduleServer(id, function(input, output, session) {
         ns <- session$ns
         message(whereami::whereami())
 
@@ -78,7 +85,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
         # ---------------------------- #
         # Load data
-        observeEvent(input$file_process,{
+        observeEvent(input$file_process, {
             filePath <- input$file_h5file$datapath
             fileType <- input$file_fileType
             req(filePath)
@@ -94,27 +101,34 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             if (file.exists(filePath)) {
                 if (file.info(filePath)$isdir) {
                     ScIGMA_data <- tryCatch(
-                        ScIGMA_profile("1. Chargement des donnees (Directory)", {
-                            loadH5_HDF5_biocond(
-                                filepath = filePath,
-                                sample_name = sampleName,
-                                omic_type = fileType
-                            )
-                        }, filepath = filePath),
-                        error = function(e){
+                        ScIGMA_profile("1. Chargement des donnees (Directory)",
+                            {
+                                loadH5_HDF5_biocond(
+                                    filepath = filePath,
+                                    sample_name = sampleName,
+                                    omic_type = fileType
+                                )
+                            },
+                            filepath = filePath
+                        ),
+                        error = function(e) {
                             message("Error during loadH5")
                             stop(e$message)
-                        })
+                        }
+                    )
                 } else {
                     temp_scigma_obj <- tryCatch(
-                        ScIGMA_profile("1. Chargement des donnees (File)", {
-                            loadH5_HDF5_biocond(
-                                filepath = filePath,
-                                sample_name = sampleName,
-                                omic_type = fileType
-                            )
-                        }, filepath = filePath),
-                        error = function(e){
+                        ScIGMA_profile("1. Chargement des donnees (File)",
+                            {
+                                loadH5_HDF5_biocond(
+                                    filepath = filePath,
+                                    sample_name = sampleName,
+                                    omic_type = fileType
+                                )
+                            },
+                            filepath = filePath
+                        ),
+                        error = function(e) {
                             message("Error during loadH5")
                             stop(e$message)
                         }
@@ -153,8 +167,8 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             has_mae <- !is.null(ScIGMA_data$mae)
 
             val_cells <- if (has_mae) nrow(SummarizedExperiment::colData(ScIGMA_data$mae)) else "No data loaded"
-            val_dna   <- if (has_mae) nrow(ScIGMA_data$mae[["dna_variants"]]) else "No data loaded"
-            val_cnv   <- if (has_mae) nrow(ScIGMA_data$mae[["amplicons"]]) else "No data loaded"
+            val_dna <- if (has_mae) nrow(ScIGMA_data$mae[["dna_variants"]]) else "No data loaded"
+            val_cnv <- if (has_mae) nrow(ScIGMA_data$mae[["amplicons"]]) else "No data loaded"
 
             val_prot <- if (!has_mae) {
                 "No data loaded"
@@ -166,31 +180,35 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             }
 
             fluidRow(
-                column(3,
-                       card(
-                           card_header("Number of cells"),
-                           card_body(
-                               p(val_cells, style = "text-align:center")
-                           )
-                       )
+                column(
+                    3,
+                    card(
+                        card_header("Number of cells"),
+                        card_body(
+                            p(val_cells, style = "text-align:center")
+                        )
+                    )
                 ),
-                column(3,
-                       card(
-                           card_header("DNA variants"),
-                           p(val_dna, style = "text-align:center")
-                       )
+                column(
+                    3,
+                    card(
+                        card_header("DNA variants"),
+                        p(val_dna, style = "text-align:center")
+                    )
                 ),
-                column(3,
-                       card(
-                           card_header("Number of amplicons"),
-                           p(val_cnv, style = "text-align:center")
-                       )
+                column(
+                    3,
+                    card(
+                        card_header("Number of amplicons"),
+                        p(val_cnv, style = "text-align:center")
+                    )
                 ),
-                column(3,
-                       card(
-                           card_header("Number of proteins"),
-                           p(val_prot, style = "text-align:center")
-                       )
+                column(
+                    3,
+                    card(
+                        card_header("Number of proteins"),
+                        p(val_prot, style = "text-align:center")
+                    )
                 )
             )
         })
@@ -200,54 +218,57 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         output$preprocess <- renderUI({
             watch("dataLoaded")
             message(whereami::whereami())
-            if(!is.null(ScIGMA_data)){
+            if (!is.null(ScIGMA_data)) {
                 tagList(
                     fluidRow(
                         h5("Filter Cells and DNA variants:"),
-
                         div(
                             HTML("DNA Variant filtering step has two parameters : </br>"),
                             align = "justify"
                         )
                     ),
                     fluidRow(
-                        column(6,
-                               div(
-                                   HTML("<b>min.cell.pt</b>	Minimum threshold for cell percentage that has valid
-                                   variant call (GT = 0, 1 or 2) after
-              applying the filter. When to change: If the variant of interest is in a high GC content
-              region, then PCR amplification is hard. In such cases, you may choose to decrease the percent to 30 or 40
-              so that your interested variant could come through the filter.</br>"),
-                                   align = "justify"
-                               ),
-                               div(
-                                   sliderTextInput(
-                                       inputId = ns("overview_preprocess_minCellPt"),
-                                       label = "min.cell.pt",
-                                       choices = seq(1, 100,1),
-                                       grid = TRUE,
-                                       selected = 50
-                                   ),
-                                   align = "center")
+                        column(
+                            6,
+                            div(
+                                HTML("<b>min.cell.pt</b>	Minimum threshold for cell percentage that has valid
+                                    variant call (GT = 0, 1 or 2) after
+                applying the filter. When to change: If the variant of interest is in a high GC content
+                region, then PCR amplification is hard. In such cases, you may choose to decrease the percent to 30 or 40
+                so that your interested variant could come through the filter.</br>"),
+                                align = "justify"
+                            ),
+                            div(
+                                sliderTextInput(
+                                    inputId = ns("overview_preprocess_minCellPt"),
+                                    label = "min.cell.pt",
+                                    choices = seq(1, 100, 1),
+                                    grid = TRUE,
+                                    selected = 50
+                                ),
+                                align = "center"
+                            )
                         ),
-                        column(6,
-                               div(
-                                   HTML("<b>min.mut.cell.pt</b>
-                                   Minimum threshold for cell percentage that has mutated genotype (GT = 1 or 2) after
-              applying the filter.
-              When to change: If you know the variant is rare in the data, then you could try lower threshold to try to
-              keep the variant in your dataset."),
-                                   align = "justify"
-                               ),
-                               div(
-                               sliderTextInput(
-                                   inputId = ns("overview_preprocess_minMutCellPt"),
-                                   label = "min.mut.cell.pt",
-                                   choices = seq(1, 30, 1),
-                                   grid = TRUE,
-                                   selected = 1
-                               ),
-                               align = "center")
+                        column(
+                            6,
+                            div(
+                                HTML("<b>min.mut.cell.pt</b>
+                                    Minimum threshold for cell percentage that has mutated genotype (GT = 1 or 2) after
+                applying the filter.
+                When to change: If you know the variant is rare in the data, then you could try lower threshold to try to
+                keep the variant in your dataset."),
+                                align = "justify"
+                            ),
+                            div(
+                                sliderTextInput(
+                                    inputId = ns("overview_preprocess_minMutCellPt"),
+                                    label = "min.mut.cell.pt",
+                                    choices = seq(1, 30, 1),
+                                    grid = TRUE,
+                                    selected = 1
+                                ),
+                                align = "center"
+                            )
                         )
                     ),
                     fluidRow(
@@ -266,7 +287,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                     h5("No data provided")
                 )
             }
-
         })
 
         # --------------------------------------------------------------- #
@@ -296,20 +316,23 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
             # ---------------------------- #
             # Execute Pipeline: Filter + Annotate + Proportions
-            temp_scigma_obj <- tryCatch({
-                filter_and_annotate_variants(
-                    obj = ScIGMA_data,
-                    paths = get_config_paths(), # Safely access config paths
-                    min_cell_pt = overview_preprocess_minCellPt,
-                    min_mut_cell_pt = overview_preprocess_minMutCellPt
-                )
-            }, error = function(e) {
-                remove_modal_spinner()
-                # print(e)
-                message("Error during DNA variant filtering and annotation")
-                shiny::showNotification(e$message, type = "error", duration = 10)
-                req(FALSE)
-            })
+            temp_scigma_obj <- tryCatch(
+                {
+                    filter_and_annotate_variants(
+                        obj = ScIGMA_data,
+                        paths = get_config_paths(), # Safely access config paths
+                        min_cell_pt = overview_preprocess_minCellPt,
+                        min_mut_cell_pt = overview_preprocess_minMutCellPt
+                    )
+                },
+                error = function(e) {
+                    remove_modal_spinner()
+                    # print(e)
+                    message("DNA variant filtering and annotation failed")
+                    shiny::showNotification(e$message, type = "error", duration = 10)
+                    req(FALSE)
+                }
+            )
 
             # ---------------------------- #
             # Update Global R6 Reference
@@ -320,7 +343,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
 
 
             # Normalize protein and perform PCA
-            if (ScIGMA_data$filetype == "DNA+protein"){
+            if (ScIGMA_data$filetype == "DNA+protein") {
                 message("Preprocessing protein data ...")
 
                 safe_rownames <- sanitize_protein_markers(rownames(ScIGMA_data$mae[["proteins"]]))
@@ -349,18 +372,20 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
             watch("dataLoaded")
             message(whereami::whereami())
 
-            if (is.null(ScIGMA_data$mae)) return(NULL)
+            if (is.null(ScIGMA_data$mae)) {
+                return(NULL)
+            }
 
             filter_status <- S4Vectors::metadata(ScIGMA_data$mae)$variant_filter
 
             if (is.null(filter_status) || filter_status != "filtered") {
                 fluidRow(
                     h5("DNA variant filtering results:"),
-                    div("Data not filtered yet", align ="center")
+                    div("Data not filtered yet", align = "center")
                 )
             } else {
                 # Extraction des dimensions POST-filtrage
-                current_cells <-ncol(ScIGMA_data$mae[["dna_variants"]])
+                current_cells <- ncol(ScIGMA_data$mae[["dna_variants"]])
                 current_variants <- nrow(ScIGMA_data$mae[["dna_variants"]])
 
                 initial_cells <- ncol(ScIGMA_data$mae_raw[["dna_variants"]])
@@ -369,19 +394,22 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
                 tagList(
                     fluidRow(
                         h5("DNA variant filtering results:"),
-                        column(6,
-                               HTML(
-                                   paste0("Number of cells removed: ", initial_cells - current_cells, "</br>"),
-                                   paste0("Number of DNA variants removed: ", initial_variants - current_variants)
-                               )
+                        column(
+                            6,
+                            HTML(
+                                paste0("Number of cells removed: ", initial_cells - current_cells, "</br>"),
+                                paste0("Number of DNA variants removed: ", initial_variants - current_variants)
+                            )
                         ),
                         column(6,
-                               div(
-                                   HTML(
-                                       paste0("Actual number of cells: ", current_cells, "</br>"),
-                                       paste0("Actual number of DNA variants : ", current_variants)
-                                   )
-                               ), align = "justify")
+                            div(
+                                HTML(
+                                    paste0("Actual number of cells: ", current_cells, "</br>"),
+                                    paste0("Actual number of DNA variants : ", current_variants)
+                                )
+                            ),
+                            align = "justify"
+                        )
                     )
                 )
             }
@@ -392,7 +420,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data){
         observeEvent(input$compass_bttn, {
             req(ScIGMA_data$mae)
         })
-
     })
 }
 

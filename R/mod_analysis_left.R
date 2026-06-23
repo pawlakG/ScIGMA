@@ -14,16 +14,20 @@ mod_analysis_left_ui <- function(id) {
     add_busy_spinner(spin = "fading-circle", color = "#112446")
     tagList(
         fileInput(ns("file_h5file"),
-                  label = "1. Upload you H5 file.",
-                  accept = ".h5"),
+            label = "1. Upload you H5 file.",
+            accept = ".h5"
+        ),
         textInput(ns("file_name"),
-                  label = "2. Enter a name for your assay",
-                  value = ""),
+            label = "2. Enter a name for your assay",
+            value = ""
+        ),
         radioGroupButtons(
             inputId = ns("file_fileType"),
             label = "3. DNA or DNA+protein ?",
-            choices = c("DNA only"="DNA",
-                        "DNA & protein"="DNA+protein"),
+            choices = c(
+                "DNA only" = "DNA",
+                "DNA & protein" = "DNA+protein"
+            ),
             justified = TRUE
         ),
         h6(HTML("4. Process")),
@@ -42,8 +46,8 @@ mod_analysis_left_ui <- function(id) {
 #'
 #' @noRd
 #' @importFrom gargoyle  init
-mod_analysis_left_server <- function(id, ScIGMA_data){
-    moduleServer(id, function(input, output, session){
+mod_analysis_left_server <- function(id, ScIGMA_data) {
+    moduleServer(id, function(input, output, session) {
         ns <- session$ns
         # --------------------------------------------------------------- #
         # Init watcher
@@ -54,7 +58,7 @@ mod_analysis_left_server <- function(id, ScIGMA_data){
         # Uploaded file
         message(whereami::whereami())
 
-        observeEvent(input$file_process,{
+        observeEvent(input$file_process, {
             filePath <- input$file_h5file$datapath
             sampleName <- input$file_name
             fileType <- input$file_fileType
@@ -66,22 +70,28 @@ mod_analysis_left_server <- function(id, ScIGMA_data){
             if (file.exists(filePath)) {
                 if (file.info(filePath)$isdir) {
                     ScIGMA_data$data <- tryCatch(
-                        loadH5_dir_HDF5(dir = filePath,
-                                    feature_policy = "intersect",
-                                    omic.type = fileType),
-                        error = function(e){
+                        loadH5_dir_HDF5(
+                            dir = filePath,
+                            feature_policy = "intersect",
+                            omic.type = fileType
+                        ),
+                        error = function(e) {
                             message("Error during loadH5")
                             stop(e$message)
-                        })
+                        }
+                    )
                 } else {
                     ScIGMA_data$data <- tryCatch(
-                        loadH5_HDF5(filepath = filePath,
-                                    sample.name = sampleName,
-                                    omic.type = fileType),
-                        error = function(e){
+                        loadH5_HDF5(
+                            filepath = filePath,
+                            sample.name = sampleName,
+                            omic.type = fileType
+                        ),
+                        error = function(e) {
                             message("Error during loadH5")
                             stop(e$message)
-                        })
+                        }
+                    )
                 }
             } else {
                 stop("File or folder path doesn't exists\n")

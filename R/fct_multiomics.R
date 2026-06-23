@@ -7,7 +7,7 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     if (use_compass) {
         # imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
         # imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
-        imputed_mtx <-  SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
+        imputed_mtx <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
 
         if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
             variant_vector <- imputed_mtx[variant_id, ]
@@ -19,7 +19,9 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
         variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
     }
 
-    extracted_df <- variant_vector |> as.data.frame() |> rownames_to_column("cell_barcode")
+    extracted_df <- variant_vector |>
+        as.data.frame() |>
+        rownames_to_column("cell_barcode")
     message("inside extract_variant before mutate variant_vector")
     # print(head(extracted_df))
     # print(str(extracted_df))
@@ -27,10 +29,11 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     message("\n")
 
     extracted_df <- extracted_df %>% dplyr::mutate(variant_vector = dplyr::recode(variant_vector,
-                                                                                  "0" = "WT",
-                                                                                  "1" = "HET",
-                                                                                  "2" = "HOM",
-                                                                                  "3" = "Missing/ADO"))
+        "0" = "WT",
+        "1" = "HET",
+        "2" = "HOM",
+        "3" = "Missing/ADO"
+    ))
     colnames(extracted_df)[colnames(extracted_df) == "variant_vector"] <- "Variant_Genotype"
     colnames(extracted_df)[colnames(extracted_df) == "cell_barcode"] <- "Barcode"
     message("inside extract_variant after mutate variant_vector")
@@ -49,11 +52,10 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
 #' @param use_compass Logical to use imputed data
 #' @noRd
 compute_population_genotype_distribution <- function(mae_data,
-                                                     variant_ids,
-                                                     cell_barcodes,
-                                                     use_compass,
-                                                     seurat_cluster = NULL) {
-
+                                                    variant_ids,
+                                                    cell_barcodes,
+                                                    use_compass,
+                                                    seurat_cluster = NULL) {
     if (use_compass) {
         mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
     } else {
@@ -62,22 +64,25 @@ compute_population_genotype_distribution <- function(mae_data,
 
     # 2. Filtrage et Extraction (Garder uniquement les cellules de la gate)
     common_cells <- intersect(cell_barcodes, colnames(mtx_source))
-    if (length(common_cells) == 0) return(data.frame())
+    if (length(common_cells) == 0) {
+        return(data.frame())
+    }
 
     sub_mtx <- mtx_source[variant_ids, common_cells, drop = FALSE]
 
     dist_df <- as.data.frame(as.matrix(sub_mtx)) |>
         tibble::rownames_to_column("Variant_ID") |>
-        tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code")|>
+        tidyr::pivot_longer(-Variant_ID, names_to = "Barcode", values_to = "Code") |>
         dplyr::mutate(
             Variant_Genotype = dplyr::recode(as.character(Code),
-                                             "0" = "WT", "1" = "HET",
-                                             "2" = "HOM", "3" = "Missing/ADO")
+                "0" = "WT", "1" = "HET",
+                "2" = "HOM", "3" = "Missing/ADO"
+            )
         )
 
-    if (is.null(seurat_cluster)){
+    if (is.null(seurat_cluster)) {
         final_stats <- dist_df |>
-            dplyr::group_by(Variant_ID, Variant_Genotype)|>
+            dplyr::group_by(Variant_ID, Variant_Genotype) |>
             dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
             dplyr::group_by(Variant_ID)
     } else {
@@ -86,12 +91,12 @@ compute_population_genotype_distribution <- function(mae_data,
                 Cluster = seurat_cluster[Barcode]
             )
         final_stats <- dist_df |>
-            dplyr::group_by(Variant_ID, Cluster, Variant_Genotype)|>
+            dplyr::group_by(Variant_ID, Cluster, Variant_Genotype) |>
             dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
             dplyr::group_by(Variant_ID, Cluster)
     }
 
-    final_stats <- final_stats  |>
+    final_stats <- final_stats |>
         dplyr::mutate(
             Total_In_Variant = sum(Count),
             Percentage = (Count / Total_In_Variant) * 100

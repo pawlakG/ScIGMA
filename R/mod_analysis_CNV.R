@@ -15,8 +15,8 @@ mod_analysis_CNV_ui <- function(id) {
 #' analysis_right_CNV Server Functions
 #'
 #' @noRd
-mod_analysis_CNV_server <- function(id, ScIGMA_data){
-    moduleServer(id, function(input, output, session){
+mod_analysis_CNV_server <- function(id, ScIGMA_data) {
+    moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
         prev_plot_type <- shiny::reactiveVal("Heatmap")
@@ -167,67 +167,71 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
 
 
         # UI for plot parameters
-        observeEvent({
-            watch("CNV_filtered")
-        },{
-            output$cnv_plot_parameters <- renderUI({
+        observeEvent(
+            {
+                watch("CNV_filtered")
+            },
+            {
+                output$cnv_plot_parameters <- renderUI({
+                    if (is.null(ScIGMA_data$cnv_dp_filtered)) {
+                        return(NULL)
+                    } else {
+                        clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
+                        clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
 
-                if (is.null(ScIGMA_data$cnv_dp_filtered)){
-                    return(NULL)
-                } else {
-                    clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
-                    clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
-
-                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-
-                    tagList(
-                        fluidRow(
-                            column(4, pickerInput(
-                                inputId = ns("cnv_diploidClone"),
-                                label = "Diploid clone in DNA",
-                                choices = clone_choices,
-                                options = pickerOptions(container = "body"),
-                                width = "100%"
-                            )),
-                            column(4,pickerInput(
-                                inputId = ns("cnv_plotType"),
-                                label = "Plot Type",
-                                choices = c("Heatmap", "Lineplot"),
-                                options = pickerOptions(container = "body"),
-                                width = "100%"
-                            )),
-                            column(4,pickerInput(
-                                inputId = ns("cnv_xAxis"),
-                                label = "X-axis",
-                                choices = sort_genomic_chromosomes(cnv_id_table$chrom),
-                                multiple = TRUE,
-                                options = pickerOptions(container = "body"),
-                                width = "100%"
-                            ))
-                        )
-                    )
-                }
-            })
-
-            session$onFlushed(function() {
-                isolate(trigger("CNV_ui_cnv_plot_parameters_rendered"))
-            }, once = TRUE)
-        })
-
-        # Render supplementary plot parameters
-        observeEvent({
-            watch("CNV_ui_cnv_plot_parameters_rendered")
-        },{
-            message("Rendering cnv_plot_additionalParameters")
-            output$cnv_plot_additionalParameters <- renderUI({
-                if(is.null(input$cnv_plotType)){
-                    return(NULL)
-                } else {
-                    clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
-                    clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
+                        cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
 
                         tagList(
-                            if (input$cnv_plotType == "Heatmap"){
+                            fluidRow(
+                                column(4, pickerInput(
+                                    inputId = ns("cnv_diploidClone"),
+                                    label = "Diploid clone in DNA",
+                                    choices = clone_choices,
+                                    options = pickerOptions(container = "body"),
+                                    width = "100%"
+                                )),
+                                column(4, pickerInput(
+                                    inputId = ns("cnv_plotType"),
+                                    label = "Plot Type",
+                                    choices = c("Heatmap", "Lineplot"),
+                                    options = pickerOptions(container = "body"),
+                                    width = "100%"
+                                )),
+                                column(4, pickerInput(
+                                    inputId = ns("cnv_xAxis"),
+                                    label = "X-axis",
+                                    choices = sort_genomic_chromosomes(cnv_id_table$chrom),
+                                    multiple = TRUE,
+                                    options = pickerOptions(container = "body"),
+                                    width = "100%"
+                                ))
+                            )
+                        )
+                    }
+                })
+
+                session$onFlushed(function() {
+                    isolate(trigger("CNV_ui_cnv_plot_parameters_rendered"))
+                }, once = TRUE)
+            }
+        )
+
+        # Render supplementary plot parameters
+        observeEvent(
+            {
+                watch("CNV_ui_cnv_plot_parameters_rendered")
+            },
+            {
+                message("Rendering cnv_plot_additionalParameters")
+                output$cnv_plot_additionalParameters <- renderUI({
+                    if (is.null(input$cnv_plotType)) {
+                        return(NULL)
+                    } else {
+                        clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
+                        clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
+
+                        tagList(
+                            if (input$cnv_plotType == "Heatmap") {
                                 fluidRow(
                                     column(4, pickerInput(
                                         inputId = ns("cnv_xAxis_projection"),
@@ -257,19 +261,22 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                                 )
                             }
                         )
-                }
-            })
+                    }
+                })
 
-            session$onFlushed(function() {
-                isolate(trigger("CNV_ui_cnv_plot_additionalParameters_rendered"))
-            }, once = TRUE)
-        })
-
+                session$onFlushed(function() {
+                    isolate(trigger("CNV_ui_cnv_plot_additionalParameters_rendered"))
+                }, once = TRUE)
+            }
+        )
 
 
         # When user change a parameter value
-        observeEvent({input$cnv_filter_button
-            watch("dna_clones_renamed")},
+        observeEvent(
+            {
+                input$cnv_filter_button
+                watch("dna_clones_renamed")
+            },
             ignoreInit = TRUE,
             handlerExpr = {
                 message("Filtering cnv ...")
@@ -301,15 +308,16 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                 # Store values
                 cnv_ampCompleteness <- input$cnv_ampCompleteness
                 cnv_ampReadDepth <- input$cnv_ampReadDepth
-                #cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
+                # cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
                 cnv_meanCellReadDepth <- 10
 
                 # Filters (Remplacement de ScIGMA_data$dna.clones par active_clones)
                 filtered_data <- filter_cnv_profile(ScIGMA_data,
-                                                    active_clones,
-                                                    amp_completeness = cnv_ampCompleteness,
-                                                    amp_readDepth = cnv_ampReadDepth,
-                                                    amp_meanCellRead = cnv_meanCellReadDepth)
+                    active_clones,
+                    amp_completeness = cnv_ampCompleteness,
+                    amp_readDepth = cnv_ampReadDepth,
+                    amp_meanCellRead = cnv_meanCellReadDepth
+                )
 
                 ScIGMA_data$cnv_dp_filtered <- filtered_data
                 ScIGMA_data$is_cnv_filtered <- TRUE
@@ -326,181 +334,203 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data){
                     inputId = "cnv_lineplot_cluster",
                     choices = clone_choices
                 )
-            })
+            }
+        )
 
         # Observe event for ploidy computation
-        observeEvent(input$cnv_diploidClone,
-                     {
-                         req(input$cnv_diploidClone)
-                         req(ScIGMA_data$cnv_dp_filtered)
-                         message("Recomputing ploidy ...")
+        observeEvent(input$cnv_diploidClone, {
+            req(input$cnv_diploidClone)
+            req(ScIGMA_data$cnv_dp_filtered)
+            message("Recomputing ploidy ...")
 
-                         clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
+            clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
 
-                         ploidy_data <- process_cnv_to_clonal_profile(
-                             ScIGMA_data$cnv_dp_filtered,
-                             clones_to_use,
-                             diploid_ref = input$cnv_diploidClone,
-                             exclude_clone = "small"
-                         )
-
-                         # Change R6 object
-                         ScIGMA_data$ploidy.mtx <- ploidy_data
-
-                         trigger("CNV_ploidy_computed")
-                     })
-
-        observeEvent({
-            watch("CNV_ploidy_computed")
-            input$cnv_xAxis_projection
-            input$cnv_plotType
-        }, {
-            req(ScIGMA_data$ploidy.mtx)
-
-            plot_type_changed <- input$cnv_plotType != prev_plot_type()
-            prev_plot_type(input$cnv_plotType)
-
-            if (is.null(input$cnv_xAxis_projection) || input$cnv_xAxis_projection == "Position") {
-                cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-                new_choices <- sort_genomic_chromosomes(cnv_id_table$chrom)
-                label_text <- "Select Chromosome(s)"
-            } else {
-                new_choices <- render_annotation_table(obj = ScIGMA_data, ploidy_data = ScIGMA_data$ploidy.mtx)$symbol |>
-                    unique() |> sort()
-                label_text <- "Select Gene(s)"
-            }
-
-            current_sel <- isolate(input$cnv_xAxis)
-
-            final_selection <- if(plot_type_changed) NULL else current_sel[current_sel %in% new_choices]
-
-            shinyWidgets::updatePickerInput(
-                session = session,
-                inputId = "cnv_xAxis",
-                label = label_text,
-                choices = new_choices,
-                selected = final_selection
+            ploidy_data <- process_cnv_to_clonal_profile(
+                ScIGMA_data$cnv_dp_filtered,
+                clones_to_use,
+                diploid_ref = input$cnv_diploidClone,
+                exclude_clone = "small"
             )
-        }, ignoreInit = TRUE)
 
-        observeEvent({
-            watch("CNV_ploidy_computed")
-            watch("CNV_ui_cnv_plot_additionalParameters_rendered")
-            list(input$cnv_plotType,
-                 input$cnv_xAxis_projection,
-                 input$cnv_xAxis,
-                 input$cnv_xAxis_projection,
-                 input$cnv_lineplot_cluster)
-        },
-        {
-            req(input$cnv_plotType, ScIGMA_data$ploidy.mtx)
+            # Change R6 object
+            ScIGMA_data$ploidy.mtx <- ploidy_data
 
-            cnv_plotType <- input$cnv_plotType
-            cnv_xAxis <- input$cnv_xAxis
-
-            if (cnv_plotType == "Heatmap") {
-                output$dynamic_plot_container <- renderUI({plotOutput(ns("static_plot"))})
-
-                cnv_heatmap_type <- input$cnv_xAxis_projection
-                show_genes <- (!is.null(cnv_heatmap_type) && cnv_heatmap_type != "Position")
-
-                # --- Filtrage Heatmap ---
-                filtered_ploidy <- ScIGMA_data$ploidy.mtx
-                if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
-                    mat_data_tmp <- t(filtered_ploidy)
-                    cnv_id_table_tmp <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-                    genome_v_tmp <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
-                    if (is.null(genome_v_tmp)) genome_v_tmp <- "hg19"
-
-                    tmp_var <- cnv_id_table_tmp |> dplyr::filter(dna_id %in% colnames(mat_data_tmp))
-
-                    is_chr_focus <- any(grepl("^chr([0-9]+|[XYM])$", cnv_xAxis, ignore.case = TRUE))
-
-                    if (!is_chr_focus) {
-                        tmp_annot <- annotate_genomic_regions(region_data = tmp_var, build = genome_v_tmp)
-                        valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
-                        show_genes <- TRUE
-                    } else {
-                        tmp_var$chr_lit <- paste0("chr", tmp_var$chrom)
-                        valid_ids <- tmp_var$dna_id[tmp_var$chr_lit %in% cnv_xAxis]
-                        show_genes <- FALSE
-                    }
-                    filtered_ploidy <- t(mat_data_tmp[, colnames(mat_data_tmp) %in% valid_ids, drop=FALSE])
-                }
-
-                shiny::validate(
-                    shiny::need(ncol(filtered_ploidy) >= 2 && nrow(filtered_ploidy) >= 2,
-                                "Selection too narrow. Requires at least 2 cells and 2 amplicons."),
-                    shiny::need(sd(as.vector(filtered_ploidy), na.rm = TRUE) > 0,
-                                "Zero variance detected. All cells have the exact same copy number in this region.")
-                )
-
-                tmp_ht <- plot_cnv_heatmap(obj = ScIGMA_data,
-                                           ploidy_data = filtered_ploidy,
-                                           display_gene = show_genes)
-                output$static_plot <- renderPlot(tmp_ht)
-
-            } else {
-                # Lineplot
-                output$dynamic_plot_container <- renderUI({plotlyOutput(ns("interactive_plot"), height = "600px")})
-
-                req(input$cnv_xAxis_projection, input$cnv_lineplot_cluster)
-                cnv_lineplot_type <- input$cnv_xAxis_projection
-                cnv_lineplot_cluster <- input$cnv_lineplot_cluster
-
-                mat_data <- t(ScIGMA_data$ploidy.mtx)
-                cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-                genome_v <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
-                if (is.null(genome_v)) genome_v <- "hg19"
-
-                tmp_var_table <- cnv_id_table |>
-                    dplyr::filter(dna_id %in% colnames(mat_data)) |>
-                    dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
-                    dplyr::mutate(chr_lit = paste0("chr", chrom))
-
-                # --- Filtrage Lineplot ---
-                if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
-                    is_chr <- any(grepl("^chr", cnv_xAxis, ignore.case = TRUE))
-
-                    if (is_chr) {
-                        tmp_var_table <- tmp_var_table |> dplyr::filter(chr_lit %in% cnv_xAxis)
-                    } else {
-                        tmp_annot <- annotate_genomic_regions(region_data = tmp_var_table, build = genome_v)
-                        valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
-                        tmp_var_table <- tmp_var_table |> dplyr::filter(dna_id %in% valid_ids)
-                    }
-                }
-
-                shiny::validate(
-                    shiny::need(nrow(tmp_var_table) >= 2,
-                                "The selected region contains fewer than 2 amplicons. Please expand your selection to view the Lineplot.")
-                )
-
-                mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
-
-                tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
-                sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
-
-                tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
-
-                gene_annotation <- data.frame('Gene' = tmp_split_vec$symbol,
-                                             'Chromosome' = tmp_split_vec$chrom,
-                                             'Probe' = tmp_split_vec$dna_id,
-                                             'Chrom_pos' = factor(tmp_split_vec$chr_lit,
-                                                                  levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))),
-                                             'Chrom_start' = tmp_split_vec$start_pos)
-
-                tmp_plot <- plot_cnv_genome(cnv_matrix = mat_data,
-                                            sub_indices = cnv_lineplot_cluster,
-                                            gene_annotation = gene_annotation,
-                                            lineplot_type = cnv_lineplot_type)
-
-                output$interactive_plot <- renderPlotly(tmp_plot)
-            }
+            trigger("CNV_ploidy_computed")
         })
 
+        observeEvent(
+            {
+                watch("CNV_ploidy_computed")
+                input$cnv_xAxis_projection
+                input$cnv_plotType
+            },
+            {
+                req(ScIGMA_data$ploidy.mtx)
 
+                plot_type_changed <- input$cnv_plotType != prev_plot_type()
+                prev_plot_type(input$cnv_plotType)
 
+                if (is.null(input$cnv_xAxis_projection) || input$cnv_xAxis_projection == "Position") {
+                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+                    new_choices <- sort_genomic_chromosomes(cnv_id_table$chrom)
+                    label_text <- "Select Chromosome(s)"
+                } else {
+                    new_choices <- render_annotation_table(obj = ScIGMA_data, ploidy_data = ScIGMA_data$ploidy.mtx)$symbol |>
+                        unique() |>
+                        sort()
+                    label_text <- "Select Gene(s)"
+                }
+
+                current_sel <- isolate(input$cnv_xAxis)
+
+                final_selection <- if (plot_type_changed) NULL else current_sel[current_sel %in% new_choices]
+
+                shinyWidgets::updatePickerInput(
+                    session = session,
+                    inputId = "cnv_xAxis",
+                    label = label_text,
+                    choices = new_choices,
+                    selected = final_selection
+                )
+            },
+            ignoreInit = TRUE
+        )
+
+        observeEvent(
+            {
+                watch("CNV_ploidy_computed")
+                watch("CNV_ui_cnv_plot_additionalParameters_rendered")
+                list(
+                    input$cnv_plotType,
+                    input$cnv_xAxis_projection,
+                    input$cnv_xAxis,
+                    input$cnv_xAxis_projection,
+                    input$cnv_lineplot_cluster
+                )
+            },
+            {
+                req(input$cnv_plotType, ScIGMA_data$ploidy.mtx)
+
+                cnv_plotType <- input$cnv_plotType
+                cnv_xAxis <- input$cnv_xAxis
+
+                if (cnv_plotType == "Heatmap") {
+                    output$dynamic_plot_container <- renderUI({
+                        plotOutput(ns("static_plot"))
+                    })
+
+                    cnv_heatmap_type <- input$cnv_xAxis_projection
+                    show_genes <- (!is.null(cnv_heatmap_type) && cnv_heatmap_type != "Position")
+
+                    # --- Filtrage Heatmap ---
+                    filtered_ploidy <- ScIGMA_data$ploidy.mtx
+                    if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
+                        mat_data_tmp <- t(filtered_ploidy)
+                        cnv_id_table_tmp <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+                        genome_v_tmp <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
+                        if (is.null(genome_v_tmp)) genome_v_tmp <- "hg19"
+
+                        tmp_var <- cnv_id_table_tmp |> dplyr::filter(dna_id %in% colnames(mat_data_tmp))
+
+                        is_chr_focus <- any(grepl("^chr([0-9]+|[XYM])$", cnv_xAxis, ignore.case = TRUE))
+
+                        if (!is_chr_focus) {
+                            tmp_annot <- annotate_genomic_regions(region_data = tmp_var, build = genome_v_tmp)
+                            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
+                            show_genes <- TRUE
+                        } else {
+                            tmp_var$chr_lit <- paste0("chr", tmp_var$chrom)
+                            valid_ids <- tmp_var$dna_id[tmp_var$chr_lit %in% cnv_xAxis]
+                            show_genes <- FALSE
+                        }
+                        filtered_ploidy <- t(mat_data_tmp[, colnames(mat_data_tmp) %in% valid_ids, drop = FALSE])
+                    }
+
+                    shiny::validate(
+                        shiny::need(
+                            ncol(filtered_ploidy) >= 2 && nrow(filtered_ploidy) >= 2,
+                            "Selection too narrow. Requires at least 2 cells and 2 amplicons."
+                        ),
+                        shiny::need(
+                            sd(as.vector(filtered_ploidy), na.rm = TRUE) > 0,
+                            "Zero variance detected. All cells have the exact same copy number in this region."
+                        )
+                    )
+
+                    tmp_ht <- plot_cnv_heatmap(
+                        obj = ScIGMA_data,
+                        ploidy_data = filtered_ploidy,
+                        display_gene = show_genes
+                    )
+                    output$static_plot <- renderPlot(tmp_ht)
+                } else {
+                    # Lineplot
+                    output$dynamic_plot_container <- renderUI({
+                        plotlyOutput(ns("interactive_plot"), height = "600px")
+                    })
+
+                    req(input$cnv_xAxis_projection, input$cnv_lineplot_cluster)
+                    cnv_lineplot_type <- input$cnv_xAxis_projection
+                    cnv_lineplot_cluster <- input$cnv_lineplot_cluster
+
+                    mat_data <- t(ScIGMA_data$ploidy.mtx)
+                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+                    genome_v <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
+                    if (is.null(genome_v)) genome_v <- "hg19"
+
+                    tmp_var_table <- cnv_id_table |>
+                        dplyr::filter(dna_id %in% colnames(mat_data)) |>
+                        dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+                        dplyr::mutate(chr_lit = paste0("chr", chrom))
+
+                    # --- Filtrage Lineplot ---
+                    if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
+                        is_chr <- any(grepl("^chr", cnv_xAxis, ignore.case = TRUE))
+
+                        if (is_chr) {
+                            tmp_var_table <- tmp_var_table |> dplyr::filter(chr_lit %in% cnv_xAxis)
+                        } else {
+                            tmp_annot <- annotate_genomic_regions(region_data = tmp_var_table, build = genome_v)
+                            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
+                            tmp_var_table <- tmp_var_table |> dplyr::filter(dna_id %in% valid_ids)
+                        }
+                    }
+
+                    shiny::validate(
+                        shiny::need(
+                            nrow(tmp_var_table) >= 2,
+                            "The selected region contains fewer than 2 amplicons. Please expand your selection to view the Lineplot."
+                        )
+                    )
+
+                    mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
+
+                    tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+                    sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
+
+                    tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
+
+                    gene_annotation <- data.frame(
+                        "Gene" = tmp_split_vec$symbol,
+                        "Chromosome" = tmp_split_vec$chrom,
+                        "Probe" = tmp_split_vec$dna_id,
+                        "Chrom_pos" = factor(tmp_split_vec$chr_lit,
+                            levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))
+                        ),
+                        "Chrom_start" = tmp_split_vec$start_pos
+                    )
+
+                    tmp_plot <- plot_cnv_genome(
+                        cnv_matrix = mat_data,
+                        sub_indices = cnv_lineplot_cluster,
+                        gene_annotation = gene_annotation,
+                        lineplot_type = cnv_lineplot_type
+                    )
+
+                    output$interactive_plot <- renderPlotly(tmp_plot)
+                }
+            }
+        )
     })
 }
 

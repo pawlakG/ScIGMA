@@ -20,6 +20,9 @@ loadH5_HDF5(
 
 \item{block.size}{Target DelayedArray block size in bytes (e.g., `100e6`).}
 }
+\value{
+A \code{ScIGMA_object} backed by HDF5.
+}
 \description{
 `ScIGMA_object` is an R6 class designed to manage large single-cell
 allowing out-of-memory processing and block-wise computation without

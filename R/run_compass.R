@@ -19,22 +19,19 @@ NULL
 #'
 #' @return Logical TRUE on success.
 #' @noRd
-run_compass_mcmc <- function(
-        variant_matrices,
-        locus_regions,
-        region_matrix,
-        output_prefix = NULL,
-        locus_names,
-        locus_chromosomes,
-        region_names,
-        region_chromosomes,
-        cell_names = NULL,     # <-- NEW
-        chains = 4L,
-        chain_length = 5000L,
-        patient_sex = "female",
-        use_cna = TRUE
-) {
-
+run_compass_mcmc <- function(variant_matrices,
+                            locus_regions,
+                            region_matrix,
+                            output_prefix = NULL,
+                            locus_names,
+                            locus_chromosomes,
+                            region_names,
+                            region_chromosomes,
+                            cell_names = NULL, # <-- NEW
+                            chains = 4L,
+                            chain_length = 5000L,
+                            patient_sex = "female",
+                            use_cna = TRUE) {
     # 1. Automatic barcode extraction if not provided
     if (is.null(cell_names)) {
         cell_names <- colnames(variant_matrices$REF)
@@ -48,7 +45,7 @@ run_compass_mcmc <- function(
         dir.create(dirname(output_prefix), showWarnings = FALSE, recursive = TRUE)
     }
 
-    if ( length(region_matrix) == 0 || nrow(region_matrix) == 0 ) {
+    if (length(region_matrix) == 0 || nrow(region_matrix) == 0) {
         stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
     }
 
@@ -59,27 +56,30 @@ run_compass_mcmc <- function(
 
     message("Initializing COMPASS C++ backend (In-Memory)...")
 
-    execution_status <- tryCatch({
-        run_compass_inference_cpp(
-            ref_counts = variant_matrices$REF,
-            alt_counts = variant_matrices$ALT,
-            genotypes = variant_matrices$GT,
-            locus_region_mapping = as.integer(locus_regions),
-            region_counts = region_matrix,
-            locus_names = as.character(locus_names),
-            locus_chromosomes = as.character(locus_chromosomes),
-            region_names = as.character(region_names),
-            region_chromosomes = as.character(region_chromosomes),
-            cell_names = as.character(cell_names),
-            output_prefix = output_prefix,
-            n_chains = as.integer(chains),
-            chain_length = as.integer(chain_length),
-            use_cna = use_cna,
-            sex = patient_sex
-        )
-    }, error = function(e) {
-        stop(sprintf("Fatal C++ error: %s", e$message))
-    })
+    execution_status <- tryCatch(
+        {
+            run_compass_inference_cpp(
+                ref_counts = variant_matrices$REF,
+                alt_counts = variant_matrices$ALT,
+                genotypes = variant_matrices$GT,
+                locus_region_mapping = as.integer(locus_regions),
+                region_counts = region_matrix,
+                locus_names = as.character(locus_names),
+                locus_chromosomes = as.character(locus_chromosomes),
+                region_names = as.character(region_names),
+                region_chromosomes = as.character(region_chromosomes),
+                cell_names = as.character(cell_names),
+                output_prefix = output_prefix,
+                n_chains = as.integer(chains),
+                chain_length = as.integer(chain_length),
+                use_cna = use_cna,
+                sex = patient_sex
+            )
+        },
+        error = function(e) {
+            stop(sprintf("Fatal C++ execution: %s", e$message))
+        }
+    )
 
     output_files <- list(
         tree_dot           = paste0(output_prefix, "_tree.gv"),
@@ -104,5 +104,4 @@ run_compass_mcmc <- function(
     }
 
     return(output_files)
-
 }

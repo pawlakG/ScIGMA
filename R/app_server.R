@@ -30,26 +30,27 @@ app_server <- function(input, output, session) {
 
     # --------------------------------------------------------------- #
     # Initialize watchers
-    init("initApp",
-         "dataLoaded",
-         "dnaVariant_filtered",
-         "dnaVariant_selected",
-         "CNV_filtered",
-         "CNV_ploidy_computed",
-         "CNV_ui_cnv_plot_parameters_rendered",
-         "CNV_ui_cnv_plot_additionalParameters_rendered",
-         "launch_umap",
-         "umap_computed",
-         "dna_clones_renamed",
-         "compass_completed",
-         "multiomics_annotated",
-         "clusters_computed",
-         "gating_updated")
+    init(
+        "initApp",
+        "dataLoaded",
+        "dnaVariant_filtered",
+        "dnaVariant_selected",
+        "CNV_filtered",
+        "CNV_ploidy_computed",
+        "CNV_ui_cnv_plot_parameters_rendered",
+        "CNV_ui_cnv_plot_additionalParameters_rendered",
+        "launch_umap",
+        "umap_computed",
+        "dna_clones_renamed",
+        "compass_completed",
+        "multiomics_annotated",
+        "clusters_computed",
+        "gating_updated"
+    )
     # print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #
     # --------------------------------------------------------------- #
     on("dataLoaded", {
-
         # scenario_check <- isTRUE(ScIGMA_data$has_proteomics)
         # or
         # scenario_check <- ScIGMA_data$experiment_type == "multi_omics"
@@ -58,7 +59,7 @@ app_server <- function(input, output, session) {
         # print("ScIGMA_data$filetype app_server")
         # print(ScIGMA_data$filetype )
         if (ScIGMA_data$filetype == "DNA+protein") {
-                show_advanced_tabs <- TRUE
+            show_advanced_tabs <- TRUE
         } else {
             show_advanced_tabs <- FALSE
         }
@@ -101,5 +102,4 @@ app_server <- function(input, output, session) {
     # [ NODE_ACCESS : ABOUT ]
     # ----------------------------------------------------- _
     mod_about_panel_server("about_panel_1", ScIGMA_data)
-
 }

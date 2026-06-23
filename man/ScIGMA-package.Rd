@@ -6,10 +6,18 @@
 \alias{ScIGMA-package}
 \title{ScIGMA: ScIGMA – Single-cell Integrated Genomic & Multi-omics Analyzer}
 \description{
-PKG_DESC.
+Analyse targeted single-cell multi-omics data with an open-source, user-friendly R application that provides a code-free graphical user interface for the integrative analysis of paired single-cell DNA and surface protein datasets.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/pawlakG/ScIGMA}
+  \item Report bugs at \url{https://github.com/pawlakG/ScIGMA/issues}
+}
+
 }
 \author{
-\strong{Maintainer}: Geoffrey Pawlak \email{pawlak.geoffrey@gmail.com}
+\strong{Maintainer}: Geoffrey Pawlak \email{pawlak.geoffrey@gmail.com} (\href{https://orcid.org/0000-0001-8882-1441}{ORCID}) [funder]
 
 }
 \keyword{internal}

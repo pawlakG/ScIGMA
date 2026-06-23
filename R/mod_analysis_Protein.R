@@ -42,16 +42,23 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # ---------------------------------------------------------
         is_filtered_flag <- shiny::reactiveVal(FALSE)
 
-        observeEvent({
-            list(watch("dnaVariant_filtered"),
-                 watch("dataLoaded"))
-        }, {
-            if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
-                is_filtered_flag(TRUE)
-            } else {
-                is_filtered_flag(FALSE)
-            }
-        }, ignoreNULL = FALSE, ignoreInit = FALSE)
+        observeEvent(
+            {
+                list(
+                    watch("dnaVariant_filtered"),
+                    watch("dataLoaded")
+                )
+            },
+            {
+                if (!is.null(ScIGMA_data$protein.filtered) && isTRUE(ScIGMA_data$protein.filtered)) {
+                    is_filtered_flag(TRUE)
+                } else {
+                    is_filtered_flag(FALSE)
+                }
+            },
+            ignoreNULL = FALSE,
+            ignoreInit = FALSE
+        )
 
         output$protein_main_ui <- shiny::renderUI({
             watch("dnaVariant_filtered")
@@ -62,7 +69,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 card(
                     br(), br(),
                     h3("Please filter variant and cells first.",
-                       style = "text-align: center; color: #7f8c8d;"),
+                        style = "text-align: center; color: #7f8c8d;"
+                    ),
                     br(), br()
                 )
             } else {
@@ -85,7 +93,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 navset_card_underline(
                     id = ns("protein_tabs"),
                     selected = curr_tab,
-
                     nav_panel(
                         title = "Description",
                         value = "tab_description", # NEW : Identifiant interne du panneau
@@ -104,7 +111,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     ),
                     nav_panel(
                         title = "Immunophenotype Gating",
-                        value = "tab_biplot",      # NEW : Identifiant interne du panneau
+                        value = "tab_biplot", # NEW : Identifiant interne du panneau
                         fluidRow(
                             column(
                                 3,
@@ -112,21 +119,28 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     area = "sidebar",
                                     h3("Controls"),
                                     selectInput(ns("xvar"),
-                                                "Axe X",
-                                                choices = rownames(ScIGMA_data$mae[["proteins"]])),
+                                        "Axe X",
+                                        choices = rownames(ScIGMA_data$mae[["proteins"]])
+                                    ),
                                     selectInput(ns("yvar"),
-                                                "Axe Y",
-                                                choices = rownames(ScIGMA_data$mae[["proteins"]])),
-                                    checkboxInput(ns("logx"),
-                                                  "Log X",
-                                                  FALSE),
-                                    checkboxInput(ns("logy"),
-                                                  "Log Y",
-                                                  FALSE),
+                                        "Axe Y",
+                                        choices = rownames(ScIGMA_data$mae[["proteins"]])
+                                    ),
+                                    checkboxInput(
+                                        ns("logx"),
+                                        "Log X",
+                                        FALSE
+                                    ),
+                                    checkboxInput(
+                                        ns("logy"),
+                                        "Log Y",
+                                        FALSE
+                                    ),
                                     selectInput(ns("color_genotype"),
-                                                "Color by Genotype",
-                                                # choices = c("None", ScIGMA_data$variants.filtered$label)),
-                                                choices = c("None", levels(ScIGMA_data$dna.clones))),
+                                        "Color by Genotype",
+                                        # choices = c("None", ScIGMA_data$variants.filtered$label)),
+                                        choices = c("None", levels(ScIGMA_data$dna.clones))
+                                    ),
 
                                     # if ("compass_imputed" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["dna_variants"]])) {
                                     #     shinyWidgets::materialSwitch(
@@ -157,7 +171,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     uiOutput(ns("subsets_ui")),
                                     hr(),
                                     actionButton(ns("save_to_r6"), "Save for further analysis",
-                                                 class = "btn-success", style = "margin-bottom: 10px; width: 100%;"),
+                                        class = "btn-success", style = "margin-bottom: 10px; width: 100%;"
+                                    ),
                                     actionButton(ns("reset_root"), "Reset root", class = "btn-warning")
                                 )
                             )
@@ -165,103 +180,102 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     ),
                     nav_panel(
                         title = "UMAP",
-                        value = "tab_umap",        # NEW : Identifiant interne du panneau
+                        value = "tab_umap", # NEW : Identifiant interne du panneau
                         accordion(
                             id = ns("umap_accordion_main"),
-                                  accordion_panel(
-                                      "Built UMAP model",
-                                      fluidRow(
-                                          column(3,
-                                                 tagList(
-                                                     bslib::card(
-                                                         area = "umap_accordion_first",
-                                                         h3("UMAP parameters"),
-
-                                                         shinyWidgets::pickerInput(
-                                                             inputId = ns("umap_features"),
-                                                             label = "Protein markers",
-                                                             choices = rownames(ScIGMA_data$mae[["proteins"]]),
-                                                             selected = curr_features,
-                                                             multiple = TRUE,
-                                                             options = shinyWidgets::pickerOptions(
-                                                                 actionsBox = TRUE,
-                                                                 liveSearch = TRUE,
-                                                                 size = 10,
-                                                                 `selected-text-format` = "count > 3"
-                                                             )
-                                                         ),
-
-                                                         numericInput(ns("n_neighbors"), "Neighbors", value = curr_n_neighbors, min = 5, max = 100),
-                                                         numericInput(ns("min_dist"), "Distance Min", value = curr_min_dist, min = 0.01, max = 1.0, step = 0.1),
-                                                         hr(),
-                                                         actionBttn(
-                                                             inputId = ns("run_umap_btn"), label = "Run UMAP",
-                                                             style = "unite", color = "primary"
-                                                         ),
-                                                         helpText("The calculation may take a few seconds."),
-
-                                                         uiOutput(ns("umap_evaluation_panel")),
-                                                         hr(),
-
-                                                         downloadButton(
-                                                             outputId = ns("protein_umap_download_bttn"),
-                                                             label = "Download UMAP in high resolution."
-                                                         )
-                                                     )
-                                                 )
-                                          ),
-                                          column(9,
-                                                 bslib::card(
-                                                     area = "main", h3("2D Projection"),
-                                                     plotlyOutput(ns("umap_plot_build"), height = "600px")
-                                                 )
-                                          )
-                                      )
-                                  ),
-
-                                  accordion_panel(
-                                      "Markers expression",
-                                      if (umap_ready) {
-                                          uiOutput(ns("markers_umap_panel_ui"))
-                                      } else {
-                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
-                                      }
-                                  ),
-                                  accordion_panel(
-                                      "Immunophenotype Gating",
-                                      if (umap_ready) {
-                                          uiOutput(ns("biplotClones_umap_panel_ui"))
-                                      } else {
-                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
-                                      }
-                                  ),
-                                  accordion_panel(
-                                      "Unsupervised clustering",
-                                      if (umap_ready) {
-                                          fluidRow(
-                                              column(3,
-                                                     tagList(
-                                                         bslib::card(
-                                                             area = "sidebar",
-                                                             h3("Clustering parameters"),
-                                                             numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
-                                                             hr(),
-                                                             actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
-                                                         )
-                                                     )
-                                              ),
-                                              column(9,
-                                                     bslib::card(
-                                                         area = "main", h3("2D Projection"),
-                                                         plotlyOutput(ns("umap_clustering_plot"), height = "600px")
-                                                     )
-                                              )
-                                          )
-                                      } else {
-                                          fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
-                                      }
-                                  )
-                              )
+                            accordion_panel(
+                                "Built UMAP model",
+                                fluidRow(
+                                    column(
+                                        3,
+                                        tagList(
+                                            bslib::card(
+                                                area = "umap_accordion_first",
+                                                h3("UMAP parameters"),
+                                                shinyWidgets::pickerInput(
+                                                    inputId = ns("umap_features"),
+                                                    label = "Protein markers",
+                                                    choices = rownames(ScIGMA_data$mae[["proteins"]]),
+                                                    selected = curr_features,
+                                                    multiple = TRUE,
+                                                    options = shinyWidgets::pickerOptions(
+                                                        actionsBox = TRUE,
+                                                        liveSearch = TRUE,
+                                                        size = 10,
+                                                        `selected-text-format` = "count > 3"
+                                                    )
+                                                ),
+                                                numericInput(ns("n_neighbors"), "Neighbors", value = curr_n_neighbors, min = 5, max = 100),
+                                                numericInput(ns("min_dist"), "Distance Min", value = curr_min_dist, min = 0.01, max = 1.0, step = 0.1),
+                                                hr(),
+                                                actionBttn(
+                                                    inputId = ns("run_umap_btn"), label = "Run UMAP",
+                                                    style = "unite", color = "primary"
+                                                ),
+                                                helpText("The calculation may take a few seconds."),
+                                                uiOutput(ns("umap_evaluation_panel")),
+                                                hr(),
+                                                downloadButton(
+                                                    outputId = ns("protein_umap_download_bttn"),
+                                                    label = "Download UMAP in high resolution."
+                                                )
+                                            )
+                                        )
+                                    ),
+                                    column(
+                                        9,
+                                        bslib::card(
+                                            area = "main", h3("2D Projection"),
+                                            plotlyOutput(ns("umap_plot_build"), height = "600px")
+                                        )
+                                    )
+                                )
+                            ),
+                            accordion_panel(
+                                "Markers expression",
+                                if (umap_ready) {
+                                    uiOutput(ns("markers_umap_panel_ui"))
+                                } else {
+                                    fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                }
+                            ),
+                            accordion_panel(
+                                "Immunophenotype Gating",
+                                if (umap_ready) {
+                                    uiOutput(ns("biplotClones_umap_panel_ui"))
+                                } else {
+                                    fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                }
+                            ),
+                            accordion_panel(
+                                "Unsupervised clustering",
+                                if (umap_ready) {
+                                    fluidRow(
+                                        column(
+                                            3,
+                                            tagList(
+                                                bslib::card(
+                                                    area = "sidebar",
+                                                    h3("Clustering parameters"),
+                                                    numericInput(ns("umap_clust_resolution"), "Resolution", value = 0.15, min = 0.01, max = 5),
+                                                    hr(),
+                                                    actionButton(ns("find_clusters_btn"), "Find clusters", class = "btn-primary", width = "100%")
+                                                )
+                                            )
+                                        ),
+                                        column(
+                                            9,
+                                            bslib::card(
+                                                area = "main", h3("2D Projection"),
+                                                plotlyOutput(ns("umap_clustering_plot"), height = "600px")
+                                            )
+                                        )
+                                    )
+                                } else {
+                                    fluidRow(h3("Please compute UMAP first", style = "text-align: center; color: #7f8c8d; margin-top: 20px;"))
+                                }
+                            )
+                        )
                     )
                 )
             }
@@ -281,21 +295,24 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # Initialize Inputs & Root Gate from R6 Object
         observeEvent(
-            list(watch("dataLoaded"),
-                 watch("dnaVariant_filtered"),
-                 watch("compass_completed"),
-                 input$reset_root
+            list(
+                watch("dataLoaded"),
+                watch("dnaVariant_filtered"),
+                watch("compass_completed"),
+                input$reset_root
             ),
             {
                 req(ScIGMA_data$mae)
 
-                if (!("proteins" %in% names(ScIGMA_data$mae))) return()
+                if (!("proteins" %in% names(ScIGMA_data$mae))) {
+                    return()
+                }
 
                 assay_to_use_state <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
                 n_cells_current <- ncol(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use_state))
 
                 r_state$subsets <- list()
-                r_state$subsets[["root"]] <- 1:n_cells_current
+                r_state$subsets[["root"]] <- seq_len(n_cells_current)
 
                 r_state$subset_meta <- list()
                 r_state$subset_meta[["root"]] <- list(
@@ -315,7 +332,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     choices = c("None", rownames(ScIGMA_data$mae[["proteins"]])),
                     selected = "None"
                 )
-            }, ignoreInit = FALSE)
+            },
+            ignoreInit = FALSE
+        )
 
         # --- 2. Bi-plot Rendering (Optimized) ---
 
@@ -370,7 +389,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             marker_config <- list(size = 5, opacity = 0.8, color = "#2c3e50")
 
             if (!is.null(input$color_genotype) && input$color_genotype != "None") {
-
                 plot_df$Genotype <- as.character(ScIGMA_data$dna.clones[rownames(plot_df)])
 
                 plot_df$Genotype <- ifelse(plot_df$Genotype %in% input$color_genotype, plot_df$Genotype, "Other")
@@ -400,12 +418,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 marker = marker_config
             ) %>%
                 plotly::layout(
-                    title = list(text = paste("<b>Gate:</b>", r_state$subset_meta[[r_state$current_view]]$name),
-                                 font = list(family = "Arial", size = 18)),
+                    title = list(
+                        text = paste("<b>Gate:</b>", r_state$subset_meta[[r_state$current_view]]$name),
+                        font = list(family = "Arial", size = 18)
+                    ),
                     plot_bgcolor = "white",
                     paper_bgcolor = "white",
-                    xaxis = c(list(title = paste("<b>", input$xvar, "</b>"), range = list(0, max(plot_df$x)+1)), prism_axis_style),
-                    yaxis = c(list(title = paste("<b>", input$yvar, "</b>"), range = list(0, max(plot_df$y)+1)), prism_axis_style),
+                    xaxis = c(list(title = paste("<b>", input$xvar, "</b>"), range = list(0, max(plot_df$x) + 1)), prism_axis_style),
+                    yaxis = c(list(title = paste("<b>", input$yvar, "</b>"), range = list(0, max(plot_df$y) + 1)), prism_axis_style),
                     dragmode = "lasso",
                     legend = list(title = list(text = "<b>Genotype</b>")),
                     margin = list(l = 60, r = 30, b = 60, t = 50)
@@ -417,38 +437,42 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # --- 3. Selection & Gating Logic ---
 
         # Listener
-        observeEvent(event_data("plotly_selected", source = ns("gating_plot")), {
-            sel <- event_data("plotly_selected", source = ns("gating_plot"))
+        observeEvent(event_data("plotly_selected", source = ns("gating_plot")),
+            {
+                sel <- event_data("plotly_selected", source = ns("gating_plot"))
 
-            # 1. Le Bouclier Absolu : Intercepte NULL, list(), et dataframes vides
-            if (is.null(sel) || length(sel) == 0 || (is.data.frame(sel) && nrow(sel) == 0)) {
-                r_state$temp_selection <- NULL
-                return()
-            }
+                # 1. Le Bouclier Absolu : Intercepte NULL, list(), et dataframes vides
+                if (is.null(sel) || length(sel) == 0 || (is.data.frame(sel) && nrow(sel) == 0)) {
+                    r_state$temp_selection <- NULL
+                    return()
+                }
 
-            # 2. Cascade d'extraction
-            extracted_indices <- NULL
-            if ("customdata" %in% colnames(sel)) {
-                extracted_indices <- as.numeric(sel$customdata)
-            } else if ("key" %in% colnames(sel)) {
-                extracted_indices <- as.numeric(sel$key)
-            } else if ("pointNumber" %in% colnames(sel)) {
-                current_indices <- r_state$subsets[[r_state$current_view]]
-                extracted_indices <- current_indices[as.numeric(sel$pointNumber) + 1]
-            }
+                # 2. Cascade d'extraction
+                extracted_indices <- NULL
+                if ("customdata" %in% colnames(sel)) {
+                    extracted_indices <- as.numeric(sel$customdata)
+                } else if ("key" %in% colnames(sel)) {
+                    extracted_indices <- as.numeric(sel$key)
+                } else if ("pointNumber" %in% colnames(sel)) {
+                    current_indices <- r_state$subsets[[r_state$current_view]]
+                    extracted_indices <- current_indices[as.numeric(sel$pointNumber) + 1]
+                }
 
-            if (!is.null(extracted_indices)) {
-                valid_indices <- extracted_indices[!is.na(extracted_indices)]
+                if (!is.null(extracted_indices)) {
+                    valid_indices <- extracted_indices[!is.na(extracted_indices)]
 
-                if (length(valid_indices) > 0) {
-                    r_state$temp_selection <- valid_indices
+                    if (length(valid_indices) > 0) {
+                        r_state$temp_selection <- valid_indices
+                    } else {
+                        r_state$temp_selection <- NULL
+                    }
                 } else {
                     r_state$temp_selection <- NULL
                 }
-            } else {
-                r_state$temp_selection <- NULL
-            }
-        }, ignoreNULL = FALSE, ignoreInit = TRUE)
+            },
+            ignoreNULL = FALSE,
+            ignoreInit = TRUE
+        )
 
         # Feedback Info
         output$selection_info <- renderText({
@@ -504,7 +528,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 style_str <- paste0(
                     "margin-left:", indent, "px; ",
                     "display: block; padding: 2px 0; ",
-                    if(node_id == r_state$current_view) "font-weight:bold; color:#007bff;" else "color:#333;"
+                    if (node_id == r_state$current_view) "font-weight:bold; color:#007bff;" else "color:#333;"
                 )
 
                 # 1. Rendu du noeud parent
@@ -512,9 +536,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     actionLink(ns(paste0("go_", node_id)), label = meta$name, style = style_str)
                 )
 
-                children_ids <- names(meta_list)[sapply(meta_list, function(m) {
+                children_ids <- names(meta_list)[vapply(meta_list, function(m) {
                     !is.na(m$parent) && m$parent == node_id
-                })]
+                }, logical(1))]
 
                 if (length(children_ids) > 0) {
                     children_ui <- lapply(children_ids, build_tree_ui)
@@ -541,10 +565,13 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             lapply(new_sids, function(sid) {
                 # Suppression de once = TRUE. Le clic est permanent.
-                observeEvent(input[[paste0("go_", sid)]], {
-                    r_state$current_view <- sid
-                    r_state$temp_selection <- NULL
-                }, ignoreInit = TRUE)
+                observeEvent(input[[paste0("go_", sid)]],
+                    {
+                        r_state$current_view <- sid
+                        r_state$temp_selection <- NULL
+                    },
+                    ignoreInit = TRUE
+                )
             })
 
             if (length(new_sids) > 0) {
@@ -572,8 +599,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 return()
             }
 
-            ScIGMA_data$protein_gating_tree <- list("gates_list" = r_state$subsets,
-                                                    "meta_list" = r_state$subset_meta)
+            ScIGMA_data$protein_gating_tree <- list(
+                "gates_list" = r_state$subsets,
+                "meta_list" = r_state$subset_meta
+            )
 
             showNotification(
                 paste("Success !", length(r_state$subsets), "populations saved."),
@@ -614,9 +643,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             message("Computing UMAP...")
 
             ScIGMA_data$seurat_object <- Seurat::RunUMAP(ScIGMA_data$seurat_object,
-                                                         features = umap_features,
-                                                         min.dist = min_dist,
-                                                         n.neighbors = n_neighbors)
+                features = umap_features,
+                min.dist = min_dist,
+                n.neighbors = n_neighbors
+            )
 
             message("Computing rigorous UMAP metrics against raw normalized data...")
 
@@ -642,7 +672,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             w$hide()
             gargoyle::trigger("umap_computed")
             message("UMAP computation and evaluations finished.")
-
         }) |>
             shiny::bindEvent(input$run_umap_btn)
 
@@ -667,19 +696,21 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
             r_values <- c(metrics$trustworthiness, metrics$continuity, spearman_scaled, metrics$trustworthiness)
 
-            theta_labels <- c('<b>Local</b><br>(Trustworthiness)',
-                              '<b>Structure</b><br>(Continuity)',
-                              '<b>Global</b><br>(Topology)',
-                              '<b>Local</b><br>(Trustworthiness)')
+            theta_labels <- c(
+                "<b>Local</b><br>(Trustworthiness)",
+                "<b>Structure</b><br>(Continuity)",
+                "<b>Global</b><br>(Topology)",
+                "<b>Local</b><br>(Trustworthiness)"
+            )
 
             plot_ly(
-                type = 'scatterpolar',
+                type = "scatterpolar",
                 r = r_values,
                 theta = theta_labels,
-                fill = 'toself',
-                fillcolor = 'rgba(41, 128, 185, 0.3)',
-                line = list(color = '#2c3e50', width = 2),
-                marker = list(color = '#e74c3c', size = 6)
+                fill = "toself",
+                fillcolor = "rgba(41, 128, 185, 0.3)",
+                line = list(color = "#2c3e50", width = 2),
+                marker = list(color = "#e74c3c", size = 6)
             ) %>%
                 layout(
                     polar = list(
@@ -709,62 +740,68 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         })
 
 
-
         # render UMAP without clustering
-        observeEvent({watch("umap_computed")},{
-            req(ScIGMA_data$seurat_object)
-            umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
-                as.data.frame()
-            umap_cluster$barcode <- rownames(umap_cluster)
+        observeEvent(
+            {
+                watch("umap_computed")
+            },
+            {
+                req(ScIGMA_data$seurat_object)
+                umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
+                    as.data.frame()
+                umap_cluster$barcode <- rownames(umap_cluster)
 
-            assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+                assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
-            mat <- t(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use))
-            mat <- mat[umap_cluster$barcode, , drop = FALSE]
+                mat <- t(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use))
+                mat <- mat[umap_cluster$barcode, , drop = FALSE]
 
-            ptn_names <- colnames(mat)
-            n_top <- min(3, ncol(mat))
+                ptn_names <- colnames(mat)
+                n_top <- min(3, ncol(mat))
 
-            top_strings <- apply(mat, 1, function(x) {
-                idx <- order(x, decreasing = TRUE)[1:n_top]
-                paste(paste0("<b>", 1:n_top, ". ", ptn_names[idx], "</b>: ", round(x[idx], 2)), collapse = "<br>")
-            })
+                top_strings <- apply(mat, 1, function(x) {
+                    idx <- order(x, decreasing = TRUE)[seq_len(n_top)]
+                    paste(paste0("<b>", seq_len(n_top), ". ", ptn_names[idx], "</b>: ", round(x[idx], 2)), collapse = "<br>")
+                })
 
-            umap_cluster$hover_info <- paste0(
-                "<b>--- Top Expression ---</b><br>",
-                top_strings
-            )
-            # -------------------------------------------------------------
+                umap_cluster$hover_info <- paste0(
+                    "<b>--- Top Expression ---</b><br>",
+                    top_strings
+                )
+                # -------------------------------------------------------------
 
-            ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
-                ggplot(aes(x=umap_1, y=umap_2)) +
-                geom_point(size=1.5, color = "#2c3e50", alpha = 0.8) +
-                xlab('UMAP 1') +
-                ylab('UMAP 2') +
-                ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+                ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
+                    ggplot(aes(x = umap_1, y = umap_2)) +
+                    geom_point(size = 1.5, color = "#2c3e50", alpha = 0.8) +
+                    xlab("UMAP 1") +
+                    ylab("UMAP 2") +
+                    ggprism::theme_prism(base_size = 14, base_fontface = "bold")
 
-            # Version Interactive (Plotly)
-            output$umap_plot_build <- renderPlotly({
-                p <- plot_ly(data = umap_cluster,
-                             x = ~umap_1,
-                             y = ~umap_2,
-                             type = 'scattergl',
-                             mode = 'markers',
-                             text = ~hover_info,
-                             hoverinfo = "text",
-                             marker = list(size = 5, opacity = 0.8, color = "#2c3e50")) %>%
-                    layout(
-                        plot_bgcolor = "white",
-                        paper_bgcolor = "white",
-                        xaxis = list(visible = FALSE),
-                        yaxis = list(visible = FALSE),
-                        margin = list(l = 60, r = 30, b = 10, t = 30)
+                # Version Interactive (Plotly)
+                output$umap_plot_build <- renderPlotly({
+                    p <- plot_ly(
+                        data = umap_cluster,
+                        x = ~umap_1,
+                        y = ~umap_2,
+                        type = "scattergl",
+                        mode = "markers",
+                        text = ~hover_info,
+                        hoverinfo = "text",
+                        marker = list(size = 5, opacity = 0.8, color = "#2c3e50")
                     ) %>%
-                    config(displaylogo = FALSE)
-                return(p)
-            })
-        },ignoreInit = TRUE)
-
+                        layout(
+                            plot_bgcolor = "white",
+                            paper_bgcolor = "white",
+                            xaxis = list(visible = FALSE),
+                            yaxis = list(visible = FALSE),
+                            margin = list(l = 60, r = 30, b = 10, t = 30)
+                        ) %>%
+                        config(displaylogo = FALSE)
+                    return(p)
+                })
+            },
+            ignoreInit = TRUE
+        )
 
 
         # Render Barplot for all proteins
@@ -775,25 +812,29 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         })
 
         # render UMAP with clustering
-        observeEvent({watch("umap_computed")
-            input$find_clusters_btn},{
-
+        observeEvent(
+            {
+                watch("umap_computed")
+                input$find_clusters_btn
+            },
+            {
                 clustering_resolution <- input$umap_clust_resolution
                 # Compute umap
-                if (is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                if (is.null(ScIGMA_data$seurat_object@reductions$umap)) {
                     message("UMAP is missing, computing default UMAP") # TODO: display notification
 
                     ScIGMA_data$seurat_object <- RunUMAP(ScIGMA_data$seurat_object,
-                                                         dims = 1:(nrow(ScIGMA_data$seurat_object)-2),
-                                                         min.dist = 0.15,
-                                                         n.neighbors = 30,
-                                                         future.seed=TRUE)
+                        dims = seq_len(nrow(ScIGMA_data$seurat_object) - 2),
+                        min.dist = 0.15,
+                        n.neighbors = 30,
+                        future.seed = TRUE
+                    )
                 }
                 # 1. Clustering
                 ScIGMA_data$seurat_object <- FindNeighbors(
                     ScIGMA_data$seurat_object,
                     features = rownames(ScIGMA_data$seurat_object),
-                    dims = 1:ncol(ScIGMA_data$seurat_object@reductions$pca@cell.embeddings)
+                    dims = seq_len(ncol(ScIGMA_data$seurat_object@reductions$pca@cell.embeddings))
                 )
 
                 ScIGMA_data$seurat_object <- FindClusters(
@@ -807,7 +848,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 # 2. Rendering-
                 output$umap_clustering_plot <- renderPlotly({
-
                     w <- Waiter$new(
                         id = ns("umap_clustering_plot"),
                         html = spin_3(),
@@ -818,14 +858,16 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     n_clusters <- length(unique(umap_cluster$cluster))
                     pal <- viridis::viridis(n_clusters)
 
-                    p <- plot_ly(data = umap_cluster,
-                                 x = ~umap_1,
-                                 y = ~umap_2,
-                                 type = 'scattergl',
-                                 mode = 'markers',
-                                 color = ~cluster,
-                                 colors = pal,
-                                 marker = list(size = 5, opacity = 0.8)) %>%
+                    p <- plot_ly(
+                        data = umap_cluster,
+                        x = ~umap_1,
+                        y = ~umap_2,
+                        type = "scattergl",
+                        mode = "markers",
+                        color = ~cluster,
+                        colors = pal,
+                        marker = list(size = 5, opacity = 0.8)
+                    ) %>%
                         layout(
                             plot_bgcolor = "white",
                             paper_bgcolor = "white",
@@ -844,68 +886,74 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 })
 
                 trigger("clusters_computed")
-
-            },ignoreInit = TRUE)
-
+            },
+            ignoreInit = TRUE
+        )
 
 
         # [ NODE_ACCESS : Markers projection ]
         # ----------------------------------------------------- _
-        observeEvent(watch("umap_computed"), {
-            req(ScIGMA_data$seurat_object)
+        observeEvent(watch("umap_computed"),
+            {
+                req(ScIGMA_data$seurat_object)
 
-            if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
-                output$markers_umap_panel_ui <-  renderUI({
-                    tagList(fluidRow(h2("Please compute UMAP first")))
-                })
-            } else {
-                protein_names <- rownames(ScIGMA_data$mae[["proteins"]])
+                if (is.null(ScIGMA_data$seurat_object@reductions$umap)) {
+                    output$markers_umap_panel_ui <- renderUI({
+                        tagList(fluidRow(h2("Please compute UMAP first")))
+                    })
+                } else {
+                    protein_names <- rownames(ScIGMA_data$mae[["proteins"]])
 
-                output$markers_umap_panel_ui <-  renderUI({
-                    fluidRow(
-                        tagList(
-                            column(3,
-                                   bslib::card(
-                                       area = "umap_marker_select",
-                                       virtualSelectInput(
-                                           inputId = ns("protein_umap_markers"),
-                                           label = "Markers :",
-                                           choices = protein_names,
-                                           multiple = TRUE,
-                                           width = "100%",
-                                           dropboxWrapper = "body",
-                                           selected = "None"
-                                       ),
-                                       hr(),
-                                       actionBttn(
-                                           inputId = ns("protein_umap_markers_bttn"),
-                                           label = "Plot markers projections",
-                                           style = "unite",
-                                           color = "primary"
-                                       ),
-                                       hr(),
-                                       downloadButton(
-                                           outputId = ns("protein_umap_markers_download_bttn"),
-                                           label = "Download UMAPs"
-                                       )
-                                   )
-                            ),
-                            column(9, plotOutput(ns("umap_plot_markers"), height = "600px"))
+                    output$markers_umap_panel_ui <- renderUI({
+                        fluidRow(
+                            tagList(
+                                column(
+                                    3,
+                                    bslib::card(
+                                        area = "umap_marker_select",
+                                        virtualSelectInput(
+                                            inputId = ns("protein_umap_markers"),
+                                            label = "Markers :",
+                                            choices = protein_names,
+                                            multiple = TRUE,
+                                            width = "100%",
+                                            dropboxWrapper = "body",
+                                            selected = "None"
+                                        ),
+                                        hr(),
+                                        actionBttn(
+                                            inputId = ns("protein_umap_markers_bttn"),
+                                            label = "Plot markers projections",
+                                            style = "unite",
+                                            color = "primary"
+                                        ),
+                                        hr(),
+                                        downloadButton(
+                                            outputId = ns("protein_umap_markers_download_bttn"),
+                                            label = "Download UMAPs"
+                                        )
+                                    )
+                                ),
+                                column(9, plotOutput(ns("umap_plot_markers"), height = "600px"))
+                            )
                         )
-                    )
-                })
-            }
-        }, ignoreInit = TRUE)
+                    })
+                }
+            },
+            ignoreInit = TRUE
+        )
 
         # [ NODE_ACCESS : Biplot clones projection ]
         # ----------------------------------------------------- _
         observeEvent(
-            list(watch("umap_computed"),
-                 input$save_to_r6),
+            list(
+                watch("umap_computed"),
+                input$save_to_r6
+            ),
             {
                 req(ScIGMA_data$seurat_object)
 
-                if(is.null(ScIGMA_data$seurat_object@reductions$umap)){
+                if (is.null(ScIGMA_data$seurat_object@reductions$umap)) {
                     output$biplotClones_umap_panel_ui <- renderUI({
                         tagList(fluidRow(h2("Please compute UMAP first")))
                     })
@@ -915,7 +963,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 gating_tree <- ScIGMA_data$protein_gating_tree
                 if (is.null(gating_tree) || length(gating_tree$meta_list) <= 1) {
                     output$biplotClones_umap_panel_ui <- renderUI({
-                        tagList(fluidRow(h4("No sub-samples saved yet. Please create and save Gates in the Bi-plot tab.", style="color:#7f8c8d; padding:20px;")))
+                        tagList(fluidRow(h4("No sub-samples saved yet. Please create and save Gates in the Bi-plot tab.", style = "color:#7f8c8d; padding:20px;")))
                     })
                     return()
                 }
@@ -923,37 +971,40 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 meta_list <- gating_tree$meta_list
                 valid_ids <- setdiff(names(meta_list), "root")
 
-                choices_list <- setNames(valid_ids, sapply(valid_ids, function(id) meta_list[[id]]$name))
+                choices_list <- setNames(valid_ids, vapply(valid_ids, function(id) meta_list[[id]]$name, character(1)))
 
                 output$biplotClones_umap_panel_ui <- renderUI({
                     fluidRow(
                         tagList(
-                            column(3,
-                                   bslib::card(
-                                       area = "umap_clone_select",
-                                       virtualSelectInput(
-                                           inputId = ns("umap_clones_to_project"),
-                                           label = "Select sub-gates:",
-                                           choices = choices_list,
-                                           multiple = TRUE,
-                                           width = "100%",
-                                           dropboxWrapper = "body"
-                                       ),
-                                       hr(),
-                                       actionBttn(
-                                           inputId = ns("project_clones_btn"),
-                                           label = "Project gates",
-                                           style = "unite",
-                                           color = "primary"
-                                       ),
-                                       helpText("Child gates are automatically drawn on top of their parents.")
-                                   )
+                            column(
+                                3,
+                                bslib::card(
+                                    area = "umap_clone_select",
+                                    virtualSelectInput(
+                                        inputId = ns("umap_clones_to_project"),
+                                        label = "Select sub-gates:",
+                                        choices = choices_list,
+                                        multiple = TRUE,
+                                        width = "100%",
+                                        dropboxWrapper = "body"
+                                    ),
+                                    hr(),
+                                    actionBttn(
+                                        inputId = ns("project_clones_btn"),
+                                        label = "Project gates",
+                                        style = "unite",
+                                        color = "primary"
+                                    ),
+                                    helpText("Child gates are automatically drawn on top of their parents.")
+                                )
                             ),
                             column(9, plotlyOutput(ns("umap_plot_biplot_clones"), height = "600px"))
                         )
                     )
                 })
-            }, ignoreInit = TRUE)
+            },
+            ignoreInit = TRUE
+        )
 
         observeEvent(input$project_clones_btn, {
             req(ScIGMA_data$seurat_object@reductions$umap)
@@ -970,7 +1021,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             umap_df$Clone <- "Background"
 
             # 1. Tri par profondeur (Depth-First)
-            depths <- sapply(selected_ids, function(id) meta_list[[id]]$depth)
+            depths <- vapply(selected_ids, function(id) meta_list[[id]]$depth, numeric(1))
             ordered_ids <- selected_ids[order(depths)]
 
             for (sid in ordered_ids) {
@@ -982,12 +1033,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 umap_df[valid_barcodes, "Clone"] <- clone_name
             }
 
-            clone_levels <- c("Background", sapply(ordered_ids, function(id) meta_list[[id]]$name))
+            clone_levels <- c("Background", vapply(ordered_ids, function(id) meta_list[[id]]$name, character(1)))
             umap_df$Clone <- factor(umap_df$Clone, levels = unique(clone_levels))
             umap_df <- umap_df[order(umap_df$Clone), ]
 
             n_clones <- length(unique(clone_levels)) - 1
-            pal <- if(n_clones > 0) scales::hue_pal()(n_clones) else c()
+            pal <- if (n_clones > 0) scales::hue_pal()(n_clones) else c()
             color_map <- setNames(c("#e0e0e0", pal), unique(clone_levels))
 
             # 5. Rendu WebGL
@@ -997,10 +1048,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 y = ~umap_2,
                 color = ~Clone,
                 colors = color_map,
-                type = 'scattergl',
-                mode = 'markers',
+                type = "scattergl",
+                mode = "markers",
                 marker = list(size = 5, opacity = 0.8),
-                text = ~paste("<b>Gate:</b>", Clone),
+                text = ~ paste("<b>Gate:</b>", Clone),
                 hoverinfo = "text"
             ) %>%
                 layout(
@@ -1016,51 +1067,57 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 ) %>%
                 config(displaylogo = FALSE)
 
-            output$umap_plot_biplot_clones <- renderPlotly({ p })
+            output$umap_plot_biplot_clones <- renderPlotly({
+                p
+            })
         })
-
 
 
         # [ NODE_ACCESS : PROTEIN MARKERS ]
         # ----------------------------------------------------- _
-        observeEvent(input$protein_umap_markers_bttn, {
-            req(input$protein_umap_markers)
-            umap_marker_choice <- input$protein_umap_markers
+        observeEvent(input$protein_umap_markers_bttn,
+            {
+                req(input$protein_umap_markers)
+                umap_marker_choice <- input$protein_umap_markers
 
-            # Extraction de la base UMAP
-            umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |> as.data.frame()
-            umap_df$barcode <- rownames(umap_df)
+                # Extraction de la base UMAP
+                umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |> as.data.frame()
+                umap_df$barcode <- rownames(umap_df)
 
-            assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+                assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
 
-            if (length(umap_marker_choice) == 0 || "None" %in% umap_marker_choice) {
-                umap_df$ptn_expression <- 0
-                umap_df$marker <- "No marker selected"
-            } else {
-                expr_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[umap_marker_choice, , drop = FALSE]
+                if (length(umap_marker_choice) == 0 || "None" %in% umap_marker_choice) {
+                    umap_df$ptn_expression <- 0
+                    umap_df$marker <- "No marker selected"
+                } else {
+                    expr_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use)[umap_marker_choice, , drop = FALSE]
 
-                expr_df <- t(expr_mat) |> as.data.frame()
-                expr_df$barcode <- rownames(expr_df)
+                    expr_df <- t(expr_mat) |> as.data.frame()
+                    expr_df$barcode <- rownames(expr_df)
 
-                umap_df <- merge(umap_df, expr_df, by = "barcode")
+                    umap_df <- merge(umap_df, expr_df, by = "barcode")
 
-                umap_df <- umap_df |>
-                    tidyr::pivot_longer(cols = tidyr::all_of(umap_marker_choice),
-                                        values_to = "ptn_expression",
-                                        names_to = "marker")
-            }
+                    umap_df <- umap_df |>
+                        tidyr::pivot_longer(
+                            cols = tidyr::all_of(umap_marker_choice),
+                            values_to = "ptn_expression",
+                            names_to = "marker"
+                        )
+                }
 
-            ScIGMA_data$umaps$umap_protein_markers <- umap_df |>
-                ggplot(aes(x=umap_1, y=umap_2, color=ptn_expression)) +
-                geom_point(size = 1.2, alpha = 0.9) +
-                facet_wrap(~marker) +
-                scale_color_viridis_c("inferno", name = "Expression") +
-                xlab("UMAP 1") +
-                ylab("UMAP 2") +
-                ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+                ScIGMA_data$umaps$umap_protein_markers <- umap_df |>
+                    ggplot(aes(x = umap_1, y = umap_2, color = ptn_expression)) +
+                    geom_point(size = 1.2, alpha = 0.9) +
+                    facet_wrap(~marker) +
+                    scale_color_viridis_c("inferno", name = "Expression") +
+                    xlab("UMAP 1") +
+                    ylab("UMAP 2") +
+                    ggprism::theme_prism(base_size = 14, base_fontface = "bold")
 
-            output$umap_plot_markers <- renderPlot(ScIGMA_data$umaps$umap_protein_markers)
-        }, ignoreInit = TRUE)
+                output$umap_plot_markers <- renderPlot(ScIGMA_data$umaps$umap_protein_markers)
+            },
+            ignoreInit = TRUE
+        )
 
         # [ NODE_ACCESS : Download primary UMAP ]
         # ----------------------------------------------------- _
@@ -1070,9 +1127,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             },
             content = function(file) {
                 ggsave(file, ScIGMA_data$umaps$umap_protein_general,
-                       units = "in",
-                       width = 12, height = 10, dpi = 300,
-                       bg = "transparent")
+                    units = "in",
+                    width = 12, height = 10, dpi = 300,
+                    bg = "transparent"
+                )
             }
         )
 
@@ -1083,13 +1141,13 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 "protein_umap_markers.png"
             },
             content = function(file) {
-                ggsave(file, ScIGMA_data$umaps$umap_protein_markers ,
-                       units = "in",
-                       width = 12, height = 10, dpi = 300,
-                       bg = "transparent")
+                ggsave(file, ScIGMA_data$umaps$umap_protein_markers,
+                    units = "in",
+                    width = 12, height = 10, dpi = 300,
+                    bg = "transparent"
+                )
             }
         )
-
     })
 }
 

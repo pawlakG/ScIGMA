@@ -12,3 +12,4 @@ $run_dev.*
 ^LICENSE\.md$
 ^\.vscode$
 ^results$
+^.*\.tar\.gz$

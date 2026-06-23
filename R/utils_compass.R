@@ -28,16 +28,19 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
     parsed <- stringr::str_split_fixed(as.vector(var_mat_raw), ":", n = 3)
 
     mat_ref <- matrix(as.integer(parsed[, 1]),
-                      nrow = nrow(var_mat_raw),
-                      dimnames = dimnames(var_mat_raw))
+        nrow = nrow(var_mat_raw),
+        dimnames = dimnames(var_mat_raw)
+    )
 
     mat_alt <- matrix(as.integer(parsed[, 2]),
-                      nrow = nrow(var_mat_raw),
-                      dimnames = dimnames(var_mat_raw))
+        nrow = nrow(var_mat_raw),
+        dimnames = dimnames(var_mat_raw)
+    )
 
-    mat_gt  <- matrix(as.integer(parsed[, 3]),
-                      nrow = nrow(var_mat_raw),
-                      dimnames = dimnames(var_mat_raw))
+    mat_gt <- matrix(as.integer(parsed[, 3]),
+        nrow = nrow(var_mat_raw),
+        dimnames = dimnames(var_mat_raw)
+    )
 
     # Neutralize Missing genotypes (3 = Missing in MissionBio topology)
     mat_gt[mat_gt == 3L | is.na(mat_gt)] <- NA_integer_
@@ -45,7 +48,7 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
     # Rcpp Segfault prevention: Explicit coercion to integer
     storage.mode(mat_ref) <- "integer"
     storage.mode(mat_alt) <- "integer"
-    storage.mode(mat_gt)  <- "integer"
+    storage.mode(mat_gt) <- "integer"
 
     # ---- 2. Region matrix extraction ----
     message("Parsing CNA region read counts...")
@@ -64,8 +67,10 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
 
     if (any(is.na(locus_regions))) {
         unmapped <- unique(var_df$REGION[is.na(locus_regions)])
-        stop("Fatal: Variants mapped to unreferenced CNA regions: ",
-             paste(unmapped, collapse = ", "))
+        stop(
+            "Fatal: Variants mapped to unreferenced CNA regions: ",
+            paste(unmapped, collapse = ", ")
+        )
     }
 
     message("COMPASS In-Memory structures successfully generated.")
@@ -80,7 +85,6 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
 #'
 #' @noRd
 get_imputed_genotypes <- function(prefix_out) {
-
     nodes_gt_file <- paste0(prefix_out, "_nodes_genotypes.tsv")
     cell_assign_file <- paste0(prefix_out, "_cellAssignments.tsv")
 
@@ -106,8 +110,10 @@ get_imputed_genotypes <- function(prefix_out) {
     rownames(imputed_mat) <- singlets$cell
     storage.mode(imputed_mat) <- "integer"
 
-    message(sprintf("Reconstructed imputed matrix: %d cells x %d variants.",
-                    nrow(imputed_mat), ncol(imputed_mat)))
+    message(sprintf(
+        "Reconstructed imputed matrix: %d cells x %d variants.",
+        nrow(imputed_mat), ncol(imputed_mat)
+    ))
 
     return(imputed_mat)
 }

@@ -1,6 +1,4 @@
-
 sanitize_filename <- function(filename, replacement = "_") {
-
     # 1. (Optional) Handle accents/special characters
     # Note: `iconv` results can vary slightly depending on OS locale.
     filename <- iconv(filename, to = "ASCII//TRANSLIT")
@@ -28,7 +26,6 @@ sanitize_filename <- function(filename, replacement = "_") {
 
     return(filename)
 }
-
 
 
 #' @description
@@ -67,7 +64,6 @@ protein_run_pca <- function(ScIGMA_data) {
     S4Vectors::metadata(ScIGMA_data$mae)$protein_normalize_method <- "Normalized"
 
     ScIGMA_data$protein.filtered <- TRUE
-
 
 
     SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized") <- norm_mat

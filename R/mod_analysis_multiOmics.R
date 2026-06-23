@@ -55,8 +55,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             if (!has_dna || (!has_umap && !has_clusters && !has_gates)) {
                 return(
-                    shiny::div(class = "text-center mt-5",
-                               shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
+                    shiny::div(
+                        class = "text-center mt-5",
+                        shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
                     )
                 )
             }
@@ -69,7 +70,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             if (has_dna && has_umap) {
                 compass_switch_ui_ptnUMAP_DNA <- shinyWidgets::materialSwitch(
                     inputId = ns("ptnUMAP_DNA_acc_gtMtx_choice"),
-                    label = if(compass_exists) {
+                    label = if (compass_exists) {
                         "Use COMPASS imputed matrix ?"
                     } else {
                         "Run MCMC first"
@@ -79,8 +80,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 )
 
                 compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants <- shinyWidgets::materialSwitch(
-                    inputId =  ns("use_compass_variant"),
-                    label = if(compass_exists) {
+                    inputId = ns("use_compass_variant"),
+                    label = if (compass_exists) {
                         "Use COMPASS imputed matrix ?"
                     } else {
                         "Run MCMC first"
@@ -111,50 +112,52 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "Protein UMAP x SNV",
-
-
                     accordion(
                         id = ns("ptnUMAP_DNA_acc"),
                         open = FALSE,
                         accordion_panel(
                             "DNA clones",
                             shiny::fluidRow(
-                                shiny::column(3,
-                                              bslib::card(
-                                                  shiny::h3("Projection Controls"),
-                                                  shiny::div(compass_switch_ui_ptnUMAP_DNA, align = "left")
-                                              )
+                                shiny::column(
+                                    3,
+                                    bslib::card(
+                                        shiny::h3("Projection Controls"),
+                                        shiny::div(compass_switch_ui_ptnUMAP_DNA, align = "left")
+                                    )
                                 ),
-                                shiny::column(9,
-                                              bslib::card(
-                                                  shiny::h3("Orthogonal Projection"),
-                                                  plotlyOutput(ns("ptnUMAP_DNA_acc_dnaClones_plot"), height = "600px")
-                                              )
+                                shiny::column(
+                                    9,
+                                    bslib::card(
+                                        shiny::h3("Orthogonal Projection"),
+                                        plotlyOutput(ns("ptnUMAP_DNA_acc_dnaClones_plot"), height = "600px")
+                                    )
                                 )
                             )
                         ),
                         accordion_panel(
                             "DNA Variants",
                             shiny::fluidRow(
-                                shiny::column(3,
-                                              bslib::card(
-                                                  shiny::h4("Variant Projection"),
-                                                  shinyWidgets::pickerInput(
-                                                      inputId = ns("selected_variant"),
-                                                      label = "Targeted Variant",
-                                                      # choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
-                                                      choices = ScIGMA_data$variants.filtered$label,
-                                                      options = list(`live-search` = TRUE)
-                                                  ),
-
-                                                  shiny::div(compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants,
-                                                             align = "left")
-                                              )
+                                shiny::column(
+                                    3,
+                                    bslib::card(
+                                        shiny::h4("Variant Projection"),
+                                        shinyWidgets::pickerInput(
+                                            inputId = ns("selected_variant"),
+                                            label = "Targeted Variant",
+                                            # choices = rownames(ScIGMA_data$mae[["dna_variants"]]),,
+                                            choices = ScIGMA_data$variants.filtered$label,
+                                            options = list(`live-search` = TRUE)
+                                        ),
+                                        shiny::div(compass_switch_ui_ptnUMAP_DNA_acc_dnaVariants,
+                                            align = "left"
+                                        )
+                                    )
                                 ),
-                                shiny::column(9,
-                                              bslib::card(
-                                                  plotly::plotlyOutput(ns("ptnUMAP_DNA_acc_dnaVariants_plot"), height = "600px")
-                                              )
+                                shiny::column(
+                                    9,
+                                    bslib::card(
+                                        plotly::plotlyOutput(ns("ptnUMAP_DNA_acc_dnaVariants_plot"), height = "600px")
+                                    )
                                 )
                             )
                         )
@@ -164,11 +167,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             # Panel 2 : UMAP Unsupervised Clusters x SNV
             if (has_dna && has_clusters) {
-
-
                 compass_switch_ui_clusterPtn_DNA <- shinyWidgets::materialSwitch(
                     inputId = ns("clusterPtn_DNA_compass_choice"),
-                    label = if(compass_exists) {
+                    label = if (compass_exists) {
                         "Use COMPASS imputed matrix ?"
                     } else {
                         "Run MCMC first"
@@ -176,7 +177,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                     value = compass_exists,
                     status = "success"
                 )
-
 
 
                 if (!compass_exists) {
@@ -217,8 +217,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                     area = "main",
                                     shiny::h3("Variant Genotypes"),
                                     plotly::plotlyOutput(ns("plot_clust_variants"),
-                                                         height = "720px"
-                                                         # height = "600px"
+                                        height = "720px"
+                                        # height = "600px"
                                     )
                                 )
                             )
@@ -229,10 +229,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
             # Panel 3 : Bi-plot Gates x SNV
             if (has_dna && has_gates) {
-
                 compass_switch_ui_use_compass_biplot <- shinyWidgets::materialSwitch(
                     inputId = ns("use_compass_biplot"),
-                    label = if(compass_exists) {
+                    label = if (compass_exists) {
                         "Use COMPASS imputed matrix ?"
                     } else {
                         "Run MCMC first"
@@ -255,24 +254,28 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "Immunophenotype Gating x SNV",
                     shiny::fluidRow(
-                        shiny::column(3,
-                                      bslib::card(
-                                          shiny::h4("Population Profiling"),
-                                          shinyWidgets::pickerInput(
-                                              inputId = ns("selected_biplot_pop"),
-                                              label = "Target Population",
-                                              # choices = names(ScIGMA_data$protein_gating_tree$gates_list),
-                                              choices = sapply(ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
-                                                               \(x) x$name)|> as.character(),
-                                              options = list(`live-search` = TRUE)
-                                          ),
-                                          shiny::div(compass_switch_ui_use_compass_biplot, align = "left")
-                                      )
+                        shiny::column(
+                            3,
+                            bslib::card(
+                                shiny::h4("Population Profiling"),
+                                shinyWidgets::pickerInput(
+                                    inputId = ns("selected_biplot_pop"),
+                                    label = "Target Population",
+                                    # choices = names(ScIGMA_data$protein_gating_tree$gates_list),
+                                    choices = sapply(
+                                        ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
+                                        \(x) x$name
+                                    ) |> as.character(),
+                                    options = list(`live-search` = TRUE)
+                                ),
+                                shiny::div(compass_switch_ui_use_compass_biplot, align = "left")
+                            )
                         ),
-                        shiny::column(9,
-                                      bslib::card(
-                                          plotly::plotlyOutput(ns("biplot_dna_distribution_plot"), height = "600px")
-                                      )
+                        shiny::column(
+                            9,
+                            bslib::card(
+                                plotly::plotlyOutput(ns("biplot_dna_distribution_plot"), height = "600px")
+                            )
                         )
                     )
                 )
@@ -282,8 +285,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 do.call(bslib::navset_card_underline, c(list(id = ns("multiomics_tabs")), tabs))
             } else {
                 return(
-                    shiny::div(class = "text-center mt-5",
-                               shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
+                    shiny::div(
+                        class = "text-center mt-5",
+                        shiny::h4("Please compute UMAP unsupervised clusters and DNA clones first", class = "text-muted")
                     )
                 )
             }
@@ -321,14 +325,16 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             ptnUmap_dna_df$dna_clones <- as.character(dna_clones_to_use[rownames(ptnUmap_dna_df)])
             ptnUmap_dna_df$dna_clones[is.na(ptnUmap_dna_df$dna_clones)] <- "Missing"
 
-            p <- plot_ly(data = ptnUmap_dna_df,
-                         x = ~umap_1, y = ~umap_2,
-                         type = 'scattergl', mode = 'markers',
-                         color = ~dna_clones,
-                         colors = ScIGMA_data$dna_clone_colors, # Utilisation de la palette R6
-                         marker = list(size = 5, opacity = 0.8),
-                         text = ~paste("<b>DNA clones</b>:", dna_clones),
-                         hoverinfo = "text") %>%
+            p <- plot_ly(
+                data = ptnUmap_dna_df,
+                x = ~umap_1, y = ~umap_2,
+                type = "scattergl", mode = "markers",
+                color = ~dna_clones,
+                colors = ScIGMA_data$dna_clone_colors, # Utilisation de la palette R6
+                marker = list(size = 5, opacity = 0.8),
+                text = ~ paste("<b>DNA clones</b>:", dna_clones),
+                hoverinfo = "text"
+            ) %>%
                 layout(
                     xaxis = c(list(title = "<b>UMAP 1</b>"), prism_axis_style),
                     yaxis = c(list(title = "<b>UMAP 2</b>"), prism_axis_style),
@@ -340,19 +346,23 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             return(p)
         })
         # [!] Variants _
-        observeEvent({
-            watch("dataLoaded")
-            watch("dna_clones_renamed")
-        }, {
-            shiny::req(ScIGMA_data$mae)
-            # available_variants <- rownames(ScIGMA_data$mae[["dna_variants"]])
-            available_variants <- ScIGMA_data$variants.filtered$label
-            shinyWidgets::updatePickerInput(
-                session = session,
-                inputId = "selected_variant",
-                choices = available_variants
-            )
-        }, ignoreInit = TRUE)
+        observeEvent(
+            {
+                watch("dataLoaded")
+                watch("dna_clones_renamed")
+            },
+            {
+                shiny::req(ScIGMA_data$mae)
+                # available_variants <- rownames(ScIGMA_data$mae[["dna_variants"]])
+                available_variants <- ScIGMA_data$variants.filtered$label
+                shinyWidgets::updatePickerInput(
+                    session = session,
+                    inputId = "selected_variant",
+                    choices = available_variants
+                )
+            },
+            ignoreInit = TRUE
+        )
 
         output$ptnUMAP_DNA_acc_dnaVariants_plot <- plotly::renderPlotly({
             watch("umap_computed")
@@ -399,11 +409,11 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             )
 
             variant_colors <- c(
-                "WT" = "#440154",          # Violet profond
-                "HET" = "#21918c",         # Sarcelle
-                "HOM" = "#fde725",         # Jaune brillant
+                "WT" = "#440154", # Violet profond
+                "HET" = "#21918c", # Sarcelle
+                "HOM" = "#fde725", # Jaune brillant
                 "Missing/ADO" = "#e0e0e0", # Gris clair (Inerte)
-                "Unknown" = "#000000"      # Noir (Anomalie)
+                "Unknown" = "#000000" # Noir (Anomalie)
             )
 
             # print("plot_df")
@@ -416,13 +426,13 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 data = plot_df,
                 x = ~umap_1,
                 y = ~umap_2,
-                type = 'scattergl', # CRITIQUE : Performance Single-Cell
-                mode = 'markers',
+                type = "scattergl", # CRITIQUE : Performance Single-Cell
+                mode = "markers",
                 color = ~Variant_Genotype,
                 colors = variant_colors,
                 marker = list(size = 5, opacity = 0.8),
                 # Tooltip interactif propre
-                text = ~paste("<b>Genotype</b>:", Variant_Genotype),
+                text = ~ paste("<b>Genotype</b>:", Variant_Genotype),
                 hoverinfo = "text"
             ) |>
                 plotly::layout(
@@ -444,7 +454,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
         # >> Bi-plot Gates x SNV Distribution _
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
-
             watch("dna_clones_renamed")
             watch("compass_completed")
             watch("clusters_computed")
@@ -480,14 +489,18 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 select(-variant_id) |>
                 rownames_to_column("Variant_ID")
 
-            plot_df_joined <- left_join(plot_df,variants.filtered_tmp,
-                                        by = "Variant_ID")
+            plot_df_joined <- left_join(plot_df, variants.filtered_tmp,
+                by = "Variant_ID"
+            )
 
             plot_df_joined$protein_or_gene <- ifelse(is.na(plot_df_joined$protein) | plot_df_joined$protein == "NA",
-                                                     plot_df_joined$gene,
-                                                     plot_df_joined$protein)
+                plot_df_joined$gene,
+                plot_df_joined$protein
+            )
             plot_df_joined$Variant <- paste(plot_df_joined$protein_or_gene,
-                                            plot_df_joined$cdna, sep = "<br>")
+                plot_df_joined$cdna,
+                sep = "<br>"
+            )
 
             plotly::plot_ly(
                 data = plot_df_joined,
@@ -495,16 +508,16 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 y = ~Percentage,
                 color = ~Variant_Genotype,
                 colors = variant_colors,
-                type = 'bar',
-                text = ~paste0(round(Percentage, 1), "% (n=", Count, ")"),
-                textposition = 'outside',
+                type = "bar",
+                text = ~ paste0(round(Percentage, 1), "% (n=", Count, ")"),
+                textposition = "outside",
                 textangle = -90,
                 textfont = list(size = 12, color = "black", family = "Arial"),
-                constraintext = 'none',
-                hoverinfo = 'text'
+                constraintext = "none",
+                hoverinfo = "text"
             ) |>
                 plotly::layout(
-                    barmode = 'group',
+                    barmode = "group",
                     # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
                     xaxis = c(list(title = "", tickangle = 45), prism_axis_style),
                     yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
@@ -542,14 +555,16 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 colnames()
 
             # >> Setup dataframe _
-            dna_clones_clusters_df <- data.frame("Barcode" =  cell_barcodes,
-                                                 "Clone" = dna_clones_to_use[cell_barcodes],
-                                                 "Cluster" = ScIGMA_data$seurat_object$seurat_clusters[cell_barcodes])
+            dna_clones_clusters_df <- data.frame(
+                "Barcode" = cell_barcodes,
+                "Clone" = dna_clones_to_use[cell_barcodes],
+                "Cluster" = ScIGMA_data$seurat_object$seurat_clusters[cell_barcodes]
+            )
 
             dna_clones_clusters_df$Clone <- forcats::fct_na_value_to_level(dna_clones_clusters_df$Clone, level = "Missing")
 
             dna_clones_clusters_df_summarized <- dna_clones_clusters_df |>
-                dplyr::group_by(Clone, Cluster)|>
+                dplyr::group_by(Clone, Cluster) |>
                 dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
                 dplyr::group_by(Cluster) |>
                 dplyr::mutate(
@@ -565,15 +580,15 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 y = ~Percentage,
                 color = ~Clone,
                 # colors = variant_colors,
-                type = 'bar',
-                text = ~paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
-                textposition = 'outside',
+                type = "bar",
+                text = ~ paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
+                textposition = "outside",
                 textfont = list(size = 12, color = "black", family = "Arial"),
-                constraintext = 'none',
-                hoverinfo = 'text'
+                constraintext = "none",
+                hoverinfo = "text"
             ) |>
                 plotly::layout(
-                    barmode = 'group',
+                    barmode = "group",
                     # xaxis = c(list(title = "<b>DNA Variants</b>"), prism_axis_style),
                     xaxis = c(list(title = ""), prism_axis_style),
                     yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
@@ -676,7 +691,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 color = ~Variant_Genotype,
                 colors = variant_colors,
                 type = "bar",
-                text = ~ifelse(
+                text = ~ ifelse(
                     Percentage >= 5,
                     paste0(round(Percentage, 1), "%"),
                     ""
@@ -685,7 +700,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 insidetextanchor = "middle",
                 textfont = list(size = 11, color = "black", family = "Arial"),
                 constraintext = "none",
-                hovertext = ~paste0(
+                hovertext = ~ paste0(
                     "<b>Cluster:</b> ", Cluster, "<br>",
                     "<b>Variant:</b> ", Variant, "<br>",
                     "<b>Genotype:</b> ", Variant_Genotype, "<br>",
@@ -710,7 +725,5 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 ) |>
                 plotly::config(displaylogo = FALSE)
         })
-
-
     })
 }

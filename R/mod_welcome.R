@@ -31,10 +31,9 @@ mod_welcome_ui <- function(id) {
 #' welcome Server Functions
 #'
 #' @noRd
-mod_welcome_server <- function(id){
-    moduleServer(id, function(input, output, session){
+mod_welcome_server <- function(id) {
+    moduleServer(id, function(input, output, session) {
         ns <- session$ns
-
     })
 }
 

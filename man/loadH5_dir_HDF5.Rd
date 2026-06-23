@@ -30,6 +30,9 @@ or `"intersect"` (keep only common features; reorder consistently). Default `"id
 
 \item{verbose}{Logical. Print progress messages.}
 }
+\value{
+A \code{ScIGMA_object} containing the merged HDF5-backed matrices.
+}
 \description{
 Reads all `.h5` files from a directory, converts each into an
 HDF5-backed `ScIGMA_object`, and **merges them by cells** using `rbind`.
@@ -37,7 +40,7 @@ Features (columns) are aligned beforehand via \code{\link{harmonize_cols}}
 (policy: `"identical"` or `"intersect"`).
 }
 \examples{
-\dontrun{
+\donttest{
 obj <- loadH5_dir_HDF5("data/h5/", omic.type = "DNA+protein",
                        feature_policy = "intersect")
 obj$print()

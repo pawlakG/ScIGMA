@@ -12,22 +12,20 @@
 #'
 #' @return Integer matrix. A new imputed GT matrix.
 #' @noRd
-impute_compass_genotypes <- function(
-        gt_matrix,
-        output_prefix,
-        min_probability = 0.90
-) {
+impute_compass_genotypes <- function(gt_matrix,
+                                    output_prefix,
+                                    min_probability = 0.90) {
     file_assign <- paste0(output_prefix, "_cellAssignments.tsv")
-    file_probs  <- paste0(output_prefix, "_cellAssignmentProbs.tsv")
-    file_nodes  <- paste0(output_prefix, "_nodes_genotypes.tsv")
+    file_probs <- paste0(output_prefix, "_cellAssignmentProbs.tsv")
+    file_nodes <- paste0(output_prefix, "_nodes_genotypes.tsv")
 
-    if ( !file.exists(file_assign) || !file.exists(file_nodes) ) {
+    if (!file.exists(file_assign) || !file.exists(file_nodes)) {
         stop("Fatal: COMPASS MCMC output files not found. Run inference first.")
     }
 
     df_assign <- read.table(file_assign, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-    df_probs  <- read.table(file_probs, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-    df_nodes  <- read.table(file_nodes, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
+    df_probs <- read.table(file_probs, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+    df_nodes <- read.table(file_nodes, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
 
     mat_imputed <- gt_matrix
 
@@ -36,21 +34,21 @@ impute_compass_genotypes <- function(
     cells_imputed <- 0L
     na_filled <- 0L
 
-    for ( j in seq_len(ncol(mat_imputed)) ) {
+    for (j in seq_len(ncol(mat_imputed))) {
         target_cell <- cell_names_cpp[j]
 
         is_doublet <- df_assign$doublet[df_assign$cell == target_cell]
-        if ( is_doublet == "yes" ) next
+        if (is_doublet == "yes") next
 
         cell_probs <- as.numeric(df_probs[df_probs$cell == target_cell, -1])
-        if ( max(cell_probs) < min_probability ) next
+        if (max(cell_probs) < min_probability) next
 
         node_idx <- df_assign$node[df_assign$cell == target_cell]
         node_name <- paste0("Node ", node_idx)
 
         idx_na <- which(is.na(mat_imputed[, j]))
 
-        if ( length(idx_na) > 0 ) {
+        if (length(idx_na) > 0) {
             mat_imputed[idx_na, j] <- as.integer(df_nodes[node_name, idx_na])
             cells_imputed <- cells_imputed + 1L
             na_filled <- na_filled + length(idx_na)

@@ -35,22 +35,25 @@ dir_output <- tempdir()
 message("--- Démarrage du test MCMC In-Memory ---")
 prefix_out <- file.path(dir_output, "test_mcmc")
 
-status_execution <- tryCatch({
-    run_compass_mcmc(
-        variant_matrices = list_variants,
-        locus_regions = vec_mapping,
-        region_matrix = mat_regions,
-        output_prefix = prefix_out,
-        chains = 2L,
-        chain_length = 10L,
-        patient_sex = "female"
-    )
-}, error = function(e) {
-    message("ÉCHEC INTERCEPTÉ : ", e$message)
-    FALSE
-})
+status_execution <- tryCatch(
+    {
+        run_compass_mcmc(
+            variant_matrices = list_variants,
+            locus_regions = vec_mapping,
+            region_matrix = mat_regions,
+            output_prefix = prefix_out,
+            chains = 2L,
+            chain_length = 10L,
+            patient_sex = "female"
+        )
+    },
+    error = function(e) {
+        message("ÉCHEC INTERCEPTÉ : ", e$message)
+        FALSE
+    }
+)
 
-if ( status_execution ) {
+if (status_execution) {
     message("SUCCÈS : Le backend C++ a digéré les matrices et rendu la main.")
     print(list.files(dir_output, pattern = "test_mcmc"))
 }
@@ -59,17 +62,20 @@ if ( status_execution ) {
 message("\n--- Démarrage du test de verrouillage API (Matrice Vide) ---")
 prefix_out_no_cna <- file.path(dir_output, "test_mcmc_no_cna")
 
-status_execution_no_cna <- tryCatch({
-    run_compass_mcmc(
-        variant_matrices = list_variants,
-        locus_regions = vec_mapping,
-        region_matrix = matrix(integer(0), nrow = 0, ncol = 0),
-        output_prefix = prefix_out_no_cna,
-        chains = 2L,
-        chain_length = 10L,
-        patient_sex = "female"
-    )
-}, error = function(e) {
-    message("SUCCÈS DU VERROUILLAGE (Rejet propre par R) : ", e$message)
-    FALSE
-})
+status_execution_no_cna <- tryCatch(
+    {
+        run_compass_mcmc(
+            variant_matrices = list_variants,
+            locus_regions = vec_mapping,
+            region_matrix = matrix(integer(0), nrow = 0, ncol = 0),
+            output_prefix = prefix_out_no_cna,
+            chains = 2L,
+            chain_length = 10L,
+            patient_sex = "female"
+        )
+    },
+    error = function(e) {
+        message("SUCCÈS DU VERROUILLAGE (Rejet propre par R) : ", e$message)
+        FALSE
+    }
+)

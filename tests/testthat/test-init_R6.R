@@ -36,4 +36,3 @@ test_that("loadH5_HDF5_biocond_constructs_valid_multiomics_mae", {
     prot_features <- ncol(scigma_obj$mae[["proteins"]])
     expect_true(dna_features > prot_features)
 })
-

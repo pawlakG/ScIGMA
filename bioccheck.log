@@ -1,0 +1,20 @@
+- The project is out-of-sync -- use `renv::status()` for details.
+── Installing ScIGMA ───────────────────────────────────────────────────────────
+✔ Package installed successfully
+── ScIGMA session metadata ─────────────────────────────────────────────────────
+→ sourceDir: /Users/geoffrey/Documents/Pro/projects/dnaPtnApp/ScIGMA
+→ BiocVersion: 3.21
+→ Package: ScIGMA
+→ PackageVersion: 0.99.1
+→ BiocCheckDir: /Users/geoffrey/Documents/Pro/projects/dnaPtnApp/ScIGMA/ScIGMA.BiocCheck
+→ BiocCheckVersion: 1.44.2
+→ sourceDir: /Users/geoffrey/Documents/Pro/projects/dnaPtnApp/ScIGMA
+→ installDir: /var/folders/gm/bx7cqs0x38z3r861dsq4nsjr0000gn/T//Rtmpvb661j/file144fe3180063c
+→ isTarBall: FALSE
+→ platform: unix
+── Running BiocCheck on ScIGMA ─────────────────────────────────────────────────
+* Checking for deprecated package usage...
+Error in if (identical(nrow(bquery), 1L) && bfcneedsupdate(bfc, bquery[["rid"]])) bfcdownload(x = bfc,  : 
+  missing value where TRUE/FALSE needed
+Calls: <Anonymous> ... getAllDeprecatedPkgs -> get_deprecated_status -> get_status_file_cache
+Execution halted

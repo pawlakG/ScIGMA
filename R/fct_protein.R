@@ -1,4 +1,3 @@
-
 #' Protein matrix normalization
 #'
 #' Normalizes the protein matrix within a `ScIGMA_object` using the
@@ -21,7 +20,7 @@ normalizeProtein <- function(ScIGMA_object) {
     tmp_clr <- compositions::clr(t(inputMatrix) + 1)
 
     tmp_mat <- as.matrix(unclass(tmp_clr))
-    tmp_mat <- apply(tmp_mat, 2, \(x) x + abs(min(x)))  # Translate to non-negative values
+    tmp_mat <- apply(tmp_mat, 2, \(x) x + abs(min(x))) # Translate to non-negative values
 
     ret <- t(tmp_mat)
 
@@ -36,18 +35,19 @@ normalizeProtein <- function(ScIGMA_object) {
 
 #' Render ridge plot with ggplot2 and plotly
 #' @noRd
-render_protein_ridge_plot <- function(obj){
+render_protein_ridge_plot <- function(obj) {
     # On extrait l'assay CLR s'il existe, sinon on fallback sur counts
     # assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
     assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]),
-                           "normalized", "counts")
+        "normalized", "counts"
+    )
 
     tmp_data <- t(SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)) |>
         dplyr::as_tibble() |>
         tidyr::pivot_longer(dplyr::everything())
 
     tmp_plot <- tmp_data |>
-        ggplot2::ggplot(ggplot2::aes(x=value, y=name, fill = name)) +
+        ggplot2::ggplot(ggplot2::aes(x = value, y = name, fill = name)) +
         ggridges::geom_density_ridges() +
         ggridges::theme_ridges() +
         ggplot2::theme(legend.position = "none")
@@ -57,7 +57,6 @@ render_protein_ridge_plot <- function(obj){
 
 #' @noRd
 plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
-
     ptn_mtx <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
     if (is.null(ptn_mtx)) {
         stop("Object does not have a protein count matrix.")
@@ -106,7 +105,6 @@ normalize_linear_regression <- function(raw_matrix,
                                         add_mean = TRUE,
                                         jitter = 0,
                                         scale = 1) {
-
     if (!is.matrix(raw_matrix)) raw_matrix <- as.matrix(raw_matrix)
 
     if (jitter > 0) {
@@ -128,7 +126,9 @@ normalize_linear_regression <- function(raw_matrix,
     }
 
     norm_mat <- apply(work_mat, 1, function(protein_counts) {
-        if (var(protein_counts) == 0) return(protein_counts)
+        if (var(protein_counts) == 0) {
+            return(protein_counts)
+        }
 
         fit <- lm(protein_counts ~ work_lib_size)
         resid <- residuals(fit)
@@ -194,13 +194,12 @@ normalize_linear_regression <- function(raw_matrix,
 #' plot_data <- cbind(as.data.frame(umap_coords), as.data.frame(norm_mat))
 #'
 run_umap_protein <- function(expression_matrix,
-                             n_neighbors = 30,
-                             min_dist = 0.3,
-                             n_components = 2,
-                             metric = "cosine",
-                             seed = 42,
-                             n_threads = NULL) {
-
+                            n_neighbors = 30,
+                            min_dist = 0.3,
+                            n_components = 2,
+                            metric = "cosine",
+                            seed = 42,
+                            n_threads = NULL) {
     # 1. Dependency Check
     if (!requireNamespace("uwot", quietly = TRUE)) {
         stop("Error: Package 'uwot' is required. Please install it with install.packages('uwot').")
@@ -222,8 +221,8 @@ run_umap_protein <- function(expression_matrix,
     # a "Library Size Map". We issue a warning.
     if (max(mat, na.rm = TRUE) > 100) {
         warning("Warning: Input values seem high (>100). Are you running UMAP on RAW counts?
-             It is strongly recommended to use normalized data (CLR or NSP/Arcsinh)
-             to avoid clustering based purely on sequencing depth.")
+            It is strongly recommended to use normalized data (CLR or NSP/Arcsinh)
+            to avoid clustering based purely on sequencing depth.")
     }
 
     message(sprintf("Running UMAP on %d cells and %d features...", nrow(mat), ncol(mat)))
@@ -235,7 +234,7 @@ run_umap_protein <- function(expression_matrix,
     }
 
     # 4. Execution (uwot)
-    set.seed(seed)
+
     umap_result <- uwot::umap(
         X = mat,
         n_neighbors = n_neighbors,
@@ -265,7 +264,6 @@ run_umap_protein <- function(expression_matrix,
 #' @return A list of metric scores
 #' @noRd
 compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size = 1000) {
-
     common_cells <- intersect(rownames(high_dim_mat), rownames(low_dim_mat))
 
     if (length(common_cells) < 3) {
@@ -304,8 +302,9 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
     r_low <- t(apply(d_low, 1, rank, ties.method = "first"))
 
     denom <- ifelse(k_safe < sample_n / 2,
-                    sample_n * k_safe * (2 * sample_n - 3 * k_safe - 1) / 2,
-                    sample_n * (sample_n - k_safe) * (sample_n - k_safe - 1) / 2)
+        sample_n * k_safe * (2 * sample_n - 3 * k_safe - 1) / 2,
+        sample_n * (sample_n - k_safe) * (sample_n - k_safe - 1) / 2
+    )
     norm_factor <- 1 / denom
 
     # trust_penalty : On prend les rangs d'origine des K-voisins de l'UMAP

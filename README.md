@@ -13,7 +13,7 @@ ScIGMA (Single-cell Integrated Genomic & Multi-omics Analyzer) is an advanced R-
 - **Rigorous Filtering**: Dynamic, threshold-based exclusion of low-quality cells, doublets, and uninformative variants prior to downstream statistical modeling.
 
 ### 2. Probabilistic Clonal Inference
-- **MCMC Genotype Imputation**: ScIGMA implements a native `Rcpp` interface to the COMPASS C++ backend. This integration allows for rigorous Markov Chain Monte Carlo (MCMC) inference to resolve allele dropouts and technical missingness.
+- **MCMC Genotype Imputation**: ScIGMA implements a native `Rcpp` interface to the COMPASS C++ backend (v1.1.1). This integration allows for rigorous Markov Chain Monte Carlo (MCMC) inference to resolve allele dropouts and technical missingness.
 - **Phylogenetic Reconstruction**: Joint probabilistic modeling of SNVs and CNVs to construct robust clonal architectures, returning objective, data-driven single-cell phylogenies.
 
 ### 3. Automated Variant Annotation

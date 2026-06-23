@@ -8,7 +8,7 @@
 #'
 #' @importFrom shiny NS tagList
 mod_about_panel_ui <- function(id) {
-  ns <- NS(id)
+    ns <- NS(id)
     tagList(
         bslib::card(
             bslib::card_header(
@@ -126,26 +126,26 @@ ScIGMA relies on a robust ecosystem of R packages for single-cell multi-omics in
 #### Contact & Support
 For questions, bug reports, or feature requests, please contact:
 
-**Dr. Geoffrey Pawlak**  
-METRICS, Lille University Hospital  
-1 Place de Verdun, 59000 Lille, France  
+**Dr. Geoffrey Pawlak**
+METRICS, Lille University Hospital
+1 Place de Verdun, 59000 Lille, France
 **E-mail:** [geoffrey.pawlak@gmail.com](mailto:geoffrey.pawlak@gmail.com)
 
-The source code is publicly available under the GPL-3 license. For bug reports or feature requests, please use our GitHub issue tracker.  
+The source code is publicly available under the GPL-3 license. For bug reports or feature requests, please use our GitHub issue tracker.
 **GitHub Repository:** <a href='https://github.com/geoffrey-pawlak/ScIGMA' target='_blank'>https://github.com/geoffrey-pawlak/ScIGMA</a>
 
 ---
 
- #### Application version
+    #### Application version
 
 **Version:** 1.0.0
-  
+
 ---
-  
+
 #### License
 This software is released under the **GNU General Public License v3.0 (GPL-3)**. It is an open-source application intended for the scientific community. This 'copyleft' license guarantees your freedom to share and change all versions of the program, and ensures that any derived works must also remain free and open-source.
 
-  
+
                 ")
             )
         )
@@ -155,11 +155,10 @@ This software is released under the **GNU General Public License v3.0 (GPL-3)**.
 #' about_panel Server Functions
 #'
 #' @noRd
-mod_about_panel_server <- function(id, ScIGMA_data){
-  moduleServer(id, function(input, output, session){
-    ns <- session$ns
-
-  })
+mod_about_panel_server <- function(id, ScIGMA_data) {
+    moduleServer(id, function(input, output, session) {
+        ns <- session$ns
+    })
 }
 
 ## To be copied in the UI

@@ -94,7 +94,8 @@ protein_run_pca <- function(ScIGMA_data) {
         seurat_obj,
         features = Seurat::VariableFeatures(object = seurat_obj),
         npcs = max_npcs,
-        verbose = FALSE
+        verbose = FALSE,
+        seed.use = 42
     )
 
     seurat_obj <- Seurat::FindNeighbors(

@@ -104,10 +104,20 @@ normalize_linear_regression <- function(raw_matrix,
                                         use_log = TRUE,
                                         add_mean = TRUE,
                                         jitter = 0,
-                                        scale = 1) {
+                                        scale = 1,
+                                        seed = 42) {
     if (!is.matrix(raw_matrix)) raw_matrix <- as.matrix(raw_matrix)
 
     if (jitter > 0) {
+        if (!is.null(seed)) {
+            if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+                old_seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+                on.exit(assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+            } else {
+                on.exit(rm(list = ".Random.seed", envir = .GlobalEnv), add = TRUE)
+            }
+            set.seed(seed)
+        }
         noise <- matrix(rnorm(length(raw_matrix), 0, jitter), nrow = nrow(raw_matrix))
         raw_matrix <- raw_matrix + noise
         raw_matrix[raw_matrix < 0] <- 0 # Clip negatives

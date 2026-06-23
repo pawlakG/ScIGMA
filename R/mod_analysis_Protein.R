@@ -645,7 +645,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ScIGMA_data$seurat_object <- Seurat::RunUMAP(ScIGMA_data$seurat_object,
                 features = umap_features,
                 min.dist = min_dist,
-                n.neighbors = n_neighbors
+                n.neighbors = n_neighbors,
+                seed.use = 42
             )
 
             message("Computing rigorous UMAP metrics against raw normalized data...")
@@ -827,7 +828,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         dims = seq_len(nrow(ScIGMA_data$seurat_object) - 2),
                         min.dist = 0.15,
                         n.neighbors = 30,
-                        future.seed = TRUE
+                        future.seed = TRUE,
+                        seed.use = 42
                     )
                 }
                 # 1. Clustering
@@ -839,7 +841,8 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
                 ScIGMA_data$seurat_object <- FindClusters(
                     ScIGMA_data$seurat_object,
-                    resolution = clustering_resolution
+                    resolution = clustering_resolution,
+                    random.seed = 42
                 )
 
                 umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>

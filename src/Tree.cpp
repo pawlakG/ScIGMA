@@ -1015,8 +1015,11 @@ bool Tree::select_regions(int index){
                 }
             }
             if (node_newroot==-1 || (!CNLOH_in_tree)){
+            #pragma omp critical
+            {
                 if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
                 Rcpp::Rcout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs."<<std::endl;
+            }
                 return false; // not enough cells attached to the root: cannot find CNAs
             }
             else{
@@ -1040,8 +1043,11 @@ bool Tree::select_regions(int index){
 
         if (data.predetermined_region_weights.size()==0){
             if (nodes_regionprobs[k][root].size()<std::max(40.0,0.015*n_cells)){
+            #pragma omp critical
+            {
                 if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
                 Rcpp::Rcout<<"In the tree inferred without CNAs, there were not enough cells attached to the root ("<<nodes_nbcells[0]<<") to estimate the region weights, so COMPASS could not attempt to find CNAs.."<<std::endl;
+            }
                 return false; // not enough cells attached to the root: cannot find CNAs
             }
             double rootprob=0;
@@ -1068,8 +1074,11 @@ bool Tree::select_regions(int index){
         }
     }
     if (candidate_regions.size()==0){
-        if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
-        Rcpp::Rcout<<"In the tree inferred without CNAs, there were no regions whose coverage in one node were different from the root, so COMPASS could not identify any CNAs."<<std::endl;
+        #pragma omp critical
+        {
+            if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+            Rcpp::Rcout<<"In the tree inferred without CNAs, there were no regions whose coverage in one node were different from the root, so COMPASS could not identify any CNAs."<<std::endl;
+        }
         return false;
     }
 
@@ -1083,12 +1092,15 @@ bool Tree::select_regions(int index){
         }
     }
     if (true || parameters.verbose){
-        if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
-        Rcpp::Rcout<<"After the first phase (inferring the best tree without CNAs), COMPASS identified the following candidate regions which might contain CNAs: ";
-        for (int i: candidate_regions){
-            Rcpp::Rcout<<data.region_to_name[i]<<",";
+        #pragma omp critical
+        {
+            if (index >=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<<": ";
+            Rcpp::Rcout<<"After the first phase (inferring the best tree without CNAs), COMPASS identified the following candidate regions which might contain CNAs: ";
+            for (auto i : candidate_regions){
+                Rcpp::Rcout<<data.region_to_name[i]<<",";
+            }
+            Rcpp::Rcout<<std::endl;
         }
-        Rcpp::Rcout<<std::endl;
     }
 
     return true;

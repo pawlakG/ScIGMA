@@ -109,3 +109,130 @@ compute_population_genotype_distribution <- function(mae_data,
 
     return(final_stats)
 }
+
+#' Generate Multiomics UMAP with DNA Clones
+#' @export
+generate_multi_umap_dna_clones <- function(obj, use_compass = TRUE) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) stop("UMAP not computed.")
+    if (is.null(obj$dna.clones)) stop("DNA clones not assigned.")
+    
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    umap_df$barcode <- rownames(umap_df)
+    
+    umap_df$dna_clones <- as.character(obj$dna.clones[umap_df$barcode])
+    umap_df$dna_clones[is.na(umap_df$dna_clones)] <- "Missing"
+    
+    p <- ggplot2::ggplot(umap_df, ggplot2::aes(x = umap_1, y = umap_2, color = dna_clones)) +
+        ggplot2::geom_point(size = 1.5, alpha = 0.8) +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+    
+    if (!is.null(obj$dna_clone_colors)) {
+        p <- p + ggplot2::scale_color_manual(values = c(obj$dna_clone_colors, "Missing" = "#e0e0e0"))
+    }
+    return(p)
+}
+
+#' Generate Multiomics UMAP with DNA Genotype
+#' @export
+generate_multi_umap_dna_genotype <- function(obj, variant_id, use_compass = TRUE) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) stop("UMAP not computed.")
+    
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    umap_df$Barcode <- rownames(umap_df)
+    
+    geno_df <- extract_variant_genotypes(obj$mae, variant_id, use_compass)
+    plot_df <- merge(umap_df, geno_df, by = "Barcode", all.x = TRUE)
+    plot_df$Variant_Genotype[is.na(plot_df$Variant_Genotype)] <- "Missing/ADO"
+    plot_df$Variant_Genotype <- factor(plot_df$Variant_Genotype, levels = c("WT", "HET", "HOM", "Missing/ADO"))
+    
+    p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = umap_1, y = umap_2, color = Variant_Genotype)) +
+        ggplot2::geom_point(size = 1.5, alpha = 0.8) +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold") +
+        ggplot2::scale_color_manual(values = c("WT" = "#d3d3d3", "HET" = "#f39c12", "HOM" = "#c0392b", "Missing/ADO" = "#e0e0e0"))
+    return(p)
+}
+
+#' Generate Multiomics Barplot of DNA Clones vs Unsupervised Clusters
+#' @export
+generate_multi_barplot_clones_per_cluster <- function(obj) {
+    if (is.null(obj$seurat_object) || !"seurat_clusters" %in% colnames(obj$seurat_object@meta.data)) stop("Clusters not computed.")
+    if (is.null(obj$dna.clones)) stop("DNA clones not assigned.")
+    
+    clusters <- obj$seurat_object@meta.data$seurat_clusters
+    clones <- obj$dna.clones[names(clusters)]
+    clones[is.na(clones)] <- "Missing"
+    
+    plot_df <- data.frame(Cluster = clusters, Clone = clones)
+    
+    p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = Cluster, fill = Clone)) +
+        ggplot2::geom_bar(position = "fill") +
+        ggplot2::ylab("Proportion") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+        
+    if (!is.null(obj$dna_clone_colors)) {
+        p <- p + ggplot2::scale_fill_manual(values = c(obj$dna_clone_colors, "Missing" = "#e0e0e0"))
+    }
+    return(p)
+}
+
+#' Generate Multiomics Barplot of DNA Variants vs Protein Clusters
+#' @export
+generate_multi_barplot_variant_genotype <- function(obj, variant_ids, use_compass = TRUE) {
+    if (is.null(obj$seurat_object) || !"seurat_clusters" %in% colnames(obj$seurat_object@meta.data)) stop("Clusters not computed.")
+    
+    clusters <- obj$seurat_object@meta.data$seurat_clusters
+    stats_df <- compute_population_genotype_distribution(
+        mae_data = obj$mae, 
+        variant_ids = variant_ids, 
+        cell_barcodes = names(clusters), 
+        use_compass = use_compass, 
+        seurat_cluster = clusters
+    )
+    
+    p <- ggplot2::ggplot(stats_df, ggplot2::aes(x = Cluster, y = Percentage, fill = Variant_Genotype)) +
+        ggplot2::geom_bar(stat = "identity", position = "stack") +
+        ggplot2::facet_wrap(~Variant_ID) +
+        ggplot2::ylab("Percentage (%)") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold") +
+        ggplot2::scale_fill_manual(values = c("WT" = "#d3d3d3", "HET" = "#f39c12", "HOM" = "#c0392b", "Missing/ADO" = "#e0e0e0"))
+    return(p)
+}
+
+#' Generate Multiomics Barplot of Gating Subpopulation Genotype vs Variants
+#' @export
+generate_multi_barplot_gating_genotype <- function(obj, variant_ids, use_compass = TRUE) {
+    if (is.null(obj$protein_gates)) stop("No protein gates defined.")
+    
+    all_cells <- unique(unlist(obj$protein_gates))
+    # We assign cells to their last defined gate if overlapping
+    gate_assignment <- character(length(all_cells))
+    names(gate_assignment) <- all_cells
+    
+    for (gate_name in names(obj$protein_gates)) {
+        gate_cells <- obj$protein_gates[[gate_name]]
+        gate_assignment[gate_cells] <- gate_name
+    }
+    
+    stats_df <- compute_population_genotype_distribution(
+        mae_data = obj$mae, 
+        variant_ids = variant_ids, 
+        cell_barcodes = names(gate_assignment), 
+        use_compass = use_compass, 
+        seurat_cluster = gate_assignment
+    )
+    
+    # Rename Cluster to Gate for plot
+    stats_df$Gate <- stats_df$Cluster
+    
+    p <- ggplot2::ggplot(stats_df, ggplot2::aes(x = Gate, y = Percentage, fill = Variant_Genotype)) +
+        ggplot2::geom_bar(stat = "identity", position = "stack") +
+        ggplot2::facet_wrap(~Variant_ID) +
+        ggplot2::ylab("Percentage (%)") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold") +
+        ggplot2::scale_fill_manual(values = c("WT" = "#d3d3d3", "HET" = "#f39c12", "HOM" = "#c0392b", "Missing/ADO" = "#e0e0e0"))
+    return(p)
+}

@@ -46,8 +46,11 @@ Inference::~Inference(){
 Tree Inference::find_best_tree(bool use_CNA, int nb_steps, int burn_in){
 
     //First, find the best tree without CNA.
-    if (index>=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<< ": Starting first phase (finding the best tree without CNA)."<<std::endl;
-    else Rcpp::Rcout<<"Starting first phase (finding the best tree without CNA)."<<std::endl;
+    #pragma omp critical
+    {
+        if (index>=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<< ": Starting first phase (finding the best tree without CNA)."<<std::endl;
+        else Rcpp::Rcout<<"Starting first phase (finding the best tree without CNA)."<<std::endl;
+    }
     mcmc(false, nb_steps,burn_in);
     if (!use_CNA){
         if (tree_name!="") best_tree.to_dot(tree_name+".gv",false);
@@ -64,8 +67,11 @@ Tree Inference::find_best_tree(bool use_CNA, int nb_steps, int burn_in){
 
     if (tree_name!="") best_tree.to_dot(tree_name+"_noCNV.gv",false);
     // Find best tree with CNA
-    if (index>=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<< ": Starting second phase (finding the best tree with CNA)."<<std::endl;
-    else Rcpp::Rcout<<"Starting second phase (finding the best tree with CNA)."<<std::endl;
+    #pragma omp critical
+    {
+        if (index>=0) Rcpp::Rcout<<"Chain "<<std::to_string(index)<< ": Starting second phase (finding the best tree with CNA)."<<std::endl;
+        else Rcpp::Rcout<<"Starting second phase (finding the best tree with CNA)."<<std::endl;
+    }
     best_tree.allow_CNA();
     t = best_tree;
     t_prime = t;

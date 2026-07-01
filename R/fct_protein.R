@@ -332,3 +332,280 @@ compute_umap_metrics <- function(high_dim_mat, low_dim_mat, k = 15, sample_size 
         global_spearman = spearman_score
     ))
 }
+
+#' Run Unsupervised Clustering on Protein Markers
+#' @description Headless wrapper for Seurat-based unsupervised clustering on protein data.
+#' @param obj A ScIGMA_object (R6) containing a valid seurat_object with PCA computed.
+#' @param resolution Numeric. Resolution parameter for FindClusters (modularity optimization). Default is 0.8.
+#' @param seed Integer. Seed for reproducibility. Default is 42.
+#' @return The mutated ScIGMA_object with assigned seurat_clusters.
+#' @export
+run_protein_clustering <- function(obj, resolution = 0.8, seed = 42) {
+    if (is.null(obj$seurat_object)) {
+        stop("seurat_object is missing. Run PCA/UMAP steps first.")
+    }
+    
+    message("1/2 - Computing nearest neighbor graph...")
+    obj$seurat_object <- Seurat::FindNeighbors(
+        object = obj$seurat_object,
+        features = rownames(obj$seurat_object),
+        dims = seq_len(ncol(obj$seurat_object@reductions$pca@cell.embeddings))
+    )
+    
+    message("2/2 - Optimizing modularity (Louvain)...")
+    obj$seurat_object <- Seurat::FindClusters(
+        object = obj$seurat_object,
+        resolution = resolution,
+        random.seed = seed
+    )
+    
+    return(obj)
+}
+
+#' Generate Protein Abundance Ridge Plot
+#'
+#' @description
+#' Fonction API permettant de générer le ridge plot des protéines hors du contexte Shiny.
+#'
+#' @param obj Un objet ScIGMA_data.
+#' @return Un objet Plotly interactif.
+#' @export
+generate_protein_ridgeplot <- function(obj) {
+    render_protein_ridge_plot(obj)
+}
+
+#' Generate Protein Barplot
+#'
+#' @description
+#' Fonction API permettant de générer le barplot de distribution des protéines hors du contexte Shiny.
+#'
+#' @param obj Un objet ScIGMA_data.
+#' @param title Le titre du graphique.
+#' @return Un objet Plotly interactif.
+#' @export
+generate_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
+    plot_protein_barplot(obj, title = title)
+}
+
+#' Generate Protein Biplot (e.g. CD19 vs CD33)
+#'
+#' @description
+#' Fonction API permettant de générer un biplot (scatter plot) interactif entre 
+#' deux marqueurs protéiques hors du contexte Shiny, avec possibilité de colorer 
+#' par un génotype/clone spécifique.
+#'
+#' @param obj Un objet ScIGMA_data.
+#' @param xvar Le nom du marqueur pour l'axe X (ex: "CD19").
+#' @param yvar Le nom du marqueur pour l'axe Y (ex: "CD33").
+#' @param logx Booléen. Appliquer log1p sur l'axe X. Défaut FALSE.
+#' @param logy Booléen. Appliquer log1p sur l'axe Y. Défaut FALSE.
+#' @param color_genotype Vecteur de caractères indiquant les clones à colorer (ex: "1", "2"). Si NULL ou "None", coloration uniforme.
+#' @param title Le titre du graphique.
+#' @return Un objet Plotly interactif.
+#' @export
+generate_protein_biplot <- function(
+    obj, 
+    xvar, 
+    yvar, 
+    logx = FALSE, 
+    logy = FALSE, 
+    color_genotype = NULL,
+    title = "Protein Biplot"
+) {
+    if (!"proteins" %in% names(obj$mae)) {
+        stop("La matrice 'proteins' est manquante dans l'objet MAE.")
+    }
+
+    # Style Prism copié du module Shiny
+    prism_axis_style <- list(
+        titlefont = list(size = 16, color = "black", family = "Arial"),
+        tickfont = list(size = 14, color = "black", family = "Arial"),
+        showline = TRUE,
+        linewidth = 2,
+        linecolor = "black",
+        mirror = FALSE,
+        ticks = "outside",
+        tickwidth = 2,
+        ticklen = 6,
+        tickcolor = "black",
+        showgrid = FALSE,
+        zeroline = FALSE
+    )
+
+    assay_to_use <- ifelse(
+        "normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]),
+        "normalized",
+        "counts"
+    )
+
+    ptn_matrix <- SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)
+
+    if (!xvar %in% rownames(ptn_matrix)) stop(paste("Le marqueur", xvar, "n'est pas présent."))
+    if (!yvar %in% rownames(ptn_matrix)) stop(paste("Le marqueur", yvar, "n'est pas présent."))
+
+    plot_df <- data.frame(
+        x = ptn_matrix[xvar, ],
+        y = ptn_matrix[yvar, ],
+        custom_id = colnames(ptn_matrix)
+    )
+
+    if (logx) plot_df$x <- log1p(plot_df$x)
+    if (logy) plot_df$y <- log1p(plot_df$y)
+
+    color_formula <- NULL
+    color_palette <- NULL
+    marker_config <- list(size = 5, opacity = 0.8, color = "#2c3e50")
+
+    if (!is.null(color_genotype) && !identical(color_genotype, "None")) {
+        if (is.null(obj$dna.clones)) stop("Assignation clonale manquante (obj$dna.clones).")
+
+        # Extraction des clones associés aux cellules
+        plot_df$Genotype <- as.character(obj$dna.clones[rownames(plot_df)])
+
+        # Regroupement des non-cibles
+        plot_df$Genotype <- ifelse(
+            plot_df$Genotype %in% color_genotype,
+            plot_df$Genotype,
+            "Other"
+        )
+
+        # Verrouillage Z-Indexing ("Other" au fond)
+        plot_df$Genotype <- factor(
+            plot_df$Genotype,
+            levels = c("Other", color_genotype)
+        )
+        plot_df <- plot_df[order(plot_df$Genotype), ]
+
+        color_formula <- ~Genotype
+
+        # Fusion des palettes
+        if (!is.null(obj$dna_clone_colors)) {
+            color_palette <- c(obj$dna_clone_colors, "Other" = "#e0e0e033")
+        } else {
+            warning("obj$dna_clone_colors non trouvé, utilisation de la palette par défaut.")
+            color_palette <- "Set1" 
+        }
+
+        marker_config <- list(size = 5)
+    }
+
+    p <- plotly::plot_ly(
+        data = plot_df,
+        x = ~x,
+        y = ~y,
+        key = ~custom_id,
+        color = color_formula,
+        colors = color_palette,
+        type = "scattergl",
+        mode = "markers",
+        marker = marker_config
+    ) %>%
+        plotly::layout(
+            title = list(
+                text = paste("<b>", title, "</b>"),
+                font = list(family = "Arial", size = 18)
+            ),
+            plot_bgcolor = "white",
+            paper_bgcolor = "white",
+            xaxis = c(
+                list(
+                    title = paste("<b>", xvar, "</b>"),
+                    range = list(0, max(plot_df$x, na.rm = TRUE) + 1)
+                ),
+                prism_axis_style
+            ),
+            yaxis = c(
+                list(
+                    title = paste("<b>", yvar, "</b>"),
+                    range = list(0, max(plot_df$y, na.rm = TRUE) + 1)
+                ),
+                prism_axis_style
+            ),
+            legend = list(title = list(text = "<b>Genotype</b>")),
+            margin = list(l = 60, r = 30, b = 60, t = 50)
+        ) %>%
+        plotly::config(displaylogo = FALSE)
+
+    return(p)
+}
+#' Generate Global Protein UMAP
+#' @export
+generate_protein_umap <- function(obj) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) {
+        stop("UMAP not computed.")
+    }
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    p <- ggplot2::ggplot(umap_df, ggplot2::aes(x = umap_1, y = umap_2)) +
+        ggplot2::geom_point(size = 1.5, color = "#2c3e50", alpha = 0.8) +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+    return(p)
+}
+
+#' Generate Protein UMAP with Markers
+#' @export
+generate_protein_umap_markers <- function(obj, markers) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) stop("UMAP not computed.")
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    umap_df$barcode <- rownames(umap_df)
+    
+    assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "normalized", "counts")
+    expr_mat <- SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)[markers, , drop = FALSE]
+    expr_df <- as.data.frame(t(expr_mat))
+    expr_df$barcode <- rownames(expr_df)
+    
+    umap_df <- merge(umap_df, expr_df, by = "barcode")
+    umap_df <- tidyr::pivot_longer(umap_df, cols = tidyr::all_of(markers), values_to = "ptn_expression", names_to = "marker")
+    
+    p <- ggplot2::ggplot(umap_df, ggplot2::aes(x = umap_1, y = umap_2, color = ptn_expression)) +
+        ggplot2::geom_point(size = 1.2, alpha = 0.9) +
+        ggplot2::facet_wrap(~marker) +
+        ggplot2::scale_color_viridis_c(option = "inferno", name = "Expression") +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+    return(p)
+}
+
+#' Generate Protein UMAP with Gating
+#' @export
+generate_protein_umap_gating <- function(obj) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) stop("UMAP not computed.")
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    umap_df$barcode <- rownames(umap_df)
+    
+    if (is.null(obj$protein_gates)) stop("No gates found.")
+    
+    # Assign gate to each cell (last gate wins if overlapping)
+    umap_df$Gate <- "Ungated"
+    for (gate_name in names(obj$protein_gates)) {
+        cells <- obj$protein_gates[[gate_name]]
+        umap_df$Gate[umap_df$barcode %in% cells] <- gate_name
+    }
+    
+    p <- ggplot2::ggplot(umap_df, ggplot2::aes(x = umap_1, y = umap_2, color = Gate)) +
+        ggplot2::geom_point(size = 1.5, alpha = 0.8) +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold") +
+        ggplot2::theme(legend.title = ggplot2::element_text(face = "bold"))
+    return(p)
+}
+
+#' Generate Protein UMAP with Unsupervised Clustering
+#' @export
+generate_protein_umap_clustering <- function(obj) {
+    if (is.null(obj$seurat_object) || is.null(obj$seurat_object@reductions$umap)) stop("UMAP not computed.")
+    if (!"seurat_clusters" %in% colnames(obj$seurat_object@meta.data)) stop("Clustering not computed.")
+    
+    umap_df <- as.data.frame(obj$seurat_object@reductions$umap@cell.embeddings)
+    umap_df$Cluster <- obj$seurat_object@meta.data$seurat_clusters
+    
+    p <- ggplot2::ggplot(umap_df, ggplot2::aes(x = umap_1, y = umap_2, color = Cluster)) +
+        ggplot2::geom_point(size = 1.5, alpha = 0.8) +
+        ggplot2::xlab("UMAP 1") +
+        ggplot2::ylab("UMAP 2") +
+        ggprism::theme_prism(base_size = 14, base_fontface = "bold")
+    return(p)
+}

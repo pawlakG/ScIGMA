@@ -22,7 +22,9 @@ mod_analysis_DNA_ui <- function(id) {
                         DTOutput(ns("variant_selection")),
                         br(),
                         fluidRow(
-                            actionButton(ns("btn_filtrer"), "Apply",
+                            actionButton(
+                                ns("btn_filtrer"),
+                                "Apply",
                                 class = "btn-primary"
                             )
                         )
@@ -31,8 +33,10 @@ mod_analysis_DNA_ui <- function(id) {
                         "DNA variant heatmap",
                         fluidRow(
                             div(
-                                plotOutput(ns("dna_variant_heatmap"),
-                                    height = "600px", width = "900px"
+                                plotOutput(
+                                    ns("dna_variant_heatmap"),
+                                    height = "600px",
+                                    width = "900px"
                                 ),
                                 align = "center"
                             ),
@@ -42,7 +46,9 @@ mod_analysis_DNA_ui <- function(id) {
                                     4,
                                     div(
                                         shinyWidgets::materialSwitch(
-                                            inputId = ns("heatmap_include_all_samples"),
+                                            inputId = ns(
+                                                "heatmap_include_all_samples"
+                                            ),
                                             label = "Show missings ?",
                                             value = TRUE,
                                             status = "success"
@@ -54,7 +60,9 @@ mod_analysis_DNA_ui <- function(id) {
                                     4,
                                     div(
                                         shinyWidgets::materialSwitch(
-                                            inputId = ns("heatmap_use_compass_imputed"),
+                                            inputId = ns(
+                                                "heatmap_use_compass_imputed"
+                                            ),
                                             label = "Use COMPASS imputed matrix ?",
                                             value = FALSE,
                                             # status = "primary"
@@ -66,7 +74,9 @@ mod_analysis_DNA_ui <- function(id) {
                                 column(
                                     4,
                                     div(
-                                        actionButton(ns("btn_dna_variant_download"), "Download plot",
+                                        actionButton(
+                                            ns("btn_dna_variant_download"),
+                                            "Download plot",
                                             class = "btn-primary"
                                         ),
                                         align = "center"
@@ -120,22 +130,29 @@ mod_analysis_DNA_ui <- function(id) {
                         )
                     ),
                     br(),
-                    helpText("Warning: Running COMPASS inference will reset the
+                    helpText(
+                        "Warning: Running COMPASS inference will reset the
                             clonal architecture and erase any custom clone
                             names. Please rename your clones only after your
-                            final architecture is computed."),
+                            final architecture is computed."
+                    ),
                     shiny::br(),
                     fluidRow(
-                        column(4,
+                        column(
+                            4,
                             shiny::radioButtons(
                                 inputId = ns("patient_sex"),
                                 label = "Sex",
-                                choices = c("Female" = "female", "Male" = "male"),
+                                choices = c(
+                                    "Female" = "female",
+                                    "Male" = "male"
+                                ),
                                 selected = "female",
                                 inline = TRUE
                             )
                         ),
-                        column(4,
+                        column(
+                            4,
                             sliderTextInput(
                                 inputId = ns("run_compass_n_chains"),
                                 label = "Number of Markov Chains",
@@ -145,7 +162,8 @@ mod_analysis_DNA_ui <- function(id) {
                                 width = "100%"
                             )
                         ),
-                        column(4,
+                        column(
+                            4,
                             sliderTextInput(
                                 inputId = ns("run_compass_length_chains"),
                                 label = "Markov Chains length",
@@ -189,7 +207,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
 
         bslib::nav_hide(id = "dna_tabs", target = "compass_tab")
 
-        observeEvent(input$btn_filtrer,
+        observeEvent(
+            input$btn_filtrer,
             {
                 req(ScIGMA_data$mae)
 
@@ -202,43 +221,87 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
 
                 if (!is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
                     S4Vectors::metadata(ScIGMA_data$mae)$compass <- NULL
-                    if ("cnv.active.clones" %in% names(ScIGMA_data)) ScIGMA_data$cnv.active.clones <- NULL
+                    if ("cnv.active.clones" %in% names(ScIGMA_data)) {
+                        ScIGMA_data$cnv.active.clones <- NULL
+                    }
 
-                    shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+                    shinyWidgets::updateMaterialSwitch(
+                        session,
+                        "heatmap_use_compass_imputed",
+                        value = FALSE
+                    )
                     compass_tree_visible(FALSE)
 
-                    shiny::showNotification("Modified variants: Previous COMPASS model purged.", type = "warning")
+                    shiny::showNotification(
+                        "Modified variants: Previous COMPASS model purged.",
+                        type = "warning"
+                    )
                 }
 
                 sel_indices <- input$variant_selection_rows_selected
                 if (length(sel_indices) > 0) {
                     ScIGMA_profile("2. Filtrage et annotation des variants", {
-                        sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+                        sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                            "dna_variants"
+                        ]]) |>
                             as.data.frame() |>
                             dplyr::arrange(desc(cell_proportion), clinvar)
 
-                        selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
-                        selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
+                        selected_df <- sorted_annotation[
+                            sel_indices,
+                            ,
+                            drop = FALSE
+                        ]
+                        selected_df$label <- paste(
+                            selected_df$protein,
+                            selected_df$cdna,
+                            sep = " / "
+                        ) # Add label
                         ScIGMA_data$variants.filtered <- selected_df
 
                         short_vars <- rownames(selected_df)
-                        gt_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt"))[short_vars, , drop = FALSE])
-                        msk_raw <- t(as.matrix(SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "variant_filter_mask"))[short_vars, , drop = FALSE]) != 0
+                        gt_raw <- t(as.matrix(SummarizedExperiment::assay(
+                            ScIGMA_data$mae[["dna_variants"]],
+                            "gt"
+                        ))[short_vars, , drop = FALSE])
+                        msk_raw <- t(as.matrix(SummarizedExperiment::assay(
+                            ScIGMA_data$mae[["dna_variants"]],
+                            "variant_filter_mask"
+                        ))[short_vars, , drop = FALSE]) !=
+                            0
 
                         # Application du masque (3 = Missing/Dropout)
-                        gt_raw[cbind(row(msk_raw)[msk_raw], col(msk_raw)[msk_raw])] <- 3L
-                        gt_complete_cells <- gt_raw[rowSums(gt_raw == 3L) == 0, , drop = FALSE]
+                        gt_raw[cbind(
+                            row(msk_raw)[msk_raw],
+                            col(msk_raw)[msk_raw]
+                        )] <- 3L
+                        gt_complete_cells <- gt_raw[
+                            rowSums(gt_raw == 3L) == 0,
+                            ,
+                            drop = FALSE
+                        ]
 
                         if (nrow(gt_complete_cells) > 0) {
-                            res_raw <- generate_clonal_labels(gt_complete_cells, selected_df, ignore_missing = TRUE)
+                            res_raw <- generate_clonal_labels(
+                                gt_complete_cells,
+                                selected_df,
+                                ignore_missing = TRUE
+                            )
                             ScIGMA_data$dna.clones <- setNames(
-                                as.factor(res_raw$cell_metadata$clonal_cluster_id),
+                                as.factor(
+                                    res_raw$cell_metadata$clonal_cluster_id
+                                ),
                                 res_raw$cell_metadata$cell_barcode
                             )
                             ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
-                            ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+                            ScIGMA_data$dna_clone_colors <- generate_clone_palette(
+                                ScIGMA_data$dna.clones
+                            )
 
-                            bslib::nav_show(id = "dna_tabs", target = "compass_tab")
+                            bslib::nav_show(
+                                id = "dna_tabs",
+                                target = "compass_tab"
+                            )
                         }
                     })
                 } else {
@@ -249,10 +312,17 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-        observeEvent(watch("dataLoaded"),
+        observeEvent(
+            watch("dataLoaded"),
             {
-                shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
-                if (exists("compass_tree_visible")) compass_tree_visible(FALSE)
+                shinyWidgets::updateMaterialSwitch(
+                    session,
+                    "heatmap_use_compass_imputed",
+                    value = FALSE
+                )
+                if (exists("compass_tree_visible")) {
+                    compass_tree_visible(FALSE)
+                }
 
                 # Atomise les graphiques
                 output$dna_variant_heatmap <- renderPlot({
@@ -274,16 +344,32 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             watch("dataLoaded")
             req(ScIGMA_data$mae)
 
-            tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+            tmp_variant_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                "dna_variants"
+            ]]) |>
                 as.data.frame() |>
-                dplyr::select(gene, transcript_id, protein, cdna, variant_type, gene_function, clinvar, cell_proportion) |>
+                dplyr::select(
+                    gene,
+                    transcript_id,
+                    protein,
+                    cdna,
+                    variant_type,
+                    gene_function,
+                    clinvar,
+                    cell_proportion
+                ) |>
                 # dplyr::filter(!is.na(variant_id)) |>
                 dplyr::arrange(desc(cell_proportion), clinvar)
 
-            datatable(tmp_variant_annotation,
+            datatable(
+                tmp_variant_annotation,
                 selection = "multiple",
                 rownames = FALSE,
-                colnames = stringr::str_replace_all(names(tmp_variant_annotation), "_", " "),
+                colnames = stringr::str_replace_all(
+                    names(tmp_variant_annotation),
+                    "_",
+                    " "
+                ),
                 options = list(
                     pageLength = 5,
                     lengthMenu = c(5, 10, 15)
@@ -304,21 +390,57 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 heatmap_include_all_samples <- input$heatmap_include_all_samples
                 use_imputed <- input$heatmap_use_compass_imputed
 
-                if (length(sel_indices) > 0 && max(sel_indices) <= nrow(ScIGMA_data$mae[["dna_variants"]])) {
-                    if (isTRUE(use_imputed) && is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
-                        shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "warning")
+                if (
+                    length(sel_indices) > 0 &&
+                        max(sel_indices) <=
+                            nrow(ScIGMA_data$mae[["dna_variants"]])
+                ) {
+                    if (
+                        isTRUE(use_imputed) &&
+                            is.null(
+                                S4Vectors::metadata(ScIGMA_data$mae)$compass
+                            )
+                    ) {
+                        shiny::showNotification(
+                            "COMPASS inference missing. Please run COMPASS first.",
+                            type = "warning"
+                        )
 
-                        shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = FALSE)
+                        shinyWidgets::updateMaterialSwitch(
+                            session,
+                            "heatmap_use_compass_imputed",
+                            value = FALSE
+                        )
                         use_imputed <- FALSE
                     }
 
-                    sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+                    sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                        "dna_variants"
+                    ]]) |>
                         as.data.frame() |>
-                        dplyr::select(dplyr::any_of("variant_id"), gene, transcript_id, protein, cdna, variant_type, gene_function, clinvar, cell_proportion) |>
+                        dplyr::select(
+                            dplyr::any_of("variant_id"),
+                            gene,
+                            transcript_id,
+                            protein,
+                            cdna,
+                            variant_type,
+                            gene_function,
+                            clinvar,
+                            cell_proportion
+                        ) |>
                         dplyr::arrange(desc(cell_proportion), clinvar)
 
-                    selected_df <- sorted_annotation[sel_indices, , drop = FALSE]
-                    selected_df$label <- paste(selected_df$protein, selected_df$cdna, sep = " / ") # Add label
+                    selected_df <- sorted_annotation[
+                        sel_indices,
+                        ,
+                        drop = FALSE
+                    ]
+                    selected_df$label <- paste(
+                        selected_df$protein,
+                        selected_df$cdna,
+                        sep = " / "
+                    ) # Add label
                     ScIGMA_data$variants.filtered <- selected_df
 
                     # print("selected_df")
@@ -334,7 +456,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     ht <- ComplexHeatmap::draw(ht_res$heatmap)
 
                     if (is.null(ScIGMA_data$dna_clones_renamed)) {
-                        is_compass_locked <- !is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)
+                        is_compass_locked <- !is.null(
+                            S4Vectors::metadata(ScIGMA_data$mae)$compass
+                        )
 
                         if (!is_compass_locked) {
                             new_clones <- ht_res$clones
@@ -345,7 +469,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                                 ScIGMA_data$dna.clones_pre_compass <- new_clones
                             }
 
-                            ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+                            ScIGMA_data$dna_clone_colors <- generate_clone_palette(
+                                ScIGMA_data$dna.clones
+                            )
 
                             ScIGMA_data$cnv_dp_filtered <- NULL
                         }
@@ -353,7 +479,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
 
                     shiny::showNotification(
                         ui = paste0(
-                            "Success: ", length(sel_indices),
+                            "Success: ",
+                            length(sel_indices),
                             " DNA variants successfully selected and processed."
                         ),
                         type = "message",
@@ -370,12 +497,13 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-
         observeEvent(watch("dnaVariant_selected"), {
             req(ScIGMA_data$dna.clones)
             output$rename_cluster_ui <- renderUI({
                 tagList(
-                    p("Here you can rename a cluster, select a cluster name on drop list on the left, write its new name in right box and click on 'Apply New Labels' button."),
+                    p(
+                        "Here you can rename a cluster, select a cluster name on drop list on the left, write its new name in right box and click on 'Apply New Labels' button."
+                    ),
                     fluidRow(
                         column(
                             6,
@@ -433,13 +561,14 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 new_name = input$rename_cluster_ui_newName
             )
 
-
             # ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, !!!levels)
             # ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
 
             output$rename_cluster_ui <- renderUI({
                 tagList(
-                    p("Here you can rename a cluster, select a cluster name on drop list on the left, write its new name in right box and click on 'Apply New Labels' button."),
+                    p(
+                        "Here you can rename a cluster, select a cluster name on drop list on the left, write its new name in right box and click on 'Apply New Labels' button."
+                    ),
                     fluidRow(
                         column(
                             6,
@@ -474,7 +603,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 )
             })
 
-
             trigger("dna_clones_renamed")
         })
 
@@ -490,7 +618,10 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 bslib::card_header(
                     div(
                         class = "d-flex justify-content-between align-items-center",
-                        span(shiny::icon("project-diagram"), " Maximum Likelihood Phylogeny")
+                        span(
+                            shiny::icon("project-diagram"),
+                            " Maximum Likelihood Phylogeny"
+                        )
                     ),
                     class = "bg-dark text-white"
                 ),
@@ -498,8 +629,13 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     fillable = FALSE,
                     fill = FALSE,
                     shinycssloaders::withSpinner(
-                        DiagrammeR::grVizOutput(ns("compass_tree_plot"), width = "100%", height = "500px"),
-                        type = 4, color = "#007bff"
+                        DiagrammeR::grVizOutput(
+                            ns("compass_tree_plot"),
+                            width = "100%",
+                            height = "500px"
+                        ),
+                        type = 4,
+                        color = "#007bff"
                     )
                 ),
                 bslib::card_footer(
@@ -513,9 +649,20 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
         })
 
         compass_task <- shiny::ExtendedTask$new(
-            function(compass_length_chains, compass_n_chains, patient_sex, variant_matrices, vec_locus_regions, mat_cna,
-                    vec_locus_names, vec_locus_chrom,
-                    vec_region_names, vec_region_chrom, use_cna, target_vars) {
+            function(
+                compass_length_chains,
+                compass_n_chains,
+                patient_sex,
+                variant_matrices,
+                vec_locus_regions,
+                mat_cna,
+                vec_locus_names,
+                vec_locus_chrom,
+                vec_region_names,
+                vec_region_chrom,
+                use_cna,
+                target_vars
+            ) {
                 # FIX CRITIQUE : future_promise() au lieu de future()
                 promises::future_promise(
                     {
@@ -523,23 +670,26 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                             pkgload::load_all(export_all = FALSE, quiet = TRUE)
                         }
 
-                        prefix_out <- file.path(tempdir(), paste0("compass_async_", as.integer(Sys.time())))
+                        prefix_out <- file.path(
+                            tempdir(),
+                            paste0("compass_async_", as.integer(Sys.time()))
+                        )
 
                         ScIGMA_profile("3. Algorithme COMPASS", {
                             run_compass_mcmc(
-                                variant_matrices   = variant_matrices,
-                                locus_regions      = vec_locus_regions,
-                                region_matrix      = mat_cna,
-                                output_prefix      = prefix_out,
-                                locus_names        = vec_locus_names,
-                                locus_chromosomes  = vec_locus_chrom,
-                                region_names       = vec_region_names,
+                                variant_matrices = variant_matrices,
+                                locus_regions = vec_locus_regions,
+                                region_matrix = mat_cna,
+                                output_prefix = prefix_out,
+                                locus_names = vec_locus_names,
+                                locus_chromosomes = vec_locus_chrom,
+                                region_names = vec_region_names,
                                 region_chromosomes = vec_region_chrom,
-                                chains             = as.integer(compass_n_chains),
+                                chains = as.integer(compass_n_chains),
                                 # chain_length       = 500L,
-                                chain_length       = compass_length_chains,
-                                patient_sex        = patient_sex,
-                                use_cna            = use_cna
+                                chain_length = compass_length_chains,
+                                patient_sex = patient_sex,
+                                use_cna = use_cna
                             )
                         })
 
@@ -550,7 +700,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             }
         )
 
-        observeEvent(input$btn_run_compass,
+        observeEvent(
+            input$btn_run_compass,
             {
                 req(ScIGMA_data$mae)
 
@@ -559,7 +710,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     inputId = ns("confirm_run_compass"),
                     type = "warning",
                     title = "MCMC Inference Initialization",
-                    text = shiny::HTML("<b>Warning:</b> Running COMPASS will completely recalculate the clonal architecture.<br><br>Any custom clone names you have defined will be <b>permanently erased and reset</b>.<br><br>Do you want to proceed?"),
+                    text = shiny::HTML(
+                        "<b>Warning:</b> Running COMPASS will completely recalculate the clonal architecture.<br><br>Any custom clone names you have defined will be <b>permanently erased and reset</b>.<br><br>Do you want to proceed?"
+                    ),
                     html = TRUE,
                     btn_labels = c("Cancel", "Run COMPASS"),
                     btn_colors = c("#d3d3d3", "#007bff")
@@ -568,7 +721,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-        observeEvent(input$confirm_run_compass,
+        observeEvent(
+            input$confirm_run_compass,
             {
                 req(isTRUE(input$confirm_run_compass))
 
@@ -578,7 +732,8 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 compass_tree_visible(TRUE)
 
                 shinyjs::disable("btn_run_compass")
-                shiny::showNotification("1/2 - Extracting HDF5 and preparing matrices...",
+                shiny::showNotification(
+                    "1/2 - Extracting HDF5 and preparing matrices...",
                     id = "compass_notif",
                     duration = NULL,
                     type = "message"
@@ -594,13 +749,19 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 compass_n_chains <- input$run_compass_n_chains
                 patient_sex <- input$patient_sex
 
-                compass_inputs <- build_compass_matrices(obj = ScIGMA_data, selected_variants = target_vars)
+                compass_inputs <- build_compass_matrices(
+                    obj = ScIGMA_data,
+                    selected_variants = target_vars
+                )
 
                 mat_ref <- t(as.matrix(compass_inputs$M_ref))
                 mat_alt <- t(as.matrix(compass_inputs$M_alt))
                 mat_cna <- t(as.matrix(compass_inputs$C))
 
-                gt_assay <- SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "gt")
+                gt_assay <- SummarizedExperiment::assay(
+                    ScIGMA_data$mae[["dna_variants"]],
+                    "gt"
+                )
                 mat_gt <- as.matrix(gt_assay[target_vars, , drop = FALSE])
                 mat_gt[mat_gt == 3L] <- NA
 
@@ -609,19 +770,44 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 storage.mode(mat_cna) <- "integer"
                 storage.mode(mat_gt) <- "integer"
 
-                variant_matrices <- list(REF = mat_ref, ALT = mat_alt, GT = mat_gt)
+                variant_matrices <- list(
+                    REF = mat_ref,
+                    ALT = mat_alt,
+                    GT = mat_gt
+                )
 
                 dna_se <- ScIGMA_data$mae[["dna_variants"]]
-                snv_sub <- as.data.frame(SummarizedExperiment::rowData(dna_se))[target_vars, ]
+                snv_sub <- as.data.frame(SummarizedExperiment::rowData(dna_se))[
+                    target_vars,
+                ]
                 vec_locus_names <- snv_sub$gene
                 vec_locus_chrom <- snv_sub$chrom
 
                 amp_se <- ScIGMA_data$mae[["amplicons"]]
-                cna_row_data <- as.data.frame(SummarizedExperiment::rowData(amp_se))
-                vec_region_names <- unique(paste0(cna_row_data$chrom, "_", sapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3])))
-                vec_region_chrom <- sub("^chr", "", sapply(vec_region_names, \(x) strsplit(x, "_")[[1]][1], USE.NAMES = FALSE), ignore.case = TRUE)
+                cna_row_data <- as.data.frame(SummarizedExperiment::rowData(
+                    amp_se
+                ))
+                vec_region_names <- unique(paste0(
+                    cna_row_data$chrom,
+                    "_",
+                    sapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3])
+                ))
+                vec_region_chrom <- sub(
+                    "^chr",
+                    "",
+                    sapply(
+                        vec_region_names,
+                        \(x) strsplit(x, "_")[[1]][1],
+                        USE.NAMES = FALSE
+                    ),
+                    ignore.case = TRUE
+                )
 
-                use_cna <- if (ncol(variant_matrices$REF) != ncol(mat_cna)) FALSE else TRUE
+                use_cna <- if (ncol(variant_matrices$REF) != ncol(mat_cna)) {
+                    FALSE
+                } else {
+                    TRUE
+                }
 
                 vec_locus_regions <- as.integer(compass_inputs$locus_regions)
 
@@ -633,57 +819,78 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 )
 
                 compass_task$invoke(
-                    compass_length_chains, compass_n_chains, patient_sex, variant_matrices, vec_locus_regions, mat_cna,
-                    vec_locus_names, vec_locus_chrom,
-                    vec_region_names, vec_region_chrom, use_cna, target_vars
+                    compass_length_chains,
+                    compass_n_chains,
+                    patient_sex,
+                    variant_matrices,
+                    vec_locus_regions,
+                    mat_cna,
+                    vec_locus_names,
+                    vec_locus_chrom,
+                    vec_region_names,
+                    vec_region_chrom,
+                    use_cna,
+                    target_vars
                 )
             },
             ignoreInit = TRUE
         )
 
-
-        observeEvent(compass_task$status(),
+        observeEvent(
+            compass_task$status(),
             {
                 status <- compass_task$status()
 
                 if (status == "success") {
                     res <- compass_task$result()
 
-                    mat_imputed <- get_imputed_genotypes(prefix_out = res$prefix)
+                    mat_imputed <- get_imputed_genotypes(
+                        prefix_out = res$prefix
+                    )
                     cells_to_keep <- rownames(mat_imputed)
 
-                    if (length(cells_to_keep) == 0) stop("COMPASS filtered all cells (pure doublets).")
+                    if (length(cells_to_keep) == 0) {
+                        stop("COMPASS filtered all cells (pure doublets).")
+                    }
 
                     ScIGMA_data$mae <- ScIGMA_data$mae[, cells_to_keep, ]
-
-                    # --- FIX CRITIQUE 2 : SYNCHRONISATION SEURAT ---
                     if (!is.null(ScIGMA_data$seurat_object)) {
-                        valid_seurat_cells <- intersect(cells_to_keep, colnames(ScIGMA_data$seurat_object))
-                        ScIGMA_data$seurat_object <- subset(ScIGMA_data$seurat_object, cells = valid_seurat_cells)
+                        valid_seurat_cells <- intersect(
+                            cells_to_keep,
+                            colnames(ScIGMA_data$seurat_object)
+                        )
+                        ScIGMA_data$seurat_object <- subset(
+                            ScIGMA_data$seurat_object,
+                            cells = valid_seurat_cells
+                        )
                     }
 
                     mat_imputed_t <- t(mat_imputed)
 
-                    full_imputed <- matrix(3L,
+                    full_imputed <- matrix(
+                        3L,
                         nrow = nrow(ScIGMA_data$mae[["dna_variants"]]),
                         ncol = length(cells_to_keep)
                     )
-                    rownames(full_imputed) <- rownames(ScIGMA_data$mae[["dna_variants"]])
+                    rownames(full_imputed) <- rownames(ScIGMA_data$mae[[
+                        "dna_variants"
+                    ]])
                     colnames(full_imputed) <- cells_to_keep
 
                     full_imputed[res$targets, ] <- mat_imputed_t
 
-                    SummarizedExperiment::assay(ScIGMA_data$mae[["dna_variants"]], "compass_imputed") <- full_imputed
-
-                    # if (!is.null(ScIGMA_data$dna.clones)) {
-                    #     ScIGMA_data$dna.clones_pre_compass <- ScIGMA_data$dna.clones
-                    # }
+                    SummarizedExperiment::assay(
+                        ScIGMA_data$mae[["dna_variants"]],
+                        "compass_imputed"
+                    ) <- full_imputed
 
                     ScIGMA_data$dna_clones_renamed <- NULL
 
-                    mat_imputed_for_clones <- t(full_imputed[res$targets, , drop = FALSE])
-
-                    # colnames(mat_imputed_for_clones) <- sub("^([^:]+:)|^:", "", colnames(mat_imputed_for_clones)) # WHY ?!?!? -> CHANGED
+                    mat_imputed_for_clones <- t(full_imputed[
+                        res$targets,
+                        ,
+                        drop = FALSE
+                    ])
 
                     clustering_res <- generate_clonal_labels(
                         ngt_matrix = mat_imputed_for_clones,
@@ -692,17 +899,28 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     )
 
                     ScIGMA_data$dna.clones <- setNames(
-                        as.factor(clustering_res$cell_metadata$clonal_cluster_id),
+                        as.factor(
+                            clustering_res$cell_metadata$clonal_cluster_id
+                        ),
                         clustering_res$cell_metadata$cell_barcode
                     )
 
-                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(ScIGMA_data$dna.clones)
+                    ScIGMA_data$dna_clone_colors <- generate_clone_palette(
+                        ScIGMA_data$dna.clones
+                    )
 
-                    # Synchronisation UI
-                    shinyWidgets::updateMaterialSwitch(session, "heatmap_use_compass_imputed", value = TRUE)
+                    shinyWidgets::updateMaterialSwitch(
+                        session,
+                        "heatmap_use_compass_imputed",
+                        value = TRUE
+                    )
 
                     tree_gv_path <- paste0(res$prefix, "_tree.gv")
-                    tree_dot_content <- if (file.exists(tree_gv_path)) paste(readLines(tree_gv_path), collapse = "\n") else NULL
+                    tree_dot_content <- if (file.exists(tree_gv_path)) {
+                        paste(readLines(tree_gv_path), collapse = "\n")
+                    } else {
+                        NULL
+                    }
 
                     S4Vectors::metadata(ScIGMA_data$mae)$compass <- list(
                         singlet_barcodes = cells_to_keep,
@@ -711,13 +929,24 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     )
 
                     shiny::removeNotification(id = "compass_notif")
-                    shiny::showNotification("COMPASS finished: Clonal architecture and Multi-Omics Matrix locked.", duration = 10, type = "message")
+                    shiny::showNotification(
+                        "COMPASS finished: Clonal architecture and Multi-Omics Matrix locked.",
+                        duration = 10,
+                        type = "message"
+                    )
                     shinyjs::enable("btn_run_compass")
 
                     trigger("compass_completed")
                 } else if (status == "error") {
                     shiny::removeNotification(id = "compass_notif")
-                    shiny::showNotification(paste("Critical C++ failure:", compass_task$error()$message), duration = NULL, type = "error")
+                    shiny::showNotification(
+                        paste(
+                            "Critical C++ failure:",
+                            compass_task$error()$message
+                        ),
+                        duration = NULL,
+                        type = "error"
+                    )
                     shinyjs::enable("btn_run_compass")
                 }
             },
@@ -728,7 +957,9 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             watch("compass_completed")
             req(ScIGMA_data$mae)
 
-            tree_content <- S4Vectors::metadata(ScIGMA_data$mae)$compass$tree_dot
+            tree_content <- S4Vectors::metadata(
+                ScIGMA_data$mae
+            )$compass$tree_dot
             req(tree_content)
 
             DiagrammeR::grViz(tree_content)
@@ -736,15 +967,23 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
 
         output$btn_download_tree <- shiny::downloadHandler(
             filename = function() {
-                paste0("ScIGMA_compass_phylogeny_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".svg")
+                paste0(
+                    "ScIGMA_compass_phylogeny_",
+                    format(Sys.time(), "%Y%m%d_%H%M%S"),
+                    ".svg"
+                )
             },
             content = function(file) {
                 req(ScIGMA_data$mae)
-                tree_content <- S4Vectors::metadata(ScIGMA_data$mae)$compass$tree_dot
+                tree_content <- S4Vectors::metadata(
+                    ScIGMA_data$mae
+                )$compass$tree_dot
                 req(tree_content)
 
                 # Conversion native du DOT vers un format Vectoriel pur
-                svg_code <- DiagrammeRsvg::export_svg(DiagrammeR::grViz(tree_content))
+                svg_code <- DiagrammeRsvg::export_svg(DiagrammeR::grViz(
+                    tree_content
+                ))
 
                 writeLines(svg_code, file)
             }

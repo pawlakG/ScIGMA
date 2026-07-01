@@ -46,13 +46,17 @@
 #' print(aggregated_data)
 #'
 #' @noRd
-aggregate_matrix_by_mappingTable <- function(numeric_matrix,
-                                            mapping_table,
-                                            feature_column_name,
-                                            group_column_name) {
+aggregate_matrix_by_mappingTable <- function(
+    numeric_matrix,
+    mapping_table,
+    feature_column_name,
+    group_column_name
+) {
     # Ensure necessary packages are loaded
     if (!requireNamespace("Matrix", quietly = TRUE)) {
-        stop("Package 'Matrix' is required for performance. Please install it with install.packages('Matrix').")
+        stop(
+            "Package 'Matrix' is required for performance. Please install it with install.packages('Matrix')."
+        )
     }
 
     # --- Input Validation and Alignment ---
@@ -71,27 +75,40 @@ aggregate_matrix_by_mappingTable <- function(numeric_matrix,
         dplyr::select(!!rlang::sym(feature_col), !!rlang::sym(group_col))
 
     # Check for missing features
-    missing_features <- setdiff(matrix_columns, mapping_filtered %>%
-        dplyr::pull(!!rlang::sym(feature_col)))
+    missing_features <- setdiff(
+        matrix_columns,
+        mapping_filtered %>%
+            dplyr::pull(!!rlang::sym(feature_col))
+    )
     if (length(missing_features) > 0) {
         warning(paste(
-            length(missing_features), "features in the matrix were not found in the mapping table and will be dropped:",
+            length(missing_features),
+            "features in the matrix were not found in the mapping table and will be dropped:",
             paste(head(missing_features, 5), collapse = ", ")
         ))
         # Drop missing features from the matrix
-        numeric_matrix <- numeric_matrix[, !matrix_columns %in% missing_features]
+        numeric_matrix <- numeric_matrix[,
+            !matrix_columns %in% missing_features
+        ]
         matrix_columns <- colnames(numeric_matrix) # Update columns
     }
 
     # Align the mapping table to the exact order of the matrix columns
-    mapping_aligned <- mapping_filtered[match(matrix_columns, mapping_filtered %>%
-        dplyr::pull(!!rlang::sym(feature_col))), ]
+    mapping_aligned <- mapping_filtered[
+        match(
+            matrix_columns,
+            mapping_filtered %>%
+                dplyr::pull(!!rlang::sym(feature_col))
+        ),
+    ]
 
     # --- Core Matrix Aggregation ---
 
     # 1. Create the Grouping/Design Matrix (G)
     # Convert the group column to a factor for proper matrix generation
-    group_factor <- factor(mapping_aligned %>% dplyr::pull(!!rlang::sym(group_col)))
+    group_factor <- factor(
+        mapping_aligned %>% dplyr::pull(!!rlang::sym(group_col))
+    )
 
     # sparse.model.matrix is the fastest way to create the binary indicator matrix G
     # G has dimensions: [N_features x N_groups]
@@ -111,7 +128,8 @@ aggregate_matrix_by_mappingTable <- function(numeric_matrix,
 
     # 4. Calculate the Mean (Division by Denominator)
     # Use sweep or standard vectorized division for speed
-    aggregated_matrix <- summed_matrix / rep(denominator_vector, each = nrow(summed_matrix))
+    aggregated_matrix <- summed_matrix /
+        rep(denominator_vector, each = nrow(summed_matrix))
 
     return(aggregated_matrix)
 }
@@ -179,14 +197,18 @@ aggregate_matrix_by_mappingTable <- function(numeric_matrix,
 #' )
 #' head(filtered_data$filtered_cnv_mtx)
 #' }
-filter_cnv_matrix_by_completeness <- function(obj,
-                                                amp_completeness = 80,
-                                                amp_readDepth = 10,
-                                                amp_meanCellRead = 10,
-                                                aggregate_fun = aggregate_matrix_by_mappingTable) {
+filter_cnv_matrix_by_completeness <- function(
+    obj,
+    amp_completeness = 80,
+    amp_readDepth = 10,
+    amp_meanCellRead = 10,
+    aggregate_fun = aggregate_matrix_by_mappingTable
+) {
     amp_mtx <- SummarizedExperiment::assay(obj$mae[["amplicons"]], "counts")
     dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
-    dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["dna_variants"]]))
+    dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[[
+        "dna_variants"
+    ]]))
 
     tmp_dp_mtx <- t(as.matrix(dp_mtx))
 
@@ -195,21 +217,30 @@ filter_cnv_matrix_by_completeness <- function(obj,
         mapping_table = dna_id_table,
         feature_column_name = dna_id,
         group_column_name = amplicon
-    ) |> as.matrix()
+    ) |>
+        as.matrix()
 
-    tmp_dp_mtx_aggregated <- tmp_dp_mtx_aggregated[, colnames(tmp_dp_mtx_aggregated) != "NA", drop = FALSE]
+    tmp_dp_mtx_aggregated <- tmp_dp_mtx_aggregated[,
+        colnames(tmp_dp_mtx_aggregated) != "NA",
+        drop = FALSE
+    ]
 
     ## --- Filter according to amplicon completeness (Cell-level filter) ---
     cell_ampCompleteness_filter <- apply(
         X = tmp_dp_mtx_aggregated,
         MARGIN = 1,
         FUN = function(x) sum(x > amp_readDepth) / length(x)
-    ) >= (amp_completeness / 100)
+    ) >=
+        (amp_completeness / 100)
 
-    cell_ampCompleteness_selected <- names(cell_ampCompleteness_filter)[cell_ampCompleteness_filter]
+    cell_ampCompleteness_selected <- names(cell_ampCompleteness_filter)[
+        cell_ampCompleteness_filter
+    ]
 
     if (length(cell_ampCompleteness_selected) == 0) {
-        warning("No cells passed the amplicon completeness filter. Returning empty results.")
+        warning(
+            "No cells passed the amplicon completeness filter. Returning empty results."
+        )
         return(list(
             filtered_cnv_mtx = amp_mtx[0, 0, drop = FALSE],
             cell_selection = character(0),
@@ -221,15 +252,25 @@ filter_cnv_matrix_by_completeness <- function(obj,
     tmp_cnv_mtx <- amp_mtx[, cell_ampCompleteness_selected, drop = FALSE]
 
     ## --- Filter according to minimum mean read depth per amplicon ---
-    amplicon_meanCellRead_filter <- Matrix::rowMeans(tmp_cnv_mtx, na.rm = TRUE) >= amp_meanCellRead
+    amplicon_meanCellRead_filter <- Matrix::rowMeans(
+        tmp_cnv_mtx,
+        na.rm = TRUE
+    ) >=
+        amp_meanCellRead
     meanCellRead_summary <- table(amplicon_meanCellRead_filter)
 
-    filtered_cnv_mtx <- tmp_cnv_mtx[amplicon_meanCellRead_filter, , drop = FALSE]
+    filtered_cnv_mtx <- tmp_cnv_mtx[
+        amplicon_meanCellRead_filter,
+        ,
+        drop = FALSE
+    ]
 
     return(list(
         filtered_cnv_mtx = filtered_cnv_mtx,
         cell_selection = cell_ampCompleteness_selected,
-        amplicon_selection = names(amplicon_meanCellRead_filter)[amplicon_meanCellRead_filter],
+        amplicon_selection = names(amplicon_meanCellRead_filter)[
+            amplicon_meanCellRead_filter
+        ],
         amplicon_meanCellRead_summary = meanCellRead_summary
     ))
 }
@@ -256,11 +297,13 @@ filter_cnv_matrix_by_completeness <- function(obj,
 #' @return A matrix where rows are genomic regions (amplicons) and columns are
 #'   clonal profiles, normalized to the diploid reference.
 #'
-filter_cnv_profile <- function(obj,
-                                dna_variant_clones,
-                                amp_completeness = 80,
-                                amp_readDepth = 10,
-                                amp_meanCellRead = 10) {
+filter_cnv_profile <- function(
+    obj,
+    dna_variant_clones,
+    amp_completeness = 80,
+    amp_readDepth = 10,
+    amp_meanCellRead = 10
+) {
     # Check if the filtering function exists (assuming it's external)
     if (!exists("filter_cnv_matrix_by_completeness")) {
         stop("Required function 'filter_cnv_matrix_by_completeness' not found.")
@@ -295,15 +338,19 @@ filter_cnv_profile <- function(obj,
 #' @return A matrix where rows are genomic regions (amplicons) and columns are
 #'   clonal profiles, normalized to the diploid reference.
 #'
-process_cnv_to_clonal_profile <- function(filtered_data,
-                                        dna_variant_clones,
-                                        diploid_ref = "2",
-                                        exclude_clone = "small") {
+process_cnv_to_clonal_profile <- function(
+    filtered_data,
+    dna_variant_clones,
+    diploid_ref = "2",
+    exclude_clone = "small"
+) {
     tmp_clones <- dna_variant_clones
 
     # --- INPUT CHECKS ---
     if (is.null(names(tmp_clones))) {
-        warning("Clone assignments have no names/barcodes (cell IDs). Proceeding, but matching may fail.")
+        warning(
+            "Clone assignments have no names/barcodes (cell IDs). Proceeding, but matching may fail."
+        )
     }
 
     if (is.null(filtered_data$filtered_cnv_mtx)) {
@@ -316,13 +363,21 @@ process_cnv_to_clonal_profile <- function(filtered_data,
     tmp_dna_reandCounts_mtx <- as.matrix(filtered_data$filtered_cnv_mtx)
 
     # Keep only cells that were assigned to a clone (clusterised cells)
-    cell_barcodes_to_keep <- intersect(colnames(tmp_dna_reandCounts_mtx), names(tmp_clones))
+    cell_barcodes_to_keep <- intersect(
+        colnames(tmp_dna_reandCounts_mtx),
+        names(tmp_clones)
+    )
 
     if (length(cell_barcodes_to_keep) == 0) {
-        stop("No overlapping cell barcodes found between CNV matrix and clone assignments.")
+        stop(
+            "No overlapping cell barcodes found between CNV matrix and clone assignments."
+        )
     }
 
-    tmp_dna_reandCounts_mtx <- tmp_dna_reandCounts_mtx[, cell_barcodes_to_keep, drop = FALSE]
+    tmp_dna_reandCounts_mtx <- tmp_dna_reandCounts_mtx[,
+        cell_barcodes_to_keep,
+        drop = FALSE
+    ]
 
     # Calculate normalization factor (Total reads across all filtered cells)
     total_reads <- sum(tmp_dna_reandCounts_mtx, na.rm = TRUE)
@@ -349,12 +404,18 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 
     # Remove specified clone from the profile (e.g., "small" or unassigned)
     if (exclude_clone %in% colnames(clonal_profile)) {
-        clonal_profile <- clonal_profile[, colnames(clonal_profile) != exclude_clone, drop = FALSE]
+        clonal_profile <- clonal_profile[,
+            colnames(clonal_profile) != exclude_clone,
+            drop = FALSE
+        ]
     }
 
     ## 3. Normalize to the Diploid Reference Clone
     if (!(diploid_ref %in% colnames(clonal_profile))) {
-        stop(sprintf("Diploid reference clone '%s' not found in aggregated profiles.", diploid_ref))
+        stop(sprintf(
+            "Diploid reference clone '%s' not found in aggregated profiles.",
+            diploid_ref
+        ))
     }
 
     # Apply diploid normalization: 2 * Observed / Reference
@@ -400,7 +461,12 @@ process_cnv_to_clonal_profile <- function(filtered_data,
 sort_genomic_chromosomes <- function(chromosome_vector) {
     # 1. Cleaning and Normalization: Remove "chr" prefix and normalize case for sex chromosomes.
     # We remove "chr" (case-insensitive) to extract the number or the letter.
-    chrom_clean <- toupper(gsub("^(CHR|chr)", "", chromosome_vector, ignore.case = TRUE))
+    chrom_clean <- toupper(gsub(
+        "^(CHR|chr)",
+        "",
+        chromosome_vector,
+        ignore.case = TRUE
+    ))
 
     # Work only with unique values
     chrom_unique <- unique(chrom_clean)
@@ -437,9 +503,13 @@ sort_genomic_chromosomes <- function(chromosome_vector) {
 render_annotation_table <- function(obj, ploidy_data) {
     mat_data <- t(ploidy_data)
 
-    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[[
+        "amplicons"
+    ]]))
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
-    if (is.null(genome_v)) genome_v <- "hg19"
+    if (is.null(genome_v)) {
+        genome_v <- "hg19"
+    }
 
     tmp_var_table <- cnv_id_table |>
         dplyr::filter(dna_id %in% colnames(mat_data)) |>
@@ -447,7 +517,9 @@ render_annotation_table <- function(obj, ploidy_data) {
         dplyr::mutate(chr_lit = paste0("chr", chrom))
 
     mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
-    tmp_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+    tmp_table <- tmp_var_table[
+        match(colnames(mat_data), tmp_var_table$dna_id),
+    ]
 
     annotate_genomic_regions(region_data = tmp_table, build = genome_v)
 }
@@ -476,9 +548,13 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
     mat_data <- t(ploidy_data)
     mat_data[mat_data > 8] <- 8
 
-    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[[
+        "amplicons"
+    ]]))
     genome_v <- S4Vectors::metadata(obj$mae)$genome_version
-    if (is.null(genome_v)) genome_v <- "hg19"
+    if (is.null(genome_v)) {
+        genome_v <- "hg19"
+    }
 
     tmp_var_table <- cnv_id_table |>
         dplyr::filter(dna_id %in% colnames(mat_data)) |>
@@ -486,22 +562,37 @@ plot_cnv_heatmap <- function(obj, ploidy_data, display_gene = FALSE) {
         dplyr::mutate(chr_lit = paste0("chr", chrom))
 
     mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
-    tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+    tmp_split_table <- tmp_var_table[
+        match(colnames(mat_data), tmp_var_table$dna_id),
+    ]
     sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
 
     if (display_gene) {
-        tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
-        split_vec <- factor(tmp_split_vec$symbol, levels = unique(tmp_split_vec$symbol))
+        tmp_split_vec <- annotate_genomic_regions(
+            region_data = tmp_split_table,
+            build = genome_v
+        )
+        split_vec <- factor(
+            tmp_split_vec$symbol,
+            levels = unique(tmp_split_vec$symbol)
+        )
     } else {
         split_vec <- factor(tmp_split_table$chr_lit, levels = sorted_gen_levels)
     }
 
     col_fun <- circlize::colorRamp2(
-        breaks = c(quantile(mat_data, c(0, 0.25), na.rm = TRUE), 2, quantile(mat_data, c(0.75, 1), na.rm = TRUE)),
+        breaks = c(
+            quantile(mat_data, c(0, 0.25), na.rm = TRUE),
+            2,
+            quantile(mat_data, c(0.75, 1), na.rm = TRUE)
+        ),
         colors = c("black", "#4575B4", "#F0F0F0", "#D73027", "#67001F")
     )
 
-    group_colors <- setNames(viridis::viridis(nrow(mat_data)), nm = rownames(mat_data))
+    group_colors <- setNames(
+        viridis::viridis(nrow(mat_data)),
+        nm = rownames(mat_data)
+    )
 
     left_ann <- ComplexHeatmap::rowAnnotation(
         df = data.frame(Group = rownames(mat_data)),
@@ -587,7 +678,11 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
     # C-optimized spatial join via findOverlaps
     overlaps <- findOverlaps(query_gr, target_genes)
-    hits <- GenomicRanges::findOverlaps(query_gr, target_genes, select = "first")
+    hits <- GenomicRanges::findOverlaps(
+        query_gr,
+        target_genes,
+        select = "first"
+    )
 
     region_data$symbol <- "Unknown"
     valid <- !is.na(hits)
@@ -614,7 +709,6 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
     #     filter(gene_biotype == "protein_coding") |>
     #     distinct()
 
-
     # return(result_df)
     return(region_data)
 }
@@ -622,12 +716,14 @@ annotate_genomic_regions <- function(region_data, build = "hg38") {
 
 #' Plot Genomic CNV Profile (Ploidy) - Bold & Larger Labels
 #' @noRd
-plot_cnv_genome <- function(cnv_matrix,
-                            gene_annotation = NULL,
-                            sub_indices = NULL,
-                            title = "Genomic Ploidy Profile",
-                            max_points = 500,
-                            lineplot_type = "Genes+amplicons") {
+plot_cnv_genome <- function(
+    cnv_matrix,
+    gene_annotation = NULL,
+    sub_indices = NULL,
+    title = "Genomic Ploidy Profile",
+    max_points = 500,
+    lineplot_type = "Genes+amplicons"
+) {
     # --- 1. Data Preparation ---
     cnv_matrix[cnv_matrix > 8] <- 8
     if (!is.null(sub_indices)) {
@@ -658,7 +754,11 @@ plot_cnv_genome <- function(cnv_matrix,
 
         plot_meta <- plot_meta %>%
             dplyr::mutate(
-                chr_sort = as.numeric(ifelse(grepl("^[0-9]+$", Chromosome), Chromosome, NA)),
+                chr_sort = as.numeric(ifelse(
+                    grepl("^[0-9]+$", Chromosome),
+                    Chromosome,
+                    NA
+                )),
                 chr_sort = ifelse(Chromosome == "X", 98, chr_sort),
                 chr_sort = ifelse(Chromosome == "Y", 99, chr_sort)
             ) %>%
@@ -668,10 +768,17 @@ plot_cnv_genome <- function(cnv_matrix,
         if (lineplot_type == "Genes+amplicons") {
             angle_val <- -45
 
-            plot_meta$group_label <- ifelse(is.na(plot_meta$Gene), plot_meta$Probe, plot_meta$Gene)
+            plot_meta$group_label <- ifelse(
+                is.na(plot_meta$Gene),
+                plot_meta$Probe,
+                plot_meta$Gene
+            )
             unique_groups <- unique(plot_meta$group_label)
 
-            plot_meta$x_index <- as.numeric(factor(plot_meta$group_label, levels = unique_groups))
+            plot_meta$x_index <- as.numeric(factor(
+                plot_meta$group_label,
+                levels = unique_groups
+            ))
             x_tick_vals <- seq_along(unique_groups)
 
             x_tick_text <- paste0("<b>", unique_groups, "</b>")
@@ -712,8 +819,11 @@ plot_cnv_genome <- function(cnv_matrix,
         separators <- lapply(sep_pos, function(p) {
             list(
                 type = "line",
-                x0 = p, x1 = p,
-                y0 = 0, y1 = 1, yref = "paper",
+                x0 = p,
+                x1 = p,
+                y0 = 0,
+                y1 = 1,
+                yref = "paper",
                 line = list(color = "#cccccc", width = 1, dash = "dot")
             )
         })
@@ -742,7 +852,10 @@ plot_cnv_genome <- function(cnv_matrix,
     p <- plotly::plot_ly() %>%
         plotly::layout(
             # Titre plus gros (20)
-            title = list(text = paste0("<b>", title, "</b>"), font = list(size = 20)),
+            title = list(
+                text = paste0("<b>", title, "</b>"),
+                font = list(size = 20)
+            ),
             template = "plotly_white",
             font = list(family = "Arial, sans-serif", size = 12),
             xaxis = list(
@@ -768,7 +881,9 @@ plot_cnv_genome <- function(cnv_matrix,
             ),
             legend = list(
                 orientation = "h",
-                xanchor = "center", x = 0.5, y = -0.2
+                xanchor = "center",
+                x = 0.5,
+                y = -0.2
             ),
             shapes = c(
                 list(
@@ -776,8 +891,11 @@ plot_cnv_genome <- function(cnv_matrix,
                         type = "rect",
                         fillcolor = "rgba(200, 200, 200, 0.25)",
                         line = list(width = 0),
-                        xref = "paper", x0 = 0, x1 = 1,
-                        y0 = 1.5, y1 = 2.5
+                        xref = "paper",
+                        x0 = 0,
+                        x1 = 1,
+                        y0 = 1.5,
+                        y1 = 2.5
                     )
                 ),
                 separators
@@ -786,22 +904,28 @@ plot_cnv_genome <- function(cnv_matrix,
         )
 
     # Add Cells (Blue)
-    p <- p %>% plotly::add_trace(
-        data = df_scatter,
-        x = ~x_idx,
-        y = ~Ploidy,
-        type = "scatter",
-        mode = "markers",
-        marker = list(
-            color = "#4a86e8",
-            size = 6,
-            opacity = 0.7,
-            line = list(width = 0.5, color = "white")
-        ),
-        name = "Cells",
-        hoverinfo = "text",
-        text = ~ paste("<b>Probe:</b>", Probe, "<br><b>Ploidy:</b>", round(Ploidy, 2))
-    )
+    p <- p %>%
+        plotly::add_trace(
+            data = df_scatter,
+            x = ~x_idx,
+            y = ~Ploidy,
+            type = "scatter",
+            mode = "markers",
+            marker = list(
+                color = "#4a86e8",
+                size = 6,
+                opacity = 0.7,
+                line = list(width = 0.5, color = "white")
+            ),
+            name = "Cells",
+            hoverinfo = "text",
+            text = ~ paste(
+                "<b>Probe:</b>",
+                Probe,
+                "<br><b>Ploidy:</b>",
+                round(Ploidy, 2)
+            )
+        )
 
     # Add Means (Red)
     p <- p %>%
@@ -819,9 +943,12 @@ plot_cnv_genome <- function(cnv_matrix,
             name = "Mean",
             hoverinfo = "text",
             text = ~ paste(
-                "<b>Probe:</b>", plot_meta$Probe,
-                "<br><b>Gene:</b>", if ("Gene" %in% names(plot_meta)) plot_meta$Gene else "N/A",
-                "<br><b>Mean:</b>", round(plot_meta$Mean_Ploidy, 2)
+                "<b>Probe:</b>",
+                plot_meta$Probe,
+                "<br><b>Gene:</b>",
+                if ("Gene" %in% names(plot_meta)) plot_meta$Gene else "N/A",
+                "<br><b>Mean:</b>",
+                round(plot_meta$Mean_Ploidy, 2)
             )
         ) %>%
         plotly::toWebGL() %>%
@@ -847,8 +974,16 @@ get_genes_memory_safe <- function(input_df) {
     for (ver in versions) {
         sub_df <- input_df[input_df$genome_version == ver, ]
 
-        if (!requireNamespace(paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"), quietly = TRUE)) {
-            warning(sprintf("Package 'TxDb.Hsapiens.UCSC.%s.knownGene' not installed.", ver))
+        if (
+            !requireNamespace(
+                paste0("TxDb.Hsapiens.UCSC.", ver, ".knownGene"),
+                quietly = TRUE
+            )
+        ) {
+            warning(sprintf(
+                "Package 'TxDb.Hsapiens.UCSC.%s.knownGene' not installed.",
+                ver
+            ))
             next
         }
         tx_db <- getExportedValue(
@@ -858,8 +993,10 @@ get_genes_memory_safe <- function(input_df) {
 
         # Standardize chromosome naming
         query_gr <- GRanges(
-            seqnames = if_else(grepl("^chr", sub_df$chrom),
-                sub_df$chrom, paste0("chr", sub_df$chrom)
+            seqnames = if_else(
+                grepl("^chr", sub_df$chrom),
+                sub_df$chrom,
+                paste0("chr", sub_df$chrom)
             ),
             ranges = IRanges(start = sub_df$start_pos, end = sub_df$end_pos)
         )
@@ -925,7 +1062,9 @@ get_genes_memory_safe <- function(input_df) {
 #' @return MultiAssayExperiment with updated amplicons rowData
 #' @noRd
 annotate_amplicons_exact <- function(mae) {
-    if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr required")
+    if (!requireNamespace("dplyr", quietly = TRUE)) {
+        stop("dplyr required")
+    }
 
     cna_se <- mae[["amplicons"]]
     cna_rd <- as.data.frame(SummarizedExperiment::rowData(cna_se))
@@ -934,15 +1073,23 @@ annotate_amplicons_exact <- function(mae) {
     cna_rd$genome_version <- genome_v
 
     # Base R paste0 is significantly faster than tidyr::unite for large vectors
-    cna_rd$tmp_key <- paste(cna_rd$chrom, cna_rd$start_pos, cna_rd$end_pos,
+    cna_rd$tmp_key <- paste(
+        cna_rd$chrom,
+        cna_rd$start_pos,
+        cna_rd$end_pos,
         sep = "_"
     )
 
     genes_df <- get_genes_memory_safe(cna_rd)
-    genes_df$Chromosome <- sub("^chr", "", genes_df$Chromosome,
+    genes_df$Chromosome <- sub(
+        "^chr",
+        "",
+        genes_df$Chromosome,
         ignore.case = TRUE
     )
-    genes_df$tmp_key <- paste(genes_df$Chromosome, genes_df$Start_Pos,
+    genes_df$tmp_key <- paste(
+        genes_df$Chromosome,
+        genes_df$Start_Pos,
         genes_df$End_Pos,
         sep = "_"
     )
@@ -961,3 +1108,180 @@ annotate_amplicons_exact <- function(mae) {
 
     return(mae)
 }
+
+#' Prépare et génère la Heatmap CNV pour une région spécifique
+#'
+#' @description Filtre la matrice de ploïdie d'un objet ScIGMA sur certains
+#' chromosomes ou gènes, et appelle plot_cnv_heatmap().
+#'
+#' @param obj Un objet ScIGMA contenant `ploidy.mtx` et `mae`.
+#' @param features Vecteur de sélection pour l'axe X (ex: c("chr1", "chr2") ou c("TP53", "KRAS")). Si NULL, affiche tout.
+#' @param projection_type Type de projection choisie ("Position" ou "Genes").
+#'
+#' @return Un objet de plot (généralement issu de ComplexHeatmap généré par plot_cnv_heatmap).
+#' @export
+generate_cnv_heatmap_filtered <- function(
+    obj,
+    features = NULL,
+    projection_type = "Position"
+) {
+    show_genes <- (!is.null(projection_type) && projection_type != "Position")
+
+    # --- 1. Filtrage de la matrice de ploïdie ---
+    filtered_ploidy <- obj$ploidy.mtx
+
+    if (!is.null(features) && length(features) > 0) {
+        mat_data_tmp <- t(filtered_ploidy)
+
+        # Récupération des informations depuis le MultiAssayExperiment
+        cnv_id_table_tmp <- as.data.frame(
+            SummarizedExperiment::rowData(obj$mae[["amplicons"]])
+        )
+
+        genome_v_tmp <- S4Vectors::metadata(obj$mae)$genome_version
+        if (is.null(genome_v_tmp)) {
+            genome_v_tmp <- "hg19"
+        }
+
+        tmp_var <- cnv_id_table_tmp |>
+            dplyr::filter(dna_id %in% colnames(mat_data_tmp))
+
+        # Vérifie si l'utilisateur a sélectionné des chromosomes entiers
+        is_chr_focus <- any(grepl(
+            "^chr([0-9]+|[XYM])$",
+            features,
+            ignore.case = TRUE
+        ))
+
+        if (!is_chr_focus) {
+            # Annotation spécifique par gène
+            tmp_annot <- annotate_genomic_regions(
+                region_data = tmp_var,
+                build = genome_v_tmp
+            )
+            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% features]
+            show_genes <- TRUE
+        } else {
+            # Filtrage par Chromosome
+            tmp_var$chr_lit <- paste0("chr", tmp_var$chrom)
+            valid_ids <- tmp_var$dna_id[tmp_var$chr_lit %in% features]
+            show_genes <- FALSE
+        }
+
+        filtered_ploidy <- t(mat_data_tmp[,
+            colnames(mat_data_tmp) %in% valid_ids,
+            drop = FALSE
+        ])
+    }
+
+    # --- 2. Validations Standards R ---
+    if (ncol(filtered_ploidy) < 2 || nrow(filtered_ploidy) < 2) {
+        stop(
+            "La sélection est trop restreinte. Nécessite au moins 2 cellules et 2 amplicons pour générer une heatmap."
+        )
+    }
+
+    if (sd(as.vector(filtered_ploidy), na.rm = TRUE) == 0) {
+        stop(
+            "Variance nulle détectée. Toutes les cellules ont le copy number exact dans cette région."
+        )
+    }
+
+    # --- 3. Génération finale de la Heatmap ---
+    plot_cnv_heatmap(
+        obj = obj,
+        ploidy_data = filtered_ploidy,
+        display_gene = show_genes
+    )
+}
+
+#' Generate CNV Lineplot (Filtered)
+#'
+#' @description
+#' Fonction API permettant de générer le lineplot des profils de Ploïdie de la même 
+#' manière que dans le module Shiny `mod_analysis_CNV`.
+#'
+#' @param obj Un objet ScIGMA_data qui contient la matrice de ploïdie (obj$ploidy.mtx).
+#' @param features Vecteur optionnel de chromosomes (ex: "chr1") ou gènes (ex: "TP53") pour filtrer.
+#' @param projection_type "Position" ou "Genes+amplicons".
+#' @param clone Le nom du clone à afficher (par défaut le premier disponible).
+#'
+#' @return Un objet de plot (Plotly ou standard selon plot_cnv_genome).
+#' @export
+generate_cnv_lineplot_filtered <- function(
+    obj,
+    features = NULL,
+    projection_type = "Genes+amplicons",
+    clone = NULL
+) {
+    if (is.null(obj$ploidy.mtx)) {
+        stop("La matrice de ploïdie (obj$ploidy.mtx) est manquante. Exécutez d'abord process_cnv_to_clonal_profile.")
+    }
+
+    mat_data <- t(obj$ploidy.mtx)
+    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[["amplicons"]]))
+    genome_v <- S4Vectors::metadata(obj$mae)$genome_version
+    if (is.null(genome_v)) {
+        genome_v <- "hg19"
+    }
+
+    tmp_var_table <- cnv_id_table |>
+        dplyr::filter(dna_id %in% colnames(mat_data)) |>
+        dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+        dplyr::mutate(chr_lit = paste0("chr", chrom))
+
+    # --- 1. Filtrage spatial (Lineplot) ---
+    if (!is.null(features) && length(features) > 0) {
+        is_chr <- any(grepl("^chr", features, ignore.case = TRUE))
+
+        if (is_chr) {
+            tmp_var_table <- tmp_var_table |>
+                dplyr::filter(chr_lit %in% features)
+        } else {
+            tmp_annot <- annotate_genomic_regions(
+                region_data = tmp_var_table,
+                build = genome_v
+            )
+            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% features]
+            tmp_var_table <- tmp_var_table |>
+                dplyr::filter(dna_id %in% valid_ids)
+        }
+    }
+
+    if (nrow(tmp_var_table) < 2) {
+        stop("La région sélectionnée contient moins de 2 amplicons. Élargissez votre sélection.")
+    }
+
+    mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
+
+    tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
+    
+    tmp_split_vec <- annotate_genomic_regions(
+        region_data = tmp_split_table,
+        build = genome_v
+    )
+
+    gene_annotation <- data.frame(
+        "Gene" = tmp_split_vec$symbol,
+        "Chromosome" = tmp_split_vec$chrom,
+        "Probe" = tmp_split_vec$dna_id,
+        "Chrom_pos" = factor(
+            tmp_split_vec$chr_lit,
+            levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))
+        ),
+        "Chrom_start" = tmp_split_vec$start_pos
+    )
+
+    if (is.null(clone)) {
+        clone <- rownames(obj$ploidy.mtx)[1]
+    }
+
+    # --- 2. Génération finale ---
+    plot_cnv_genome(
+        cnv_matrix = mat_data,
+        sub_indices = clone,
+        gene_annotation = gene_annotation,
+        lineplot_type = projection_type
+    )
+}
+

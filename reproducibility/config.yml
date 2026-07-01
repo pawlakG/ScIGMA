@@ -1,0 +1,28 @@
+default:
+  variant_filtering:
+    min_dp: 10
+    min_gq: 30
+    vaf_ref: 5
+    vaf_hom: 95
+    vaf_het: 30
+    min_cell_pt: 10
+    min_mut_cell_pt: 10
+  cnv_filtering:
+    cnv_ampCompleteness: 50
+    cnv_ampReadDepth: 10
+    cnv_meanCellReadDepth: 10
+  cnv_clonal_inference:
+    ref_clone: "clone_01"
+  protein_umap:
+    umap_n_neighbors: 75
+    umap_min_dist: 0.2
+    umap_features: ["CD11b", "CD19", "CD3", "CD33", "CD34", "CD38", "CD45", "CD90", "HLA-DR"]
+  compass:
+    chains: 4
+    chain_length: 2000
+    patient_sex: "female" 
+  unsupervised_custering:
+    resolution: 0.15
+  
+  zenodo:
+    dataset_url: "https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1"

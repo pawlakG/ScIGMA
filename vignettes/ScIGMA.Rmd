@@ -1,56 +1,193 @@
 ---
-title: "Introduction to ScIGMA"
+title: "Programmatic Analysis with ScIGMA"
 author: 
     - name: "Geoffrey Pawlak"
       affiliation: "ULR 2694 METRICS "
 date: "`r Sys.Date()`"
 output: BiocStyle::html_document
 vignette: >
-    %\VignetteIndexEntry{Introduction to ScIGMA}
+    %\VignetteIndexEntry{Programmatic Analysis with ScIGMA}
     %\VignetteEngine{knitr::rmarkdown}
     %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup, include = FALSE}
+# Ensure CI/CD validation by conditionally evaluating chunks 
+# only when the internal synthetic dataset is available.
+h5_mock <- system.file("extdata", "toy_dataset.h5", package = "ScIGMA")
+can_eval <- file.exists(h5_mock)
+
 knitr::opts_chunk$set(
     collapse = TRUE,
-    comment = "#>"
+    comment = "#>",
+    eval = can_eval
 )
 ```
 
 # Introduction
 
-**ScIGMA** (Single-cell Integrated Genomic & Multi-omics Analyzer) is a comprehensive computational framework for exploring single-cell proteogenomic architecture. This vignette demonstrates the basic usage of the ScIGMA interactive application.
+**ScIGMA** (Single-cell Integrated Genomic & Multi-omics Analyzer) provides not only an interactive application but also a comprehensive R API for rigorous programmatic analysis. This vignette demonstrates the systematic execution of the full ScIGMA computational pipeline using R code, as well as the generation of publication-ready visualization artifacts.
 
-## Launching the Application
+# 1. Data Ingestion
 
-ScIGMA is primarily designed to be run as an interactive Shiny application. Once the package is installed, you can launch the interface using the `run_app()` function.
+The computational pipeline strictly requires a pre-processed `.h5` file adhering to the precise input schema constraints (e.g., Mission Bio Tapestri output). The input HDF5 matrix must contain specific assays (e.g., `dna_read_counts`, `dna_variants`, `protein_read_counts`) and correctly formatted `colData` describing cell barcodes and fundamental metadata to ensure structural integrity during ingestion.
 
-```{r setup, eval=FALSE}
+```{r ingestion}
 library(ScIGMA)
 
-# Launch the interactive interface
-ScIGMA::run_app()
+# Path to your .h5 file (using a minimal, internal synthetic dataset)
+h5_path <- system.file("extdata", "toy_dataset.h5", package = "ScIGMA")
+
+# Load the HDF5 matrix
+ScIGMA_data <- loadH5_HDF5_biocond(
+    filepath = h5_path,
+    sample_name = "Sample_Name"
+)
 ```
 
-## Data Input Requirements
+# 2. Variant Filtering and Annotation
 
-The application expects high-dimensional single-cell data, primarily targeting `.h5` objects generated from systems like Mission Bio Tapestri. 
-The expected matrices include:
-- Single Nucleotide Variants (SNV) matrices (Genotype, Depth, Allele Frequency)
-- Copy Number Variations (CNV) matrices
-- Protein Expression matrices
+Variant quality control is executed by defining rigorous empirical threshold parameters to distinguish true biological variants from sequencing noise inherent to single-cell targeted DNA sequencing. Specifically, a minimum read depth (`min_dp = 10`) and genotype quality (`min_gq = 30`) are established as appropriate noise floors to prevent the inclusion of spurious, low-confidence variant calls. Furthermore, downstream variant annotation using Ensembl VEP and ClinVar strictly mandates the explicit declaration of the reference genome assembly (e.g., GRCh37 or GRCh38) and the exact database versions to guarantee longitudinal reproducibility.
 
-## Downstream Analysis
+```{r filtering}
+# Define filtering parameters
+params <- list(
+    variant_filtering = list(
+        min_dp = 10,
+        min_gq = 30,
+        vaf_ref = 5,
+        vaf_hom = 95,
+        vaf_het = 20,
+        min_cell_pt = 1
+    )
+)
 
-Once data is loaded into the interactive interface, ScIGMA allows for:
-1. **Filtering**: Removal of low-quality cells and non-informative variants.
-2. **Inference**: Imputation of missing genotypes and inference of clonal architecture using the underlying COMPASS C++ engine via MCMC.
-3. **Annotation**: Direct mapping of clinical significance and variant consequences via Ensembl VEP API.
-4. **Integration**: UMAP dimensionality reduction of the protein space and manual/automated gating of immunophenotypes.
+ScIGMA_data <- filter_and_annotate_variants(
+    obj = ScIGMA_data,
+    min_dp = params$variant_filtering$min_dp,
+    min_gq = params$variant_filtering$min_gq,
+    vaf_ref = params$variant_filtering$vaf_ref,
+    vaf_hom = params$variant_filtering$vaf_hom,
+    vaf_het = params$variant_filtering$vaf_het,
+    min_cell_pt = params$variant_filtering$min_cell_pt
+)
+```
+
+# 3. Selecting DNA Variants
+
+Specific DNA variants of interest are subsetted for targeted analysis.
+
+```{r variants}
+# Parameterize variant targets to maintain modularity
+target_cdna_variants <- c("c.700T>C", "c.672+1G>A", "c.638G>A")
+
+# Filter variants of interest
+selected_variants <- SummarizedExperiment::rowData(ScIGMA_data$mae[["dna_variants"]]) |>
+    as.data.frame() |>
+    dplyr::filter(cdna %in% target_cdna_variants)
+
+ScIGMA_data$variants.filtered <- selected_variants
+```
+
+# 4. Clonal Inference with COMPASS
+
+We utilize the underlying COMPASS C++ engine to mathematically infer the clonal architecture. This employs a rigorous probabilistic model to evaluate the joint distribution of genotypes across cells. Parameterizing the Markov Chain Monte Carlo (MCMC) algorithm involves explicitly defining the burn-in period required to achieve a stationary distribution, distinct from the subsequent sampling iterations. Setting `chain_length = 1000` demands convergence validation to ensure the sampled state space accurately reflects the posterior probability distribution.
+
+```{r compass}
+ScIGMA_data <- run_compass_inference(
+    obj = ScIGMA_data,
+    chains = 4,
+    chain_length = 1000,
+    patient_sex = "M"
+)
+```
+
+# 5. DNA Variant Heatmap Visualization
+
+Crucially, the analytical extraction of clonally active populations is a distinct algorithmic step computed prior to any graphical representation. Following this mathematical extraction, a heatmap is generated strictly as a visualization artifact to project the pre-computed clonal architectures across the selected variants.
+
+```{r heatmap}
+# Algorithmic Separation: Decouple clone extraction from plotting
+active_clones <- extract_active_clones(
+    obj = ScIGMA_data,
+    selected_variants_df = ScIGMA_data$variants.filtered
+)
+ScIGMA_data$cnv.active.clones <- active_clones
+
+# Generate DNA variant heatmap strictly as a visualization artifact
+generate_dna_variant_heatmap(
+    obj = ScIGMA_data,
+    selected_variants_df = ScIGMA_data$variants.filtered,
+    heatmap_include_all_samples = FALSE,
+    use_imputed = TRUE
+)
+```
+
+# 6. Protein Data Processing
+
+Protein feature names are processed using explicit string manipulation operations (e.g., regex substitution to remove or replace non-alphanumeric characters) to guarantee syntactical compatibility with downstream functions. Prior to Principal Component Analysis (PCA), the raw protein read counts must undergo required data transformations. This includes Centered Log-Ratio (CLR) or log-normalization, followed by centering and scaling, to satisfy the fundamental mathematical assumptions of linearity and equal variance across features before dimensionality reduction.
+
+```{r protein}
+ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
+safe_rownames <- sanitize_protein_markers(
+    rownames(ScIGMA_data$mae[["proteins"]])
+)
+rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
+
+ScIGMA_data$seurat_object <- protein_run_pca(ScIGMA_data)
+```
+
+# 7. Copy Number Variation (CNV) Filtering
+
+The algorithm filters Copy Number Variation (CNV) profiles based on the active clones and subsequently computes clonal ploidy.
+
+**WARNING: Methodological Limitation**
+Enforcing `diploid_ref = "clone_1"` without prior empirical karyotypic validation or baseline definition is mathematically perilous, particularly in highly aneuploid tumor models. Users must independently validate that the designated reference clone is biologically diploid before executing this normalization to prevent the generation of spurious clonal architectures.
+
+```{r cnv}
+ScIGMA_data$cnv_dp_filtered <- filter_cnv_profile(
+    ScIGMA_data,
+    active_clones,
+    amp_completeness = 80,
+    amp_readDepth = 10,
+    amp_meanCellRead = 5
+)
+ScIGMA_data$is_cnv_filtered <- TRUE
+
+ScIGMA_data$ploidy.mtx <- process_cnv_to_clonal_profile(
+    ScIGMA_data$cnv_dp_filtered,
+    clones_to_use = active_clones,
+    diploid_ref = "clone_1",
+    exclude_clone = "small"
+)
+```
+
+# 8. Protein UMAP and Clustering
+
+We perform non-linear dimensionality reduction (UMAP) on the principal components of the protein space. Subsequently, a rigorous graph-based clustering algorithm (e.g., Louvain or Leiden community detection) is deployed via `run_protein_clustering` to systematically partition the cells into phenotypically distinct sub-populations, parameterized by a specific resolution (e.g., `resolution = 0.8`).
+
+```{r umap_clustering}
+# Run UMAP on Seurat object
+ScIGMA_data$seurat_object <- Seurat::RunUMAP(
+    ScIGMA_data$seurat_object,
+    features = rownames(ScIGMA_data$mae[["proteins"]]),
+    min.dist = 0.3,
+    n.neighbors = 30,
+    seed.use = 42
+)
+
+# Unsupervised Clustering
+ScIGMA_data <- run_protein_clustering(
+    obj = ScIGMA_data,
+    resolution = 0.8,
+    seed = 42
+)
+```
+
+
 
 # Session Information
 
-```{r sessionInfo}
+```{r sessionInfo, eval = TRUE}
 sessionInfo()
 ```

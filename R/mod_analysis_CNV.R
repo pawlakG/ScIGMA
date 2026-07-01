@@ -74,14 +74,6 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                                         value = 10
                                     )
                                 )
-                                # column(
-                                #     width = 4,
-                                #     numericInput(
-                                #         inputId = ns("cnv_meanCellReadDepth"),
-                                #         label = "Minimum mean cell read depth",
-                                #         value = 10
-                                #     )
-                                # )
                             ),
                             br(),
                             fluidRow(
@@ -116,7 +108,9 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                             if (cnv_ready) {
                                 tagList(
                                     uiOutput(ns("cnv_plot_parameters")),
-                                    uiOutput(ns("cnv_plot_additionalParameters"))
+                                    uiOutput(ns(
+                                        "cnv_plot_additionalParameters"
+                                    ))
                                 )
                             } else {
                                 fluidRow(
@@ -152,19 +146,19 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
 
         output$cnv_placeholder <- renderUI({
             watch("CNV_filtered")
-            # print("ScIGMA_data$cnv_dp_filtered")
-            # print(ScIGMA_data$cnv_dp_filtered)
             if (is.null(ScIGMA_data$cnv_dp_filtered)) {
                 bslib::card(
                     br(),
-                    fluidRow(h4("Please filter amplicons first", class = "text-muted text-center")),
+                    fluidRow(h4(
+                        "Please filter amplicons first",
+                        class = "text-muted text-center"
+                    )),
                     br()
                 )
             } else {
                 return(NULL)
             }
         })
-
 
         # UI for plot parameters
         observeEvent(
@@ -176,43 +170,73 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                     if (is.null(ScIGMA_data$cnv_dp_filtered)) {
                         return(NULL)
                     } else {
-                        clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
-                        clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
+                        clones_to_use <- if (
+                            !is.null(ScIGMA_data$cnv.active.clones)
+                        ) {
+                            ScIGMA_data$cnv.active.clones
+                        } else {
+                            ScIGMA_data$dna.clones
+                        }
+                        clone_choices <- levels(clones_to_use)[
+                            levels(clones_to_use) != "small"
+                        ]
 
-                        cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+                        cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                            "amplicons"
+                        ]]))
 
                         tagList(
                             fluidRow(
-                                column(4, pickerInput(
-                                    inputId = ns("cnv_diploidClone"),
-                                    label = "Diploid clone in DNA",
-                                    choices = clone_choices,
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                )),
-                                column(4, pickerInput(
-                                    inputId = ns("cnv_plotType"),
-                                    label = "Plot Type",
-                                    choices = c("Heatmap", "Lineplot"),
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                )),
-                                column(4, pickerInput(
-                                    inputId = ns("cnv_xAxis"),
-                                    label = "X-axis",
-                                    choices = sort_genomic_chromosomes(cnv_id_table$chrom),
-                                    multiple = TRUE,
-                                    options = pickerOptions(container = "body"),
-                                    width = "100%"
-                                ))
+                                column(
+                                    4,
+                                    pickerInput(
+                                        inputId = ns("cnv_diploidClone"),
+                                        label = "Diploid clone in DNA",
+                                        choices = clone_choices,
+                                        options = pickerOptions(
+                                            container = "body"
+                                        ),
+                                        width = "100%"
+                                    )
+                                ),
+                                column(
+                                    4,
+                                    pickerInput(
+                                        inputId = ns("cnv_plotType"),
+                                        label = "Plot Type",
+                                        choices = c("Heatmap", "Lineplot"),
+                                        options = pickerOptions(
+                                            container = "body"
+                                        ),
+                                        width = "100%"
+                                    )
+                                ),
+                                column(
+                                    4,
+                                    pickerInput(
+                                        inputId = ns("cnv_xAxis"),
+                                        label = "X-axis",
+                                        choices = sort_genomic_chromosomes(
+                                            cnv_id_table$chrom
+                                        ),
+                                        multiple = TRUE,
+                                        options = pickerOptions(
+                                            container = "body"
+                                        ),
+                                        width = "100%"
+                                    )
+                                )
                             )
                         )
                     }
                 })
 
-                session$onFlushed(function() {
-                    isolate(trigger("CNV_ui_cnv_plot_parameters_rendered"))
-                }, once = TRUE)
+                session$onFlushed(
+                    function() {
+                        isolate(trigger("CNV_ui_cnv_plot_parameters_rendered"))
+                    },
+                    once = TRUE
+                )
             }
         )
 
@@ -227,51 +251,85 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                     if (is.null(input$cnv_plotType)) {
                         return(NULL)
                     } else {
-                        clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
-                        clone_choices <- levels(clones_to_use)[levels(clones_to_use) != "small"]
+                        clones_to_use <- if (
+                            !is.null(ScIGMA_data$cnv.active.clones)
+                        ) {
+                            ScIGMA_data$cnv.active.clones
+                        } else {
+                            ScIGMA_data$dna.clones
+                        }
+                        clone_choices <- levels(clones_to_use)[
+                            levels(clones_to_use) != "small"
+                        ]
 
                         tagList(
                             if (input$cnv_plotType == "Heatmap") {
                                 fluidRow(
-                                    column(4, pickerInput(
-                                        inputId = ns("cnv_xAxis_projection"),
-                                        label = "Heatmap projection",
-                                        choices = c("Position", "Genes"),
-                                        options = pickerOptions(container = "body"),
-                                        width = "100%"
-                                    ))
+                                    column(
+                                        4,
+                                        pickerInput(
+                                            inputId = ns(
+                                                "cnv_xAxis_projection"
+                                            ),
+                                            label = "Heatmap projection",
+                                            choices = c("Position", "Genes"),
+                                            options = pickerOptions(
+                                                container = "body"
+                                            ),
+                                            width = "100%"
+                                        )
+                                    )
                                 )
                             } else {
                                 fluidRow(
-                                    column(4, pickerInput(
-                                        inputId = ns("cnv_xAxis_projection"),
-                                        label = "Lineplot projection",
-                                        choices = c("Position", "Genes+amplicons"),
-                                        options = pickerOptions(container = "body"),
-                                        width = "100%"
-                                    )),
-                                    column(4, pickerInput(
-                                        inputId = ns("cnv_lineplot_cluster"),
-                                        label = "Select Clone",
-                                        choices = clone_choices,
-                                        options = pickerOptions(container = "body"),
-                                        width = "100%",
-                                        selected = clone_choices[1]
-                                    ))
+                                    column(
+                                        4,
+                                        pickerInput(
+                                            inputId = ns(
+                                                "cnv_xAxis_projection"
+                                            ),
+                                            label = "Lineplot projection",
+                                            choices = c(
+                                                "Position",
+                                                "Genes+amplicons"
+                                            ),
+                                            options = pickerOptions(
+                                                container = "body"
+                                            ),
+                                            width = "100%"
+                                        )
+                                    ),
+                                    column(
+                                        4,
+                                        pickerInput(
+                                            inputId = ns(
+                                                "cnv_lineplot_cluster"
+                                            ),
+                                            label = "Select Clone",
+                                            choices = clone_choices,
+                                            options = pickerOptions(
+                                                container = "body"
+                                            ),
+                                            width = "100%",
+                                            selected = clone_choices[1]
+                                        )
+                                    )
                                 )
                             }
                         )
                     }
                 })
 
-                session$onFlushed(function() {
-                    isolate(trigger("CNV_ui_cnv_plot_additionalParameters_rendered"))
-                }, once = TRUE)
+                session$onFlushed(
+                    function() {
+                        isolate(trigger(
+                            "CNV_ui_cnv_plot_additionalParameters_rendered"
+                        ))
+                    },
+                    once = TRUE
+                )
             }
         )
-
-
-        # When user change a parameter value
         observeEvent(
             {
                 input$cnv_filter_button
@@ -284,8 +342,15 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                 shiny::req(input$cnv_filter_button > 0)
                 if (isTRUE(input$cnv_use_compass_imputed)) {
                     if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
-                        shiny::showNotification("COMPASS inference missing. Please run COMPASS first.", type = "error")
-                        shinyWidgets::updateMaterialSwitch(session, "cnv_use_compass_imputed", value = FALSE)
+                        shiny::showNotification(
+                            "COMPASS inference missing. Please run COMPASS first.",
+                            type = "error"
+                        )
+                        shinyWidgets::updateMaterialSwitch(
+                            session,
+                            "cnv_use_compass_imputed",
+                            value = FALSE
+                        )
                         return()
                     }
                     req(ScIGMA_data$variants.filtered)
@@ -312,7 +377,8 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                 cnv_meanCellReadDepth <- 10
 
                 # Filters (Remplacement de ScIGMA_data$dna.clones par active_clones)
-                filtered_data <- filter_cnv_profile(ScIGMA_data,
+                filtered_data <- filter_cnv_profile(
+                    ScIGMA_data,
                     active_clones,
                     amp_completeness = cnv_ampCompleteness,
                     amp_readDepth = cnv_ampReadDepth,
@@ -323,7 +389,9 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                 ScIGMA_data$is_cnv_filtered <- TRUE
                 trigger("CNV_filtered")
 
-                clone_choices <- levels(active_clones)[levels(active_clones) != "small"]
+                clone_choices <- levels(active_clones)[
+                    levels(active_clones) != "small"
+                ]
                 shinyWidgets::updatePickerInput(
                     session = session,
                     inputId = "cnv_diploidClone",
@@ -343,7 +411,11 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
             req(ScIGMA_data$cnv_dp_filtered)
             message("Recomputing ploidy ...")
 
-            clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) ScIGMA_data$cnv.active.clones else ScIGMA_data$dna.clones
+            clones_to_use <- if (!is.null(ScIGMA_data$cnv.active.clones)) {
+                ScIGMA_data$cnv.active.clones
+            } else {
+                ScIGMA_data$dna.clones
+            }
 
             ploidy_data <- process_cnv_to_clonal_profile(
                 ScIGMA_data$cnv_dp_filtered,
@@ -370,12 +442,20 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                 plot_type_changed <- input$cnv_plotType != prev_plot_type()
                 prev_plot_type(input$cnv_plotType)
 
-                if (is.null(input$cnv_xAxis_projection) || input$cnv_xAxis_projection == "Position") {
-                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
+                if (
+                    is.null(input$cnv_xAxis_projection) ||
+                        input$cnv_xAxis_projection == "Position"
+                ) {
+                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                        "amplicons"
+                    ]]))
                     new_choices <- sort_genomic_chromosomes(cnv_id_table$chrom)
                     label_text <- "Select Chromosome(s)"
                 } else {
-                    new_choices <- render_annotation_table(obj = ScIGMA_data, ploidy_data = ScIGMA_data$ploidy.mtx)$symbol |>
+                    new_choices <- render_annotation_table(
+                        obj = ScIGMA_data,
+                        ploidy_data = ScIGMA_data$ploidy.mtx
+                    )$symbol |>
                         unique() |>
                         sort()
                     label_text <- "Select Gene(s)"
@@ -383,7 +463,11 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
 
                 current_sel <- isolate(input$cnv_xAxis)
 
-                final_selection <- if (plot_type_changed) NULL else current_sel[current_sel %in% new_choices]
+                final_selection <- if (plot_type_changed) {
+                    NULL
+                } else {
+                    current_sel[current_sel %in% new_choices]
+                }
 
                 shinyWidgets::updatePickerInput(
                     session = session,
@@ -420,35 +504,58 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                     })
 
                     cnv_heatmap_type <- input$cnv_xAxis_projection
-                    show_genes <- (!is.null(cnv_heatmap_type) && cnv_heatmap_type != "Position")
+                    show_genes <- (!is.null(cnv_heatmap_type) &&
+                        cnv_heatmap_type != "Position")
 
                     # --- Filtrage Heatmap ---
                     filtered_ploidy <- ScIGMA_data$ploidy.mtx
                     if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
                         mat_data_tmp <- t(filtered_ploidy)
-                        cnv_id_table_tmp <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-                        genome_v_tmp <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
-                        if (is.null(genome_v_tmp)) genome_v_tmp <- "hg19"
+                        cnv_id_table_tmp <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                            "amplicons"
+                        ]]))
+                        genome_v_tmp <- S4Vectors::metadata(
+                            ScIGMA_data$mae
+                        )$genome_version
+                        if (is.null(genome_v_tmp)) {
+                            genome_v_tmp <- "hg19"
+                        }
 
-                        tmp_var <- cnv_id_table_tmp |> dplyr::filter(dna_id %in% colnames(mat_data_tmp))
+                        tmp_var <- cnv_id_table_tmp |>
+                            dplyr::filter(dna_id %in% colnames(mat_data_tmp))
 
-                        is_chr_focus <- any(grepl("^chr([0-9]+|[XYM])$", cnv_xAxis, ignore.case = TRUE))
+                        is_chr_focus <- any(grepl(
+                            "^chr([0-9]+|[XYM])$",
+                            cnv_xAxis,
+                            ignore.case = TRUE
+                        ))
 
                         if (!is_chr_focus) {
-                            tmp_annot <- annotate_genomic_regions(region_data = tmp_var, build = genome_v_tmp)
-                            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
+                            tmp_annot <- annotate_genomic_regions(
+                                region_data = tmp_var,
+                                build = genome_v_tmp
+                            )
+                            valid_ids <- tmp_annot$dna_id[
+                                tmp_annot$symbol %in% cnv_xAxis
+                            ]
                             show_genes <- TRUE
                         } else {
                             tmp_var$chr_lit <- paste0("chr", tmp_var$chrom)
-                            valid_ids <- tmp_var$dna_id[tmp_var$chr_lit %in% cnv_xAxis]
+                            valid_ids <- tmp_var$dna_id[
+                                tmp_var$chr_lit %in% cnv_xAxis
+                            ]
                             show_genes <- FALSE
                         }
-                        filtered_ploidy <- t(mat_data_tmp[, colnames(mat_data_tmp) %in% valid_ids, drop = FALSE])
+                        filtered_ploidy <- t(mat_data_tmp[,
+                            colnames(mat_data_tmp) %in% valid_ids,
+                            drop = FALSE
+                        ])
                     }
 
                     shiny::validate(
                         shiny::need(
-                            ncol(filtered_ploidy) >= 2 && nrow(filtered_ploidy) >= 2,
+                            ncol(filtered_ploidy) >= 2 &&
+                                nrow(filtered_ploidy) >= 2,
                             "Selection too narrow. Requires at least 2 cells and 2 amplicons."
                         ),
                         shiny::need(
@@ -474,25 +581,45 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                     cnv_lineplot_cluster <- input$cnv_lineplot_cluster
 
                     mat_data <- t(ScIGMA_data$ploidy.mtx)
-                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[["amplicons"]]))
-                    genome_v <- S4Vectors::metadata(ScIGMA_data$mae)$genome_version
-                    if (is.null(genome_v)) genome_v <- "hg19"
+                    cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_data$mae[[
+                        "amplicons"
+                    ]]))
+                    genome_v <- S4Vectors::metadata(
+                        ScIGMA_data$mae
+                    )$genome_version
+                    if (is.null(genome_v)) {
+                        genome_v <- "hg19"
+                    }
 
                     tmp_var_table <- cnv_id_table |>
                         dplyr::filter(dna_id %in% colnames(mat_data)) |>
-                        dplyr::arrange(as.numeric(chrom), as.numeric(start_pos)) |>
+                        dplyr::arrange(
+                            as.numeric(chrom),
+                            as.numeric(start_pos)
+                        ) |>
                         dplyr::mutate(chr_lit = paste0("chr", chrom))
 
                     # --- Filtrage Lineplot ---
                     if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
-                        is_chr <- any(grepl("^chr", cnv_xAxis, ignore.case = TRUE))
+                        is_chr <- any(grepl(
+                            "^chr",
+                            cnv_xAxis,
+                            ignore.case = TRUE
+                        ))
 
                         if (is_chr) {
-                            tmp_var_table <- tmp_var_table |> dplyr::filter(chr_lit %in% cnv_xAxis)
+                            tmp_var_table <- tmp_var_table |>
+                                dplyr::filter(chr_lit %in% cnv_xAxis)
                         } else {
-                            tmp_annot <- annotate_genomic_regions(region_data = tmp_var_table, build = genome_v)
-                            valid_ids <- tmp_annot$dna_id[tmp_annot$symbol %in% cnv_xAxis]
-                            tmp_var_table <- tmp_var_table |> dplyr::filter(dna_id %in% valid_ids)
+                            tmp_annot <- annotate_genomic_regions(
+                                region_data = tmp_var_table,
+                                build = genome_v
+                            )
+                            valid_ids <- tmp_annot$dna_id[
+                                tmp_annot$symbol %in% cnv_xAxis
+                            ]
+                            tmp_var_table <- tmp_var_table |>
+                                dplyr::filter(dna_id %in% valid_ids)
                         }
                     }
 
@@ -505,17 +632,27 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
 
                     mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]
 
-                    tmp_split_table <- tmp_var_table[match(colnames(mat_data), tmp_var_table$dna_id), ]
-                    sorted_gen_levels <- sort_genomic_chromosomes(tmp_split_table$chrom)
+                    tmp_split_table <- tmp_var_table[
+                        match(colnames(mat_data), tmp_var_table$dna_id),
+                    ]
+                    sorted_gen_levels <- sort_genomic_chromosomes(
+                        tmp_split_table$chrom
+                    )
 
-                    tmp_split_vec <- annotate_genomic_regions(region_data = tmp_split_table, build = genome_v)
+                    tmp_split_vec <- annotate_genomic_regions(
+                        region_data = tmp_split_table,
+                        build = genome_v
+                    )
 
                     gene_annotation <- data.frame(
                         "Gene" = tmp_split_vec$symbol,
                         "Chromosome" = tmp_split_vec$chrom,
                         "Probe" = tmp_split_vec$dna_id,
-                        "Chrom_pos" = factor(tmp_split_vec$chr_lit,
-                            levels = unique(sort_genomic_chromosomes(tmp_split_vec$chrom))
+                        "Chrom_pos" = factor(
+                            tmp_split_vec$chr_lit,
+                            levels = unique(sort_genomic_chromosomes(
+                                tmp_split_vec$chrom
+                            ))
                         ),
                         "Chrom_start" = tmp_split_vec$start_pos
                     )

@@ -69,6 +69,22 @@ ScIGMA::run_app()
 4. **Annotation**: Trigger the API module to functionally annotate selected variants against Ensembl and ClinVar.
 5. **Integration**: Reduce protein dimensions, define phenotypic subpopulations, and compute the mathematical intersection between genomic clones and protein profiles.
 
+## Reproducibility & Test Dataset
+
+To ensure strict computational reproducibility of the manuscript figures and evaluate the method's performance, an independent `reproducibility` module is available.
+
+**Test Dataset**: The standardized multi-omics dataset (57.7 MB) required for execution is hosted externally to comply with Bioconductor repository limits. It is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and can be downloaded from Zenodo:
+[Download Test Dataset (Zenodo)](https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1)
+
+**Execution Instructions**:
+1. Clone this repository and navigate to the `reproducibility/` directory.
+2. The analytical pipeline is powered by `targets`. It will automatically download the test dataset via the URL above and execute the inference.
+3. Run the following R commands:
+   ```r
+   renv::restore()
+   targets::tar_make()
+   ```
+
 ## Target Domains
 
 This computational tool is specifically tailored for:

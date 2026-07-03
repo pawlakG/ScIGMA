@@ -91,6 +91,20 @@ run_scigma_pipeline <- function(h5_path, params, manual_gates) {
     if (!is.null(manual_gates)) {
         message("Injecting manual immunophenotype gates...")
         ScIGMA_data$protein_gating_tree <- manual_gates
+        
+        # Translate to protein_gates for plotting functions
+        gates_list <- manual_gates$gates_list
+        meta_list <- manual_gates$meta_list
+        assay_colnames <- colnames(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "counts"))
+        
+        protein_gates <- list()
+        for (gate_id in names(gates_list)) {
+            if (gate_id == "root") next
+            gate_name <- meta_list[[gate_id]]$name
+            cell_indices <- gates_list[[gate_id]]
+            protein_gates[[gate_name]] <- assay_colnames[cell_indices]
+        }
+        ScIGMA_data$protein_gates <- protein_gates
     }
 
     # 9. Run UMAP

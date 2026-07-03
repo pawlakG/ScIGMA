@@ -26,7 +26,7 @@ plot_fig_snv_heatmap <- function(ScIGMA_obj) {
     )
     pdf(fig_path)
     ComplexHeatmap::draw(ht_res$heatmap)
-    text(0.5, 0.5, "SNV Genotype Heatmap")
+
     dev.off()
     return(fig_path)
 }
@@ -40,7 +40,7 @@ plot_fig_snv_phylogeny <- function(ScIGMA_obj) {
     )$compass$tree_dot
     pdf(fig_path)
     DiagrammeR::grViz(tree_content)
-    text(0.5, 0.5, "Maximum Likelihood Phylogeny")
+
     dev.off()
     return(fig_path)
 }
@@ -62,15 +62,13 @@ plot_fig_cnv_heatmap <- function(ScIGMA_obj) {
     )
 
     fig_path <- setup_fig_path("Fig3_CNV_Heatmap.pdf")
-    # TODO: Plot CNV states via ComplexHeatmap
+    pdf(fig_path)
     ScIGMA:::generate_cnv_heatmap_filtered(
         obj = ScIGMA_obj,
         features = features,
         projection_type = "Position"
     )
-    pdf(fig_path)
-    plot.new()
-    text(0.5, 0.5, "CNV Heatmap")
+
     dev.off()
     return(fig_path)
 }
@@ -86,7 +84,7 @@ plot_fig_cnv_lineplot <- function(ScIGMA_obj) {
     )
     pdf(fig_path)
     print(p)
-    text(0.5, 0.5, "CNV Lineplot")
+
     dev.off()
     return(fig_path)
 }
@@ -102,7 +100,7 @@ plot_fig_protein_ridgeplot <- function(ScIGMA_obj) {
     p_ridge <- ScIGMA:::generate_protein_ridgeplot(ScIGMA_obj)
     pdf(fig_path)
     print(p_ridge)
-    text(0.5, 0.5, "Protein Ridgeplot")
+
     dev.off()
     return(fig_path)
 }
@@ -117,7 +115,7 @@ plot_fig_protein_barplot <- function(ScIGMA_obj) {
     )
     pdf(fig_path)
     print(p_bar)
-    text(0.5, 0.5, "Protein Barplot")
+
     dev.off()
     return(fig_path)
 }
@@ -137,7 +135,7 @@ plot_fig_protein_biplot_gating <- function(ScIGMA_obj) {
     )
     pdf(fig_path)
     print(p_biplot)
-    text(0.5, 0.5, "CD19 vs CD33 Gating + DNA Clones")
+
     dev.off()
     return(fig_path)
 }

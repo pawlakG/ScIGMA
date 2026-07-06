@@ -4,7 +4,7 @@
 #' centered log-ratio (CLR) transform, inspired by the analogous function
 #' in the optima package.
 #'
-#' @param ScIGMA_object A `ScIGMA_object` (R6).
+#' @param obj A `ScIGMA_object` (R6).
 #' @import compositions
 #' @return The input `ScIGMA_object` with `protein.mtx` normalized and
 #'  `protein.normalize.method` set to "normalized".
@@ -12,10 +12,10 @@
 #' @noRd
 #' @examples
 #' \dontrun{
-#' scigma <- normalizeProtein(scigma)
+#' scigma <- normalize_protein_clr(scigma)
 #' }
-normalizeProtein <- function(ScIGMA_object) {
-    inputMatrix <- SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "counts") |> as.matrix()
+normalize_protein_clr <- function(obj) {
+    inputMatrix <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts") |> as.matrix()
 
     tmp_clr <- compositions::clr(t(inputMatrix) + 1)
 
@@ -24,13 +24,71 @@ normalizeProtein <- function(ScIGMA_object) {
 
     ret <- t(tmp_mat)
 
-    SummarizedExperiment::assay(ScIGMA_object$mae[["proteins"]], "clr") <- ret
+    SummarizedExperiment::assay(obj$mae[["proteins"]], "normalized") <- ret
 
-    S4Vectors::metadata(ScIGMA_object$mae)$protein_normalize_method <- "CLR normalized"
+    S4Vectors::metadata(obj$mae)$protein_normalize_method <- "CLR normalized"
 
-    ScIGMA_object$protein.filtered <- TRUE
+    obj$protein.filtered <- TRUE
 
-    return(ScIGMA_object)
+    return(obj)
+}
+
+#' Normalize Protein Data using NSP
+#'
+#' @description
+#' Normalizes protein expression data using the NSP method.
+#'
+#' @param obj A `ScIGMA_object` (R6).
+#'
+#' @return The input `ScIGMA_object` with `protein.mtx` normalized and
+#'  `protein.normalize.method` set to "NSP normalized".
+#' @export
+normalize_protein_nsp <- function(obj) {
+    counts <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
+    counts_ram <- as.matrix(counts)
+    
+    # Transpose pour que les cellules soient en ligne pour NSP$transform
+    counts_ram_t <- t(counts_ram)
+    
+    nsp <- NSP$new()
+    norm_prot_t <- nsp$transform(counts_ram_t)
+    
+    # On retranspose pour avoir les protéines en ligne
+    norm_prot <- t(norm_prot_t)
+    
+    # Restauration des noms
+    rownames(norm_prot) <- rownames(counts_ram)
+    colnames(norm_prot) <- colnames(counts_ram)
+    
+    SummarizedExperiment::assay(obj$mae[["proteins"]], "normalized") <- norm_prot
+    S4Vectors::metadata(obj$mae)$protein_normalize_method <- "NSP normalized"
+    obj$protein.filtered <- TRUE
+    
+    return(obj)
+}
+
+#' Normalize Protein Data using asinh
+#'
+#' @description
+#' Normalizes protein expression data using asinh transformation.
+#'
+#' @param obj A `ScIGMA_object` (R6).
+#' @param cofactor Numeric. The cofactor for asinh transformation.
+#'
+#' @return The input `ScIGMA_object` with `protein.mtx` normalized and
+#'  `protein.normalize.method` set to "asinh normalized".
+#' @export
+normalize_protein_asinh <- function(obj, cofactor = 5) {
+    counts <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
+    counts_ram <- as.matrix(counts)
+    
+    norm_prot <- asinh(counts_ram / cofactor)
+    
+    SummarizedExperiment::assay(obj$mae[["proteins"]], "normalized") <- norm_prot
+    S4Vectors::metadata(obj$mae)$protein_normalize_method <- "asinh normalized"
+    obj$protein.filtered <- TRUE
+    
+    return(obj)
 }
 
 #' Render ridge plot with ggplot2 and plotly
@@ -80,6 +138,56 @@ plot_protein_barplot <- function(obj, title = "Protein Percentage Distribution")
         )
 
     plotly::ggplotly(protein_barplot)
+}
+
+#' Normalize Protein Data using DSB (Denoised Scaled by Background)
+#'
+#' @description
+#' Normalizes protein expression data using the DSB method, which corrects for background
+#' noise using empty droplets.
+#'
+#' @param obj A `ScIGMA_object` (R6).
+#' @param min_bg_counts Minimum number of background counts to include an empty droplet.
+#' @param max_bg_counts Maximum number of background counts to include an empty droplet.
+#'
+#' @return The input `ScIGMA_object` with `protein.mtx` normalized and
+#'  `protein.normalize.method` set to "DSB normalized".
+#' @export
+normalize_protein_dsb <- function(obj, min_bg_counts = 10, max_bg_counts = 500) {
+    cells_mtx <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
+    empty_mtx_delayed <- obj$get_empty_drops()
+    
+    if (is.null(empty_mtx_delayed)) {
+        stop("Empty drops matrix is not available for DSB normalization.")
+    }
+    
+    drop_sums <- DelayedMatrixStats::colSums2(empty_mtx_delayed)
+    valid_empty_barcodes <- colnames(empty_mtx_delayed)[drop_sums > min_bg_counts & drop_sums < max_bg_counts]
+    
+    if (length(valid_empty_barcodes) == 0) {
+        stop("No valid empty droplets found after filtering with the given background counts thresholds.")
+    }
+    
+    empty_mtx_ram <- as.matrix(empty_mtx_delayed[, valid_empty_barcodes, drop = FALSE])
+    cells_mtx_ram <- as.matrix(cells_mtx)
+    
+    # Sécurité absolue : on force l'alignement des noms de lignes.
+    # Les deux matrices partagent le même layout (même panel), mais l'objet MAE principal
+    # a pu subir un nettoyage typographique (ex: sanitize_protein_markers) que les gouttes vides n'ont pas eu.
+    rownames(empty_mtx_ram) <- rownames(cells_mtx_ram)
+    
+    norm_prot <- dsb::DSBNormalizeProtein(
+        cell_protein_matrix = cells_mtx_ram,
+        empty_drop_matrix = empty_mtx_ram,
+        denoise.counts = TRUE,
+        use.isotype.control = FALSE
+    )
+    
+    SummarizedExperiment::assay(obj$mae[["proteins"]], "normalized") <- norm_prot
+    S4Vectors::metadata(obj$mae)$protein_normalize_method <- "DSB normalized"
+    obj$protein.filtered <- TRUE
+    
+    return(obj)
 }
 
 #' Normalize Protein Data using Linear Regression (with Jitter & Scaling)

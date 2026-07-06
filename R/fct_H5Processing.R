@@ -3,7 +3,6 @@
 # Dependencies:
 #   - BiocManager::install(c("DelayedArray", "HDF5Array", "BiocParallel", "rhdf5"))
 
-
 # ----------------------------------------------------
 # HDF5 helpers
 # ----------------------------------------------------
@@ -103,7 +102,11 @@
         },
         error = function(e) {
             message(
-                "Error accessing dataset: ", path, "\n", conditionMessage(e), "\n",
+                "Error accessing dataset: ",
+                path,
+                "\n",
+                conditionMessage(e),
+                "\n",
                 "Trying another method ,\nThis may be longer ..."
             )
             tryCatch(
@@ -115,7 +118,12 @@
                     DelayedArray::DelayedArray(tmp)
                 },
                 error = function(e) {
-                    stop("Failed to read dataset: ", path, "\n", conditionMessage(e))
+                    stop(
+                        "Failed to read dataset: ",
+                        path,
+                        "\n",
+                        conditionMessage(e)
+                    )
                 }
             )
         }
@@ -140,17 +148,23 @@
 
     # Keep only direct children of the target group
     ls <- subset(all, group == group_path)
-    if (nrow(ls) == 0L) stop("Group not found or empty: ", group_path)
+    if (nrow(ls) == 0L) {
+        stop("Group not found or empty: ", group_path)
+    }
 
     # Keep datasets only
     ds <- subset(ls, otype == "H5I_DATASET")
-    if (nrow(ds) == 0L) stop("No datasets under: ", group_path)
+    if (nrow(ds) == 0L) {
+        stop("No datasets under: ", group_path)
+    }
 
     # Read each dataset and return a named list
     out <- setNames(
         lapply(ds$name, function(nm) {
             val <- rhdf5::h5read(file, paste0(group_path, "/", nm))
-            if (length(val) == 1L) val <- as.vector(val)
+            if (length(val) == 1L) {
+                val <- as.vector(val)
+            }
             val
         }),
         ds$name
@@ -208,7 +222,6 @@
 #'    single HDF5 file with optional chunking/compression control.
 #' )
 
-
 # ----------------------------------------------------
 # 100% HDF5-backed import function
 # ----------------------------------------------------
@@ -220,7 +233,12 @@
 #' @param omic.type Either "DNA+protein" or "DNA".
 #' @param block.size Target DelayedArray block size in bytes (e.g., `100e6`).
 #' @return A \code{ScIGMA_object} backed by HDF5.
-loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA"), block.size = 100e6) {
+loadH5_HDF5 <- function(
+    filepath,
+    sample.name,
+    omic.type = c("DNA+protein", "DNA"),
+    block.size = 100e6
+) {
     omic.type <- match.arg(omic.type)
     stopifnot(file.exists(filepath))
 
@@ -229,7 +247,10 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     # ---- Protein (optional) ----
     if (omic.type == "DNA+protein") {
         proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
-        protein_mtx <- t(.h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts"))
+        protein_mtx <- t(.h5_delayed(
+            filepath,
+            "/assays/protein_read_counts/layers/read_counts"
+        ))
 
         if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")) {
             protein_samples <- "/assays/protein_read_counts/ra/label"
@@ -240,8 +261,12 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         protein_barcodes <- .h5read_char(filepath, protein_id_path)
         pr_ra_names <- .h5read_char(filepath, protein_samples)
 
-        if (length(protein_barcodes) > 0) rownames(protein_mtx) <- protein_barcodes
-        if (length(proteins) > 0) colnames(protein_mtx) <- proteins
+        if (length(protein_barcodes) > 0) {
+            rownames(protein_mtx) <- protein_barcodes
+        }
+        if (length(proteins) > 0) {
+            colnames(protein_mtx) <- proteins
+        }
 
         protein.normalize.method <- "unnormalized"
         protein.cells <- setNames(pr_ra_names, nm = protein_barcodes)
@@ -261,9 +286,15 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         dna_read_count_samples <- "/assays/dna_read_counts/ra/sample_name"
     }
 
-    amp_sample_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode") # Sample barcode
+    amp_sample_ids <- .h5read_char(
+        filepath,
+        "/assays/dna_read_counts/ra/barcode"
+    ) # Sample barcode
     amp_ca_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ca/id") # Amplicon ids
-    amp_sample_names <- setNames(amp_sample_ids, nm = .h5read_char(filepath, dna_read_count_samples)) # Samples human readable names
+    amp_sample_names <- setNames(
+        amp_sample_ids,
+        nm = .h5read_char(filepath, dna_read_count_samples)
+    ) # Samples human readable names
 
     ## dna_variants
     if (.h5_has_path(filepath, "/assays/dna_variants/ra/label")) {
@@ -276,16 +307,24 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     dna_id <- .h5read_char(filepath, "/assays/dna_variants/ca/id")
 
     vaf_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/AF"))
-    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(vaf_mtx) <- list(dna_sample_ids, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) {
+        dimnames(vaf_mtx) <- list(dna_sample_ids, dna_id)
+    }
 
     gt_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/NGT"))
-    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(gt_mtx) <- list(dna_sample_ids, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) {
+        dimnames(gt_mtx) <- list(dna_sample_ids, dna_id)
+    }
 
     dp_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/DP"))
-    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(dp_mtx) <- list(dna_sample_ids, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) {
+        dimnames(dp_mtx) <- list(dna_sample_ids, dna_id)
+    }
 
     gq_mtx <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/GQ"))
-    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) dimnames(gq_mtx) <- list(dna_sample_ids, dna_id)
+    if (length(dna_sample_ids) > 0 || length(dna_id) > 0) {
+        dimnames(gq_mtx) <- list(dna_sample_ids, dna_id)
+    }
 
     safe_read_col <- function(path) {
         val <- .h5read_char(filepath, path)
@@ -308,29 +347,51 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
     cnv_id_table <- data.frame(
         dna_id = .h5read_char(filepath, "/assays/dna_read_counts/ca/id"),
         chrom = .h5read_char(filepath, "/assays/dna_read_counts/ca/CHROM"),
-        start_pos = .h5read_char(filepath, "/assays/dna_read_counts/ca/start_pos") |>
+        start_pos = .h5read_char(
+            filepath,
+            "/assays/dna_read_counts/ca/start_pos"
+        ) |>
             as.numeric(),
-        end_pos = .h5read_char(filepath, "/assays/dna_read_counts/ca/end_pos") |>
+        end_pos = .h5read_char(
+            filepath,
+            "/assays/dna_read_counts/ca/end_pos"
+        ) |>
             as.numeric()
     )
 
     dna_cell_table <- data.frame(
         dna_barcode = .h5read_char(filepath, "/assays/dna_variants/ra/barcode"),
-        dna_filtered = .h5read_char(filepath, "/assays/dna_variants/ra/filtered"),
+        dna_filtered = .h5read_char(
+            filepath,
+            "/assays/dna_variants/ra/filtered"
+        ),
         dna_sample_name = .h5read_char(filepath, dna_read_count_samples)
     )
 
-
     # ---- DNA read counts (amplicons) ----
-    amp_mtx <- t(.h5_delayed(filepath, "/assays/dna_read_counts/layers/read_counts"))
-    if (length(amp_sample_ids) > 0 || length(amp_ca_ids) > 0) dimnames(amp_mtx) <- list(amp_sample_ids, amp_ca_ids)
+    amp_mtx <- t(.h5_delayed(
+        filepath,
+        "/assays/dna_read_counts/layers/read_counts"
+    ))
+    if (length(amp_sample_ids) > 0 || length(amp_ca_ids) > 0) {
+        dimnames(amp_mtx) <- list(amp_sample_ids, amp_ca_ids)
+    }
 
     amp.normalize.method <- "unnormalized"
 
     # ---- Metadata ----
-    dna_variant_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_variants/metadata")
-    dna_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_read_counts/metadata")
-    protein_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/protein_read_counts/metadata")
+    dna_variant_metadata <- .h5_read_metadata_group(
+        filepath,
+        "/assays/dna_variants/metadata"
+    )
+    dna_read_counts_metadata <- .h5_read_metadata_group(
+        filepath,
+        "/assays/dna_read_counts/metadata"
+    )
+    protein_read_counts_metadata <- .h5_read_metadata_group(
+        filepath,
+        "/assays/protein_read_counts/metadata"
+    )
 
     # ---- Cell labels (logique de fallback identique au code d'origine) ----
     if (.h5_has_path(filepath, dna_read_count_samples)) {
@@ -341,17 +402,30 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
         cell.labels <- protein.cells
     } else if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/barcode")) {
         barcode <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode")
-        cell.labels <- setNames(barcode, nm = rep("unassigned", length(barcode)))
+        cell.labels <- setNames(
+            barcode,
+            nm = rep("unassigned", length(barcode))
+        )
     } else {
         cell.labels <- character()
     }
 
     # ---- Variant filter mask ----
-    cnv_metadata <- list("genome_version" = .h5read_char(filepath, "/assays/dna_read_counts/metadata/genome_version"))
+    cnv_metadata <- list(
+        "genome_version" = .h5read_char(
+            filepath,
+            "/assays/dna_read_counts/metadata/genome_version"
+        )
+    )
 
     # ---- Variant filter mask ----
-    variant.filter.mask <- t(.h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK"))
-    if (length(dna_sample_name) > 0 || length(dna_id) > 0) dimnames(variant.filter.mask) <- list(dna_sample_ids, dna_id)
+    variant.filter.mask <- t(.h5_delayed(
+        filepath,
+        "/assays/dna_variants/layers/FILTER_MASK"
+    ))
+    if (length(dna_sample_name) > 0 || length(dna_id) > 0) {
+        dimnames(variant.filter.mask) <- list(dna_sample_ids, dna_id)
+    }
 
     # ---- Object assembly ----
     obj <- ScIGMA_object$new(
@@ -430,7 +504,12 @@ loadH5_HDF5 <- function(filepath, sample.name, omic.type = c("DNA+protein", "DNA
 #' }
 #'
 #' @keywords internal
-harmonize_cols <- function(mtx_list, cols_list, label, feature_policy = c("identical", "intersect")) {
+harmonize_cols <- function(
+    mtx_list,
+    cols_list,
+    label,
+    feature_policy = c("identical", "intersect")
+) {
     feature_policy <- match.arg(feature_policy)
     if (is.null(mtx_list) || is.null(cols_list)) {
         return(NULL)
@@ -440,15 +519,21 @@ harmonize_cols <- function(mtx_list, cols_list, label, feature_policy = c("ident
         ref <- cols_list[[1]]
         same <- vapply(cols_list, function(x) identical(x, ref), logical(1))
         if (!all(same)) {
-            stop(sprintf("[%s] Feature sets differ across files. Use feature_policy='intersect' to proceed.", label))
+            stop(sprintf(
+                "[%s] Feature sets differ across files. Use feature_policy='intersect' to proceed.",
+                label
+            ))
         }
         mtx_list
-    } else { # "intersect"
+    } else {
+        # "intersect"
         common <- Reduce(intersect, cols_list)
         if (length(common) == 0) {
             stop(sprintf("[%s] No common features to merge.", label))
         }
-        lapply(mtx_list, function(m) m[, match(common, colnames(m)), drop = FALSE])
+        lapply(mtx_list, function(m) {
+            m[, match(common, colnames(m)), drop = FALSE]
+        })
     }
 }
 
@@ -479,26 +564,44 @@ harmonize_cols <- function(mtx_list, cols_list, label, feature_policy = c("ident
 #' )
 #' obj$print()
 #' }
-loadH5_dir_HDF5 <- function(dir,
-                            pattern = "\\.h5$",
-                            recursive = FALSE,
-                            omic.type = c("DNA+protein", "DNA"),
-                            block.size = 1e8,
-                            feature_policy = c("identical", "intersect"),
-                            verbose = TRUE) {
+loadH5_dir_HDF5 <- function(
+    dir,
+    pattern = "\\.h5$",
+    recursive = FALSE,
+    omic.type = c("DNA+protein", "DNA"),
+    block.size = 1e8,
+    feature_policy = c("identical", "intersect"),
+    verbose = TRUE
+) {
     stopifnot(dir.exists(dir))
     omic.type <- match.arg(omic.type)
     feature_policy <- match.arg(feature_policy)
 
-    files <- list.files(dir, pattern = pattern, full.names = TRUE, recursive = recursive)
-    if (length(files) == 0) stop("No .h5 files found in: ", dir)
+    files <- list.files(
+        dir,
+        pattern = pattern,
+        full.names = TRUE,
+        recursive = recursive
+    )
+    if (length(files) == 0) {
+        stop("No .h5 files found in: ", dir)
+    }
 
-    if (verbose) message(sprintf("[ScIGMA] Found %d file(s). Loading as HDF5-backed...", length(files)))
+    if (verbose) {
+        message(sprintf(
+            "[ScIGMA] Found %d file(s). Loading as HDF5-backed...",
+            length(files)
+        ))
+    }
     objs <- lapply(files, function(f) {
-        if (verbose) message("  - ", basename(f))
-        loadH5_HDF5(f,
+        if (verbose) {
+            message("  - ", basename(f))
+        }
+        loadH5_HDF5(
+            f,
             sample.name = tools::file_path_sans_ext(basename(f)),
-            omic.type = omic.type, block.size = block.size
+            omic.type = omic.type,
+            block.size = block.size
         )
     })
 
@@ -507,7 +610,9 @@ loadH5_dir_HDF5 <- function(dir,
     # --- Collect feature names per assay (columns) ---
     vaf_list <- pull("vaf.mtx")
     has_vaf <- !vapply(vaf_list, is.null, logical(1))
-    if (!all(has_vaf)) stop("Some objects lack vaf.mtx; cannot merge.")
+    if (!all(has_vaf)) {
+        stop("Some objects lack vaf.mtx; cannot merge.")
+    }
     v_cols <- lapply(vaf_list, colnames)
 
     amp_list <- pull("amp.mtx")
@@ -516,15 +621,53 @@ loadH5_dir_HDF5 <- function(dir,
 
     prot_list <- pull("protein.mtx")
     has_prot <- !vapply(prot_list, is.null, logical(1))
-    p_cols <- if (omic.type == "DNA+protein" && any(has_prot)) lapply(prot_list, colnames) else NULL
+    p_cols <- if (omic.type == "DNA+protein" && any(has_prot)) {
+        lapply(prot_list, colnames)
+    } else {
+        NULL
+    }
 
     # --- Harmonize columns (features) before row-binding (cells) ---
-    vaf_list <- harmonize_cols(vaf_list, v_cols, "VAF", feature_policy = feature_policy)
-    gt_list <- harmonize_cols(pull("gt.mtx"), lapply(pull("gt.mtx"), colnames), "GT", feature_policy = feature_policy)
-    dp_list <- harmonize_cols(pull("dp.mtx"), lapply(pull("dp.mtx"), colnames), "DP", feature_policy = feature_policy)
-    gq_list <- harmonize_cols(pull("gq.mtx"), lapply(pull("gq.mtx"), colnames), "GQ", feature_policy = feature_policy)
-    amp_list <- harmonize_cols(amp_list, a_cols, "AMP", feature_policy = feature_policy)
-    prot_list <- if (omic.type == "DNA+protein") harmonize_cols(prot_list, p_cols, "PROTEIN", feature_policy = feature_policy) else NULL
+    vaf_list <- harmonize_cols(
+        vaf_list,
+        v_cols,
+        "VAF",
+        feature_policy = feature_policy
+    )
+    gt_list <- harmonize_cols(
+        pull("gt.mtx"),
+        lapply(pull("gt.mtx"), colnames),
+        "GT",
+        feature_policy = feature_policy
+    )
+    dp_list <- harmonize_cols(
+        pull("dp.mtx"),
+        lapply(pull("dp.mtx"), colnames),
+        "DP",
+        feature_policy = feature_policy
+    )
+    gq_list <- harmonize_cols(
+        pull("gq.mtx"),
+        lapply(pull("gq.mtx"), colnames),
+        "GQ",
+        feature_policy = feature_policy
+    )
+    amp_list <- harmonize_cols(
+        amp_list,
+        a_cols,
+        "AMP",
+        feature_policy = feature_policy
+    )
+    prot_list <- if (omic.type == "DNA+protein") {
+        harmonize_cols(
+            prot_list,
+            p_cols,
+            "PROTEIN",
+            feature_policy = feature_policy
+        )
+    } else {
+        NULL
+    }
 
     # --- Merge by cells (rows) ---
     vaf_all <- do.call(rbind, vaf_list)
@@ -535,24 +678,48 @@ loadH5_dir_HDF5 <- function(dir,
     prot_all <- if (!is.null(prot_list)) do.call(rbind, prot_list) else NULL
 
     # --- Merge metadata / labels ---
-    concat_char <- function(slot) unlist(lapply(objs, function(o) o[[slot]]), use.names = FALSE)
+    concat_char <- function(slot) {
+        unlist(lapply(objs, function(o) o[[slot]]), use.names = FALSE)
+    }
     cell.ids <- concat_char("cell.ids")
     cell.labels <- concat_char("cell.labels")
 
     variants <- colnames(vaf_all)
     amps <- if (!is.null(amp_all)) colnames(amp_all) else character()
-    proteins <- if (!is.null(prot_all)) colnames(prot_all) else if (omic.type == "DNA") "non-protein" else character()
+    proteins <- if (!is.null(prot_all)) {
+        colnames(prot_all)
+    } else if (omic.type == "DNA") {
+        "non-protein"
+    } else {
+        character()
+    }
 
     vaf_cells <- rownames(vaf_all)
     amp_cells <- if (!is.null(amp_all)) rownames(amp_all) else character()
     prot_cells <- if (!is.null(prot_all)) rownames(prot_all) else character()
 
-    amp.normalize.method <- if (!is.null(amp_all)) "unnormalized" else character()
-    protein.normalize.method <- if (!is.null(prot_all)) "unnormalized" else if (omic.type == "DNA") "non-protein" else character()
+    amp.normalize.method <- if (!is.null(amp_all)) {
+        "unnormalized"
+    } else {
+        character()
+    }
+    protein.normalize.method <- if (!is.null(prot_all)) {
+        "unnormalized"
+    } else if (omic.type == "DNA") {
+        "non-protein"
+    } else {
+        character()
+    }
 
-    meta.data <- vapply(files, function(f) tools::file_path_sans_ext(basename(f)), character(1))
+    meta.data <- vapply(
+        files,
+        function(f) tools::file_path_sans_ext(basename(f)),
+        character(1)
+    )
 
-    if (verbose) message("[ScIGMA] Row-bind merge done (HDF5-backed, lazy).")
+    if (verbose) {
+        message("[ScIGMA] Row-bind merge done (HDF5-backed, lazy).")
+    }
 
     ScIGMA_object$new(
         meta.data = meta.data,
@@ -582,7 +749,12 @@ loadH5_dir_HDF5 <- function(dir,
 }
 
 
-loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protein", "DNA"), block.size = 100e6) {
+loadH5_HDF5_biocond <- function(
+    filepath,
+    sample_name,
+    omic_type = c("DNA+protein", "DNA"),
+    block.size = 100e6
+) {
     omic_type <- match.arg(omic_type)
     stopifnot(file.exists(filepath))
 
@@ -591,7 +763,10 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     if (omic_type == "DNA+protein") {
         proteins <- .h5read_char(filepath, "/assays/protein_read_counts/ca/id")
 
-        protein_mtx <- .h5_delayed(filepath, "/assays/protein_read_counts/layers/read_counts")
+        protein_mtx <- .h5_delayed(
+            filepath,
+            "/assays/protein_read_counts/layers/read_counts"
+        )
 
         if (.h5_has_path(filepath, "/assays/dna_read_counts/ra/label")) {
             protein_samples <- "/assays/protein_read_counts/ra/label"
@@ -608,12 +783,71 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 
         protein.normalize.method <- "unnormalized"
         protein.cells <- setNames(pr_ra_names, nm = protein_barcodes)
+
+        # ====== AJOUT POUR DSB (Extraction des Gouttes Vides) ======
+        empty_drops_mtx <- NULL
+        raw_prot_path <- "/all_barcodes/protein_read_counts/layers/read_counts"
+        raw_bc_path <- "/all_barcodes/protein_read_counts/ra/barcode"
+
+        if (
+            .h5_has_path(filepath, raw_prot_path) &&
+                .h5_has_path(filepath, raw_bc_path)
+        ) {
+            message(
+                "[ScIGMA] Extraction de la matrice des gouttes vides pour DSB..."
+            )
+            raw_protein_mtx <- .h5_delayed(filepath, raw_prot_path)
+            raw_protein_barcodes <- .h5read_char(filepath, raw_bc_path)
+
+            if (
+                length(proteins) == dim(raw_protein_mtx)[1] &&
+                    length(raw_protein_barcodes) == dim(raw_protein_mtx)[2]
+            ) {
+                dimnames(raw_protein_mtx) <- list(
+                    proteins,
+                    raw_protein_barcodes
+                )
+                empty_barcodes <- setdiff(
+                    raw_protein_barcodes,
+                    protein_barcodes
+                )
+                empty_drops_mtx <- raw_protein_mtx[,
+                    empty_barcodes,
+                    drop = FALSE
+                ]
+            } else if (
+                length(proteins) == dim(raw_protein_mtx)[2] &&
+                    length(raw_protein_barcodes) == dim(raw_protein_mtx)[1]
+            ) {
+                dimnames(raw_protein_mtx) <- list(
+                    raw_protein_barcodes,
+                    proteins
+                )
+                empty_barcodes <- setdiff(
+                    raw_protein_barcodes,
+                    protein_barcodes
+                )
+                empty_drops_mtx <- t(raw_protein_mtx[
+                    empty_barcodes,
+                    ,
+                    drop = FALSE
+                ])
+            }
+
+            print("empty_barcodes")
+            print(length(empty_barcodes))
+            print("raw_protein_mtx")
+            print(dim(raw_protein_mtx))
+            print("empty_drops_mtx")
+            print(dim(empty_drops_mtx))
+        }
     } else {
         message("DNA only: skip protein matrix")
         proteins <- "non-protein"
         protein.normalize.method <- "non-protein"
         protein_mtx <- NULL
         protein.cells <- character()
+        empty_drops_mtx <- NULL
     }
 
     # ---- Check if label information exists ----
@@ -624,9 +858,15 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         dna_read_count_samples <- "/assays/dna_read_counts/ra/sample_name"
     }
 
-    amp_sample_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ra/barcode") # Sample barcode
+    amp_sample_ids <- .h5read_char(
+        filepath,
+        "/assays/dna_read_counts/ra/barcode"
+    ) # Sample barcode
     amp_ca_ids <- .h5read_char(filepath, "/assays/dna_read_counts/ca/id") # Amplicon ids
-    amp_sample_names <- setNames(amp_sample_ids, nm = .h5read_char(filepath, dna_read_count_samples)) # Samples human readable names
+    amp_sample_names <- setNames(
+        amp_sample_ids,
+        nm = .h5read_char(filepath, dna_read_count_samples)
+    ) # Samples human readable names
 
     ## dna_variants
     if (.h5_has_path(filepath, "/assays/dna_variants/ra/label")) {
@@ -641,7 +881,9 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     # Tapestri stocke souvent en Cellules x Variants. t() transpose en Variants x Cellules.
 
     vaf_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/AF")
-    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) dimnames(vaf_mtx) <- list(dna_id, dna_sample_ids)
+    if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
+        dimnames(vaf_mtx) <- list(dna_id, dna_sample_ids)
+    }
 
     gt_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/NGT")
     if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
@@ -658,13 +900,21 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         dimnames(gq_mtx) <- list(dna_id, dna_sample_ids)
     }
 
-    variant_filter_mask <- .h5_delayed(filepath, "/assays/dna_variants/layers/FILTER_MASK")
+    variant_filter_mask <- .h5_delayed(
+        filepath,
+        "/assays/dna_variants/layers/FILTER_MASK"
+    )
     if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
         dimnames(variant_filter_mask) <- list(dna_id, dna_sample_ids)
     }
 
-    amp_mtx <- .h5_delayed(filepath, "/assays/dna_read_counts/layers/read_counts")
-    if (length(amp_ca_ids) > 0 && length(amp_sample_ids) > 0) dimnames(amp_mtx) <- list(amp_ca_ids, amp_sample_ids)
+    amp_mtx <- .h5_delayed(
+        filepath,
+        "/assays/dna_read_counts/layers/read_counts"
+    )
+    if (length(amp_ca_ids) > 0 && length(amp_sample_ids) > 0) {
+        dimnames(amp_mtx) <- list(amp_ca_ids, amp_sample_ids)
+    }
 
     expected_dim <- c(length(dna_id), length(dna_sample_ids))
     raw_assays <- list(
@@ -677,12 +927,16 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 
     assays_list <- Filter(
         function(x) {
-            !is.null(x) && dim(x)[1] == expected_dim[1] && dim(x)[2] == expected_dim[2]
+            !is.null(x) &&
+                dim(x)[1] == expected_dim[1] &&
+                dim(x)[2] == expected_dim[2]
         },
         raw_assays
     )
 
-    if (length(assays_list) == 0) stop("Critical failure: DNA assays dimension mismatch.")
+    if (length(assays_list) == 0) {
+        stop("Critical failure: DNA assays dimension mismatch.")
+    }
 
     safe_read_col_biocond <- function(path) {
         val <- .h5read_char(filepath, path)
@@ -697,7 +951,9 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         amplicon = safe_read_col_biocond("/assays/dna_variants/ca/amplicon"),
         chrom = safe_read_col_biocond("/assays/dna_variants/ca/CHROM"),
         pos = safe_read_col_biocond("/assays/dna_variants/ca/POS"),
-        ado_gt_cells = safe_read_col_biocond("/assays/dna_variants/ca/ado_gt_cells"),
+        ado_gt_cells = safe_read_col_biocond(
+            "/assays/dna_variants/ca/ado_gt_cells"
+        ),
         ado_rate = safe_read_col_biocond("/assays/dna_variants/ca/ado_rate"),
         filtered = safe_read_col_biocond("/assays/dna_variants/ca/filtered"),
         row.names = dna_id
@@ -705,7 +961,10 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
 
     dna_cell_table <- S4Vectors::DataFrame(
         dna_barcode = .h5read_char(filepath, "/assays/dna_variants/ra/barcode"),
-        dna_filtered = .h5read_char(filepath, "/assays/dna_variants/ra/filtered"),
+        dna_filtered = .h5read_char(
+            filepath,
+            "/assays/dna_variants/ra/filtered"
+        ),
         dna_sample_name = dna_sample_name, # FIX : Utilise la variable extraite du H5, pas l'argument global
         row.names = dna_sample_ids
     )
@@ -713,20 +972,43 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
     cnv_id_table <- S4Vectors::DataFrame(
         dna_id = amp_ca_ids,
         chrom = .h5read_char(filepath, "/assays/dna_read_counts/ca/CHROM"),
-        start_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/start_pos")),
-        end_pos = as.numeric(.h5read_char(filepath, "/assays/dna_read_counts/ca/end_pos")),
+        start_pos = as.numeric(.h5read_char(
+            filepath,
+            "/assays/dna_read_counts/ca/start_pos"
+        )),
+        end_pos = as.numeric(.h5read_char(
+            filepath,
+            "/assays/dna_read_counts/ca/end_pos"
+        )),
         # Add here gene info
         row.names = amp_ca_ids
     )
 
-    genome_v <- .h5read_char(filepath, "/assays/dna_read_counts/metadata/genome_version")
-    if (length(genome_v) == 0) genome_v <- "hg19"
+    genome_v <- .h5read_char(
+        filepath,
+        "/assays/dna_read_counts/metadata/genome_version"
+    )
+    if (length(genome_v) == 0) {
+        genome_v <- "hg19"
+    }
 
-    dna_variant_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_variants/metadata")
-    dna_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/dna_read_counts/metadata")
+    dna_variant_metadata <- .h5_read_metadata_group(
+        filepath,
+        "/assays/dna_variants/metadata"
+    )
+    dna_read_counts_metadata <- .h5_read_metadata_group(
+        filepath,
+        "/assays/dna_read_counts/metadata"
+    )
 
-    if (omic_type == "DNA+protein" && .h5_has_path(filepath, "/assays/protein_read_counts/metadata")) {
-        protein_read_counts_metadata <- .h5_read_metadata_group(filepath, "/assays/protein_read_counts/metadata")
+    if (
+        omic_type == "DNA+protein" &&
+            .h5_has_path(filepath, "/assays/protein_read_counts/metadata")
+    ) {
+        protein_read_counts_metadata <- .h5_read_metadata_group(
+            filepath,
+            "/assays/protein_read_counts/metadata"
+        )
     } else {
         protein_read_counts_metadata <- list()
     }
@@ -746,7 +1028,11 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
         )
     }
 
-    if (omic_type == "DNA+protein" && exists("protein_mtx") && !is.null(protein_mtx)) {
+    if (
+        omic_type == "DNA+protein" &&
+            exists("protein_mtx") &&
+            !is.null(protein_mtx)
+    ) {
         experiment_list$proteins <- SummarizedExperiment::SummarizedExperiment(
             assays = list(counts = protein_mtx)
         )
@@ -761,9 +1047,12 @@ loadH5_HDF5_biocond <- function(filepath, sample_name, omic_type = c("DNA+protei
             genome_version = genome_v,
             dna_variant_meta = dna_variant_metadata, # RE-ADDED
             dna_read_counts_meta = dna_read_counts_metadata, # RE-ADDED
-            protein_meta = protein_read_counts_metadata # RE-ADDED
+            protein_meta = protein_read_counts_metadata, # RE-ADDED
+            empty_drops_mtx = empty_drops_mtx
         )
     )
+    print("mae_main ptn")
+    print(dim(mae_main@metadata$empty_drops_mtx))
     # ---- 6. Instanciation R6 ----
     ScIGMA_object$new(
         mae = mae_main,
@@ -794,20 +1083,28 @@ sanitize_mae_strings <- function(mae) {
         df[] <- lapply(df, clean_char_vector)
 
         # Nettoyage des index
-        if (!is.null(rownames(df))) rownames(df) <- clean_char_vector(rownames(df))
-        if (!is.null(colnames(df))) colnames(df) <- clean_char_vector(colnames(df))
+        if (!is.null(rownames(df))) {
+            rownames(df) <- clean_char_vector(rownames(df))
+        }
+        if (!is.null(colnames(df))) {
+            colnames(df) <- clean_char_vector(colnames(df))
+        }
 
         return(df)
     }
 
     message("Sanitizing MAE object (Removing \\r and phantom whitespaces)...")
 
-    SummarizedExperiment::colData(mae) <- clean_df(as.data.frame(SummarizedExperiment::colData(mae)))
+    SummarizedExperiment::colData(
+        mae
+    ) <- clean_df(as.data.frame(SummarizedExperiment::colData(mae)))
 
     for (exp_name in names(mae)) {
         se <- mae[[exp_name]]
 
-        SummarizedExperiment::rowData(se) <- clean_df(as.data.frame(SummarizedExperiment::rowData(se)))
+        SummarizedExperiment::rowData(
+            se
+        ) <- clean_df(as.data.frame(SummarizedExperiment::rowData(se)))
 
         rownames(se) <- clean_char_vector(rownames(se))
         colnames(se) <- clean_char_vector(colnames(se))
@@ -831,20 +1128,41 @@ sanitize_mae_strings <- function(mae) {
 #' @noRd
 sanitize_protein_markers <- function(marker_names) {
     greek_map <- c(
-        "\u03B1" = "alpha",   "\u0391" = "Alpha",
-        "&#945;" = "alpha",   "&#913;" = "Alpha",   "&alpha;" = "alpha",
-        "\u03B2" = "beta",    "\u0392" = "Beta",
-        "&#946;" = "beta",    "&#914;" = "Beta",    "&beta;"  = "beta",
-        "\u03B3" = "gamma",   "\u0393" = "Gamma",
-        "&#947;" = "gamma",   "&#915;" = "Gamma",   "&gamma;" = "gamma",
-        "\u03B4" = "delta",   "\u0394" = "Delta",
-        "&#948;" = "delta",   "&#916;" = "Delta",   "&delta;" = "delta",
-        "\u03B5" = "epsilon", "\u0395" = "Epsilon",
-        "&#949;" = "epsilon", "&#917;" = "Epsilon", "&epsilon;" = "epsilon",
-        "\u03BA" = "kappa",   "\u039A" = "Kappa",
-        "&#954;" = "kappa",   "&#922;" = "Kappa",   "&kappa;" = "kappa",
-        "\u03BC" = "mu",      "\u039C" = "Mu",
-        "&#956;" = "mu",      "&#924;" = "Mu",      "&mu;"    = "mu"
+        "\u03B1" = "alpha",
+        "\u0391" = "Alpha",
+        "&#945;" = "alpha",
+        "&#913;" = "Alpha",
+        "&alpha;" = "alpha",
+        "\u03B2" = "beta",
+        "\u0392" = "Beta",
+        "&#946;" = "beta",
+        "&#914;" = "Beta",
+        "&beta;" = "beta",
+        "\u03B3" = "gamma",
+        "\u0393" = "Gamma",
+        "&#947;" = "gamma",
+        "&#915;" = "Gamma",
+        "&gamma;" = "gamma",
+        "\u03B4" = "delta",
+        "\u0394" = "Delta",
+        "&#948;" = "delta",
+        "&#916;" = "Delta",
+        "&delta;" = "delta",
+        "\u03B5" = "epsilon",
+        "\u0395" = "Epsilon",
+        "&#949;" = "epsilon",
+        "&#917;" = "Epsilon",
+        "&epsilon;" = "epsilon",
+        "\u03BA" = "kappa",
+        "\u039A" = "Kappa",
+        "&#954;" = "kappa",
+        "&#922;" = "Kappa",
+        "&kappa;" = "kappa",
+        "\u03BC" = "mu",
+        "\u039C" = "Mu",
+        "&#956;" = "mu",
+        "&#924;" = "Mu",
+        "&mu;" = "mu"
     )
 
     # Pipeline: Tidyverse standard, strictly avoiding for loops

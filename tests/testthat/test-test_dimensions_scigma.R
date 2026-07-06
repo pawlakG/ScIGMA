@@ -1,11 +1,12 @@
 library(testthat)
+library(ScIGMA)
 library(MultiAssayExperiment)
 library(SingleCellExperiment)
 library(SummarizedExperiment)
 library(DelayedArray)
 
 # Setup path
-h5_test_file <- "../../../inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
+h5_test_file <- "/Users/geoffrey/Documents/Pro/projects/dnaPtnApp/inputs/tapestriDatasets/4-cell-lines-AML-multiomics/4-cell-lines-AML-multiomics.dna+protein.h5"
 file.exists(h5_test_file)
 
 test_that("loadH5_HDF5_biocond_enforces_strict_features_x_cells_paradigm", {

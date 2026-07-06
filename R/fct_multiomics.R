@@ -163,6 +163,7 @@ generate_multi_barplot_clones_per_cluster <- function(obj) {
     if (is.null(obj$dna.clones)) stop("DNA clones not assigned.")
     
     clusters <- obj$seurat_object@meta.data$seurat_clusters
+    names(clusters) <- rownames(obj$seurat_object@meta.data)
     clones <- obj$dna.clones[names(clusters)]
     clones[is.na(clones)] <- "Missing"
     
@@ -185,6 +186,7 @@ generate_multi_barplot_variant_genotype <- function(obj, variant_ids, use_compas
     if (is.null(obj$seurat_object) || !"seurat_clusters" %in% colnames(obj$seurat_object@meta.data)) stop("Clusters not computed.")
     
     clusters <- obj$seurat_object@meta.data$seurat_clusters
+    names(clusters) <- rownames(obj$seurat_object@meta.data)
     stats_df <- compute_population_genotype_distribution(
         mae_data = obj$mae, 
         variant_ids = variant_ids, 

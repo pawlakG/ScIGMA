@@ -26,6 +26,15 @@ ScIGMA_object <- R6::R6Class(
         dna.clones_pre_compass = NULL,
         dna_clone_colors = NULL,
 
+        #' @description
+        #' Récupère la matrice des gouttes vides (DelayedArray) si elle a été extraite
+        get_empty_drops = function() {
+            if (!is.null(self$mae) && "empty_drops_mtx" %in% names(S4Vectors::metadata(self$mae))) {
+                return(S4Vectors::metadata(self$mae)$empty_drops_mtx)
+            }
+            warning("Aucune matrice de gouttes vides trouvée dans l'objet.")
+            return(NULL)
+        },
 
         #' @description
         #' Renomme un clone et synchronise sa couleur
@@ -90,7 +99,12 @@ ScIGMA_object <- R6::R6Class(
             self$dna_clone_colors <- NULL
 
             if (!is.null(self$mae)) {
-                S4Vectors::metadata(self$mae) <- list()
+                # Sauvegarder les métadonnées critiques générées au chargement (comme empty_drops_mtx pour DSB)
+                saved_metadata <- list()
+                if ("empty_drops_mtx" %in% names(S4Vectors::metadata(self$mae))) {
+                    saved_metadata$empty_drops_mtx <- S4Vectors::metadata(self$mae)$empty_drops_mtx
+                }
+                S4Vectors::metadata(self$mae) <- saved_metadata
             }
             invisible(self)
         },

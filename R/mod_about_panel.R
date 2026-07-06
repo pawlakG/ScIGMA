@@ -17,7 +17,7 @@ mod_about_panel_ui <- function(id) {
             ),
             bslib::card_body(
                 shiny::markdown("
-### ScIGMA: an open-source application for genotype and immunophenotype implementation for scDNA-seq data
+### ScIGMA: an open-source application for genotype and scADT-seq implementation for scDNA-seq data
 
 
 Geoffrey Pawlak<sup>1,2,*</sup>, Benjamin Podvin<sup>2,3,*</sup>, Claude Preudhomme<sup>2,3</sup>, Salomon Manier<sup>2,4</sup>, Nicolas Duployez<sup>2,3</sup>, Augustin Boudry<sup>2,3</sup>
@@ -31,7 +31,7 @@ Geoffrey Pawlak<sup>1,2,*</sup>, Benjamin Podvin<sup>2,3,*</sup>, Claude Preudho
 ---
 
 #### How to Cite
-**Pawlak G., Podvin B., et al.** (202X). *ScIGMA: an open-source application for genotype and immunophenotype implementation for scDNA-seq data.* [Journal Name]. DOI: 10.xxxx/xxxx
+**Pawlak G., Podvin B., et al.** (202X). *ScIGMA: an open-source application for genotype and scADT-seq implementation for scDNA-seq data.* [Journal Name]. DOI: 10.xxxx/xxxx
 
 ---
 

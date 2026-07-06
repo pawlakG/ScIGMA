@@ -228,28 +228,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
             watch("dataLoaded")
             message(whereami::whereami())
             if (!is.null(ScIGMA_data$mae)) {
-                protein_ui <- if (ScIGMA_data$filetype == "DNA+protein") {
-                    fluidRow(
-                        h5("Protein Normalization:"),
-                        column(6, 
-                            radioGroupButtons(
-                                inputId = ns("overview_preprocess_protNormMethod"),
-                                label = "Method",
-                                choices = c("NSP", "DSB", "CLR", "asinh"),
-                                selected = "DSB",
-                                justified = TRUE
-                            )
-                        ),
-                        column(6,
-                            conditionalPanel(
-                                condition = sprintf("input['%s'] == 'asinh'", ns("overview_preprocess_protNormMethod")),
-                                numericInput(ns("overview_preprocess_asinhCofactor"), "Cofactor", value = 5, min = 1)
-                            )
-                        )
-                    )
-                } else {
-                    NULL
-                }
+
 
                 tagList(
                     fluidRow(
@@ -270,11 +249,11 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
                         column(4, numericInput(ns("overview_preprocess_minCellPt"), "min.cell.pt (%)", value = 50, min = 0, max = 100)),
                         column(4, numericInput(ns("overview_preprocess_minMutCellPt"), "min.mut.cell.pt (%)", value = 1, min = 0, max = 100))
                     ),
-                    protein_ui,
+
                     fluidRow(
                         actionBttn(
                             inputId = ns("dna_variant_filtering"),
-                            label = "Filter Cells, DNA variants and Normalize proteins",
+                            label = "Filter Cells and DNA variants",
                             color = "primary",
                             style = "stretch",
                             icon = icon("magnifying-glass-chart"),
@@ -297,8 +276,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
             overview_preprocess_vafHom <- input$overview_preprocess_vafHom
             overview_preprocess_vafHet <- input$overview_preprocess_vafHet
             
-            prot_norm_method <- input$overview_preprocess_protNormMethod
-            asinh_cofactor <- input$overview_preprocess_asinhCofactor
 
             req(overview_preprocess_minCellPt)
             req(overview_preprocess_minMutCellPt)
@@ -358,21 +335,6 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
             # >> Sanitize MAE _
             ScIGMA_data$mae <- sanitize_mae_strings(ScIGMA_data$mae)
 
-
-            # Normalize protein and perform PCA
-            if (ScIGMA_data$filetype == "DNA+protein") {
-                message("Preprocessing protein data ...")
-
-                safe_rownames <- sanitize_protein_markers(rownames(ScIGMA_data$mae[["proteins"]]))
-                rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
-                
-                req(prot_norm_method)
-                ScIGMA_data$seurat_object <- protein_run_pca(
-                    ScIGMA_data, 
-                    norm_method = prot_norm_method, 
-                    asinh_cofactor = ifelse(is.null(asinh_cofactor), 5, asinh_cofactor)
-                )
-            }
 
             ScIGMA_data$cnv_dp_filtered <- NULL
 

@@ -239,8 +239,8 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 meta_df$Protein_UMAP_Cluster <- "Unassigned"
             }
 
-            # 4. Gating Manuel (Immunophenotype Gating)
-            meta_df$Immunophenotype_Gate <- "Background"
+            # 4. Gating Manuel (scADT-seq Gating)
+            meta_df$scADT_seq_Gate <- "Background"
             if (!is.null(ScIGMA_data$protein_gating_tree) && length(ScIGMA_data$protein_gating_tree$gates_list) > 0) {
                 gates <- ScIGMA_data$protein_gating_tree$gates_list
                 meta <- ScIGMA_data$protein_gating_tree$meta_list
@@ -258,7 +258,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
 
                         valid_barcodes <- intersect(cell_barcodes, meta_df$Cell_Barcode)
                         if (length(valid_barcodes) > 0) {
-                            meta_df$Immunophenotype_Gate[match(valid_barcodes, meta_df$Cell_Barcode)] <- meta[[sid]]$name
+                            meta_df$scADT_seq_Gate[match(valid_barcodes, meta_df$Cell_Barcode)] <- meta[[sid]]$name
                         }
                     }
                 }

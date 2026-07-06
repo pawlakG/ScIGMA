@@ -221,7 +221,7 @@ mod_help_panel_ui <- function(id) {
 
             # --- TAB 4: PROTEINS ---
             bslib::nav_panel(
-                title = "4. Immunophenotype analysis",
+                title = "4. scADT-seq analysis",
                 icon = shiny::icon("id-card"),
                 bslib::card_body(
                     bslib::accordion(
@@ -232,14 +232,14 @@ mod_help_panel_ui <- function(id) {
                             icon = shiny::icon("chart-bar"),
                             shiny::markdown("
                 * **Ridge Plots & Barplots:** Assess the continuous expression landscape and distribution of cell-surface markers across your cohort.
-                * **Immunophenotype Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo plots to isolate pure immunophenotypic subpopulations.
+                * **scADT-seq Gating:** Replicate classic flow cytometry gating hierarchies natively in single-cell multi-omics. Interactively draw polygons on 2D antibody-oligo plots to isolate pure scADT-seq subpopulations.
                 "),
                             tags$figure(
                                 style = "display: inline-block; text-align: center;",
                                 tags$img(src = "www/img/6_abseq_ridge_barplot.png", width = "90%"),
                                 tags$figcaption(
                                     style = "margin-top: 8px; color: #555555;",
-                                    tags$em("Fig. 6: Immunophenotype tab - Descriptive panel: ridge plots and barplots of protein abundances.")
+                                    tags$em("Fig. 6: scADT-seq tab - Descriptive panel: ridge plots and barplots of protein abundances.")
                                 )
                             )
                         ),
@@ -263,7 +263,7 @@ mod_help_panel_ui <- function(id) {
                                 tags$img(src = "www/img/7_abseq_biplot_DNAproj.png", width = "90%"),
                                 tags$figcaption(
                                     style = "margin-top: 8px; color: #555555;",
-                                    tags$em("Fig. 7: Immunophenotype analysis - FCM-like gating and projection of DNA clones.")
+                                    tags$em("Fig. 7: scADT-seq analysis - FCM-like gating and projection of DNA clones.")
                                 )
                             )
                         ),
@@ -272,7 +272,7 @@ mod_help_panel_ui <- function(id) {
                             icon = shiny::icon("layer-group"),
                             shiny::markdown("
                 * **Markers Expression Accordion:** *Left Panel:* Select antibody targets. *Right Panel:* Generates a split grid overlaying continuous normalized expression values across the UMAP.
-                * **Immunophenotype Gating Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
+                * **scADT-seq Gating Accordion:** *Left Panel:* Select active manual gates. *Right Panel:* Maps selected gated populations as binary layers onto the UMAP coordinates.
                 * **Unsupervised Clustering Accordion:** *Left Panel:* Fine-tune the Louvain/Leiden resolution parameter (higher values yield a larger number of distinct phenotypic clusters). *Right Panel:* Displays categorical cluster color assignments.
                 "),
                             shiny::fluidRow(
@@ -283,7 +283,7 @@ mod_help_panel_ui <- function(id) {
                                         tags$img(src = "www/img/8_abseq_UMAP_1.png", width = "90%"),
                                         tags$figcaption(
                                             style = "margin-top: 8px; color: #555555;",
-                                            tags$em("Fig. 8: Immunophenotype analysis - UMAP projection and protein marker expression.")
+                                            tags$em("Fig. 8: scADT-seq analysis - UMAP projection and protein marker expression.")
                                         )
                                     )
                                 ),
@@ -294,7 +294,7 @@ mod_help_panel_ui <- function(id) {
                                         tags$img(src = "www/img/9_abseq_UMAP_2.png", width = "90%"),
                                         tags$figcaption(
                                             style = "margin-top: 8px; color: #555555;",
-                                            tags$em("Fig. 9: Immunophenotype subpopulation projection and unsupervised clustering on UMAP.")
+                                            tags$em("Fig. 9: scADT-seq subpopulation projection and unsupervised clustering on UMAP.")
                                         )
                                     )
                                 )
@@ -349,17 +349,17 @@ mod_help_panel_ui <- function(id) {
                             )
                         ),
                         bslib::accordion_panel(
-                            title = "Immunophenotype Gating x SNV Mapping",
+                            title = "scADT-seq Gating x SNV Mapping",
                             icon = shiny::icon("filter"),
                             shiny::markdown("
-                * **Interface Strategy:** *Left Panel:* Select manually gated cell populations. *Right Panel:* Displays rigorous stacked barplots breaking down the exact mutational or subclonal composition contained within that specific phenotypic gate. Allows direct validation of immunophenotypic markers for targeted cell sorting.
+                * **Interface Strategy:** *Left Panel:* Select manually gated cell populations. *Right Panel:* Displays rigorous stacked barplots breaking down the exact mutational or subclonal composition contained within that specific phenotypic gate. Allows direct validation of scADT-seq markers for targeted cell sorting.
                 "),
                             tags$figure(
                                 style = "display: inline-block; text-align: center;",
                                 tags$img(src = "www/img/12_multiomics_abSeq_SNV.png", width = "90%"),
                                 tags$figcaption(
                                     style = "margin-top: 8px; color: #555555;",
-                                    tags$em("Fig. 12: Multi-omics panel - Variant genotype distribution across Immunophenotype subpopulations.")
+                                    tags$em("Fig. 12: Multi-omics panel - Variant genotype distribution across scADT-seq subpopulations.")
                                 )
                             )
                         )

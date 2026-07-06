@@ -120,7 +120,7 @@ plot_fig_protein_barplot <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Protein - Immunophenotype gating: Biplot CD19 vs CD33 + DNA clone projection
+#' Protein - scADT-seq gating: Biplot CD19 vs CD33 + DNA clone projection
 plot_fig_protein_biplot_gating <- function(ScIGMA_obj) {
     message("Generating Protein Biplot Gating (CD19 vs CD33)...")
     fig_path <- setup_fig_path("Fig7_Protein_Biplot_DNA_Clones.pdf")
@@ -167,7 +167,7 @@ plot_fig_protein_umap_markers <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Protein - UMAP: Immunophenotype gating projection
+#' Protein - UMAP: scADT-seq gating projection
 plot_fig_protein_umap_gating <- function(ScIGMA_obj) {
     message("Generating Protein UMAP Gating Projection...")
     fig_path <- setup_fig_path("Fig10_Protein_UMAP_Gating.pdf")
@@ -252,7 +252,7 @@ plot_fig_multi_barplot_variant_genotype <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Multiomics - Immunophenotype Gating: Barplot of gating subpopulation genotype vs DNA variants
+#' Multiomics - scADT-seq Gating: Barplot of gating subpopulation genotype vs DNA variants
 plot_fig_multi_barplot_gating_genotype <- function(ScIGMA_obj) {
     message(
         "Generating Multiomics Barplot: Gating Subpop Genotype vs Variants..."

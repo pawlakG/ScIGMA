@@ -86,10 +86,10 @@ run_scigma_pipeline <- function(h5_path, params, manual_gates) {
     # Change R6 object
     ScIGMA_data$ploidy.mtx <- ploidy_data
 
-    # 8. Immunophentype gating
-    message("Immunophentype gating...")
+    # 8. scADT-seq gating
+    message("scADT-seq gating...")
     if (!is.null(manual_gates)) {
-        message("Injecting manual immunophenotype gates...")
+        message("Injecting manual scADT-seq gates...")
         ScIGMA_data$protein_gating_tree <- manual_gates
         
         # Translate to protein_gates for plotting functions

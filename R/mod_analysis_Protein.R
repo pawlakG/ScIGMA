@@ -50,10 +50,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 )
             },
             {
-                if (
-                    !is.null(ScIGMA_data$protein.filtered) &&
-                        isTRUE(ScIGMA_data$protein.filtered)
-                ) {
+                filter_status <- tryCatch(
+                    S4Vectors::metadata(ScIGMA_data$mae)$variant_filter,
+                    error = function(e) NULL
+                )
+
+                if (!is.null(filter_status) && filter_status == "filtered") {
                     is_filtered_flag(TRUE)
                 } else {
                     is_filtered_flag(FALSE)
@@ -68,6 +70,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             watch("compass_completed")
             watch("umap_computed")
 
+            print("is_filtered_flag()")
+            print(is_filtered_flag())
+
             if (!isTRUE(is_filtered_flag())) {
                 card(
                     br(),
@@ -80,9 +85,10 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     br()
                 )
             } else {
-                umap_ready <- !is.null(
-                    ScIGMA_data$seurat_object@reductions$umap
-                )
+                umap_ready <- FALSE
+                if (!is.null(ScIGMA_data$seurat_object)) {
+                    umap_ready <- !is.null(ScIGMA_data$seurat_object@reductions$umap)
+                }
 
                 curr_features <- shiny::isolate(input$umap_features)
                 if (
@@ -111,8 +117,51 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     id = ns("protein_tabs"),
                     selected = curr_tab,
                     nav_panel(
-                        title = "Description",
+                        title = "Preprocessing & exploration",
                         value = "tab_description", # NEW : Identifiant interne du panneau
+                        fluidRow(
+                            column(
+                                3,
+                                radioGroupButtons(
+                                    inputId = ns(
+                                        "protein_preprocess_normMethod"
+                                    ),
+                                    label = "Normalization Method",
+                                    choices = c("NSP", "DSB", "CLR", "asinh"),
+                                    selected = "DSB",
+                                    justified = TRUE
+                                )
+                            ),
+                            column(
+                                3,
+                                conditionalPanel(
+                                    condition = sprintf(
+                                        "input['%s'] == 'asinh'",
+                                        ns("protein_preprocess_normMethod")
+                                    ),
+                                    numericInput(
+                                        ns("protein_preprocess_asinhCofactor"),
+                                        "Cofactor",
+                                        value = 5,
+                                        min = 1
+                                    )
+                                )
+                            ),
+                            column(
+                                4,
+                                div(
+                                    style = "margin-top: 24px;",
+                                    actionBttn(
+                                        inputId = ns("protein_preprocess_run"),
+                                        label = "Run Normalization & PCA",
+                                        color = "primary",
+                                        style = "stretch",
+                                        block = TRUE
+                                    )
+                                )
+                            )
+                        ),
+                        br(),
                         accordion(
                             id = ns("acc_ptn"),
                             open = FALSE,
@@ -131,7 +180,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                         )
                     ),
                     nav_panel(
-                        title = "Immunophenotype Gating",
+                        title = "scADT-seq Gating",
                         value = "tab_biplot", # NEW : Identifiant interne du panneau
                         fluidRow(
                             column(
@@ -311,7 +360,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                 }
                             ),
                             accordion_panel(
-                                "Immunophenotype Gating",
+                                "scADT-seq Gating",
                                 if (umap_ready) {
                                     uiOutput(ns("biplotClones_umap_panel_ui"))
                                 } else {
@@ -375,6 +424,64 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             }
         })
 
+        observeEvent(input$protein_preprocess_run, {
+            req(ScIGMA_data$mae)
+
+            w <- Waiter$new(
+                html = spin_loaders(1, color = "black"),
+                color = "rgba(255, 255, 255, 0.5)"
+            )
+            w$show()
+
+            message("Preprocessing protein data ...")
+
+            safe_rownames <- sanitize_protein_markers(rownames(ScIGMA_data$mae[[
+                "proteins"
+            ]]))
+            rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
+
+            prot_norm_method <- input$protein_preprocess_normMethod
+            asinh_cofactor <- input$protein_preprocess_asinhCofactor
+
+            req(prot_norm_method)
+            ScIGMA_data$seurat_object <- protein_run_pca(
+                ScIGMA_data,
+                norm_method = prot_norm_method,
+                asinh_cofactor = ifelse(
+                    is.null(asinh_cofactor),
+                    5,
+                    asinh_cofactor
+                )
+            )
+
+
+            if (!is.null(ScIGMA_data$seurat_object@reductions$umap)) {
+                ScIGMA_data$seurat_object@reductions$umap <- NULL
+            }
+
+            # Reset local state
+            r_state$subsets <- list()
+            r_state$subset_meta <- list()
+            r_state$current_view <- "root"
+            r_state$temp_selection <- NULL
+
+            trigger("dataLoaded")
+            trigger("umap_computed")
+
+            w$hide()
+        })
+
+        # Reset UMAP UI when normalization method changes
+        observeEvent(input$protein_preprocess_normMethod, {
+            req(ScIGMA_data$mae[["proteins"]])
+            shinyWidgets::updatePickerInput(
+                session = session,
+                inputId = "umap_features",
+                selected = rownames(ScIGMA_data$mae[["proteins"]])
+            )
+            updateNumericInput(session, "n_neighbors", value = 15)
+            updateNumericInput(session, "min_dist", value = 0.2)
+        }, ignoreInit = TRUE)
         # --- 1. Initialization & State (Bi-plot Logic) ---
 
         # State: Stores indices (pointers) only. Zero data duplication.
@@ -596,9 +703,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # Listener
         observeEvent(
-            event_data("plotly_selected", source = ns("gating_plot")),
+            suppressWarnings(event_data("plotly_selected", source = ns("gating_plot"))),
             {
-                sel <- event_data("plotly_selected", source = ns("gating_plot"))
+                sel <- suppressWarnings(event_data("plotly_selected", source = ns("gating_plot")))
 
                 # 1. Le Bouclier Absolu : Intercepte NULL, list(), et dataframes vides
                 if (
@@ -973,6 +1080,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             },
             {
                 req(ScIGMA_data$seurat_object)
+                req("umap" %in% names(ScIGMA_data$seurat_object@reductions))
                 umap_cluster <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                     as.data.frame()
                 umap_cluster$barcode <- rownames(umap_cluster)
@@ -1305,6 +1413,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             all_cell_barcodes <- colnames(ScIGMA_data$mae[["proteins"]])
 
             # Extraction UMAP
+            req("umap" %in% names(ScIGMA_data$seurat_object@reductions))
             umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                 as.data.frame()
             umap_df$barcode <- rownames(umap_df)
@@ -1392,6 +1501,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 umap_marker_choice <- input$protein_umap_markers
 
                 # Extraction de la base UMAP
+                req("umap" %in% names(ScIGMA_data$seurat_object@reductions))
                 umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                     as.data.frame()
                 umap_df$barcode <- rownames(umap_df)

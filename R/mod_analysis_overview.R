@@ -51,12 +51,15 @@ mod_analysis_overview_ui <- function(id) {
             )
         ),
         fluidRow(
-            br(),
-            card(
-                card_header("Summary"),
-                uiOutput(ns("overview"))
-            ),
-            uiOutput(ns("preprocess_card"))
+            column(
+                12,
+                br(),
+                card(
+                    card_header("Summary"),
+                    uiOutput(ns("overview"))
+                ),
+                uiOutput(ns("preprocess_card"))
+            )
         )
     )
 }

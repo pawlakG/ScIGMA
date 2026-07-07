@@ -192,33 +192,43 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
 
                 tabs[[length(tabs) + 1]] <- bslib::nav_panel(
                     title = "UMAP Unsupervised Clusters x SNV",
-                    accordion(
-                        id = ns("UMAPclusters_DNA_acc"),
-                        open = FALSE,
-                        # --- SOUS-PANEL 1 : CLONES ---
-                        bslib::accordion_panel(
-                            title = "DNA clones",
-                            shiny::fluidRow(
-                                bslib::card(
-                                    area = "main",
-                                    shiny::h3("Clonal Distribution"),
-                                    plotly::plotlyOutput(ns("plot_clust_clones"), height = "500px")
-                                )
-                            ),
-                            shiny::fluidRow(
+                    shiny::fluidRow(
+                        shiny::column(
+                            3,
+                            bslib::card(
+                                shiny::h4("Controls"),
+                                shinyWidgets::pickerInput(
+                                    inputId = ns("selected_clusters_multiomics"),
+                                    label = "Displayed Clusters",
+                                    choices = levels(ScIGMA_data$seurat_object$seurat_clusters),
+                                    selected = levels(ScIGMA_data$seurat_object$seurat_clusters),
+                                    multiple = TRUE,
+                                    options = list(`actions-box` = TRUE)
+                                ),
                                 shiny::div(compass_switch_ui_clusterPtn_DNA, align = "left")
                             )
                         ),
-                        # --- SOUS-PANEL 2 : VARIANTS ---
-                        bslib::accordion_panel(
-                            title = "DNA Variants",
-                            shiny::fluidRow(
-                                bslib::card(
-                                    area = "main",
-                                    shiny::h3("Variant Genotypes"),
-                                    plotly::plotlyOutput(ns("plot_clust_variants"),
-                                        height = "720px"
-                                        # height = "600px"
+                        shiny::column(
+                            9,
+                            accordion(
+                                id = ns("UMAPclusters_DNA_acc"),
+                                open = FALSE,
+                                # --- SOUS-PANEL 1 : CLONES ---
+                                bslib::accordion_panel(
+                                    title = "DNA clones",
+                                    bslib::card(
+                                        area = "main",
+                                        shiny::h3("Clonal Distribution"),
+                                        plotly::plotlyOutput(ns("plot_clust_clones"), height = "500px")
+                                    )
+                                ),
+                                # --- SOUS-PANEL 2 : VARIANTS ---
+                                bslib::accordion_panel(
+                                    title = "DNA Variants",
+                                    bslib::card(
+                                        area = "main",
+                                        shiny::h3("Variant Genotypes"),
+                                        plotly::plotlyOutput(ns("plot_clust_variants"), height = "720px")
                                     )
                                 )
                             )
@@ -260,8 +270,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                 shiny::h4("Population Profiling"),
                                 shinyWidgets::pickerInput(
                                     inputId = ns("selected_biplot_pop"),
-                                    label = "Target Population",
-                                    # choices = names(ScIGMA_data$protein_gating_tree$gates_list),
+                                    label = "Target Population (Variant Genotypes)",
                                     choices = sapply(
                                         ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
                                         \(x) x$name
@@ -274,7 +283,26 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                         shiny::column(
                             9,
                             bslib::card(
+                                shiny::h5("Variant Genotypes in Selected Target Population"),
                                 plotly::plotlyOutput(ns("biplot_dna_distribution_plot"), height = "600px")
+                            ),
+                            bslib::card(
+                                shiny::h5("DNA Clones Distribution across Selected Gating Populations"),
+                                shinyWidgets::pickerInput(
+                                    inputId = ns("selected_gates_multiomics"),
+                                    label = "Displayed Populations:",
+                                    choices = sapply(
+                                        ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
+                                        \(x) x$name
+                                    ) |> as.character(),
+                                    selected = sapply(
+                                        ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
+                                        \(x) x$name
+                                    ) |> as.character(),
+                                    multiple = TRUE,
+                                    options = list(`actions-box` = TRUE)
+                                ),
+                                plotly::plotlyOutput(ns("biplot_dna_clone_distribution_plot"), height = "600px")
                             )
                         )
                     )
@@ -527,6 +555,84 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 plotly::config(displaylogo = FALSE)
         })
 
+        output$biplot_dna_clone_distribution_plot <- plotly::renderPlotly({
+            watch("dna_clones_renamed")
+            watch("compass_completed")
+            watch("protein_normalized")
+
+            shiny::req(ScIGMA_data$protein_gating_tree$gates_list)
+
+            if (isTRUE(input$use_compass_biplot)) {
+                if (is.null(S4Vectors::metadata(ScIGMA_data$mae)$compass)) {
+                    dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+                } else {
+                    dna_clones_to_use <- ScIGMA_data$dna.clones
+                }
+            } else {
+                dna_clones_to_use <- ScIGMA_data$dna.clones_pre_compass
+            }
+            shiny::req(dna_clones_to_use)
+
+            assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+            assay_colnames <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], assay_to_use) |> colnames()
+
+            df_list <- list()
+            for (gate_id in names(ScIGMA_data$protein_gating_tree$gates_list)) {
+                gate_name <- ScIGMA_data$protein_gating_tree$meta_list[[gate_id]]$name
+                cel_indices <- ScIGMA_data$protein_gating_tree$gates_list[[gate_id]]
+                cel_barcodes <- assay_colnames[cel_indices]
+                
+                clones_in_gate <- dna_clones_to_use[cel_barcodes]
+                df_list[[gate_id]] <- data.frame(
+                    Gate = gate_name,
+                    Clone = clones_in_gate
+                )
+            }
+            df_all <- do.call(rbind, df_list)
+            df_all$Clone <- as.character(df_all$Clone)
+            df_all$Clone[is.na(df_all$Clone)] <- "Missing"
+            
+            # Reorder Gate based on original tree order
+            gate_levels <- sapply(ScIGMA_data$protein_gating_tree$meta_list, \(x) x$name)
+            df_all$Gate <- factor(df_all$Gate, levels = unique(gate_levels))
+
+            if (!is.null(input$selected_gates_multiomics) && length(input$selected_gates_multiomics) > 0) {
+                df_all <- df_all |> dplyr::filter(as.character(Gate) %in% input$selected_gates_multiomics)
+                df_all$Gate <- droplevels(df_all$Gate)
+            }
+
+            df_summarized <- df_all |>
+                dplyr::group_by(Gate, Clone) |>
+                dplyr::summarise(Count = dplyr::n(), .groups = "drop") |>
+                dplyr::group_by(Gate) |>
+                dplyr::mutate(
+                    Total = sum(Count),
+                    Percentage = (Count / Total) * 100
+                ) |>
+                dplyr::ungroup()
+
+            plotly::plot_ly(
+                data = df_summarized,
+                x = ~Gate,
+                y = ~Percentage,
+                color = ~Clone,
+                type = "bar",
+                text = ~ paste0(round(Percentage, 1), "%<br>(n=", Count, ")"),
+                textposition = "outside",
+                textfont = list(size = 12, color = "black", family = "Arial"),
+                constraintext = "none",
+                hoverinfo = "text"
+            ) |>
+                plotly::layout(
+                    barmode = "group",
+                    xaxis = c(list(title = "", tickangle = 45), prism_axis_style),
+                    yaxis = c(list(title = "<b>Frequency (%)</b>", range = c(0, 125)), prism_axis_style),
+                    legend = list(title = list(text = "<b>Clone</b>")),
+                    margin = list(b = 100, t = 50)
+                ) |>
+                plotly::config(displaylogo = FALSE)
+        })
+
         # ---------------------------------------------------------
         # [ NODE_ACCESS : UMAP Clusters x SNV ]
         # ---------------------------------------------------------
@@ -562,6 +668,11 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             )
 
             dna_clones_clusters_df$Clone <- forcats::fct_na_value_to_level(dna_clones_clusters_df$Clone, level = "Missing")
+
+            if (!is.null(input$selected_clusters_multiomics) && length(input$selected_clusters_multiomics) > 0) {
+                dna_clones_clusters_df <- dna_clones_clusters_df |> dplyr::filter(as.character(Cluster) %in% input$selected_clusters_multiomics)
+                dna_clones_clusters_df$Cluster <- droplevels(dna_clones_clusters_df$Cluster)
+            }
 
             dna_clones_clusters_df_summarized <- dna_clones_clusters_df |>
                 dplyr::group_by(Clone, Cluster) |>
@@ -666,7 +777,14 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 dplyr::left_join(
                     id_mapping |> dplyr::select(Variant_ID, Variant),
                     by = "Variant_ID"
-                ) |>
+                )
+                
+            if (!is.null(input$selected_clusters_multiomics) && length(input$selected_clusters_multiomics) > 0) {
+                plot_df_joined <- plot_df_joined |> dplyr::filter(as.character(Cluster) %in% input$selected_clusters_multiomics)
+                plot_df_joined$Cluster <- droplevels(plot_df_joined$Cluster)
+            }
+                
+            plot_df_joined <- plot_df_joined |>
                 dplyr::arrange(as.numeric(Cluster), Variant) |>
                 dplyr::mutate(
                     X_Axis_Label = paste0(

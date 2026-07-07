@@ -542,8 +542,6 @@ generate_dna_variant_heatmap <- function(
     heatmap_include_all_samples = TRUE,
     use_imputed = FALSE
 ) {
-    print("test_1")
-
     target_variants <- selected_variants_df$variant_id
 
     short_variants <- sub(x = target_variants, pattern = "^([^:]+:)|^:", "")
@@ -580,23 +578,16 @@ generate_dna_variant_heatmap <- function(
             "variant_filter_mask"
         )
     }
-    print("test_2")
 
     gt <- t(as.matrix(gt_full[short_variants, , drop = FALSE]))
     msk <- t(as.matrix(msk_full[short_variants, , drop = FALSE])) != 0
-
-    print("test_3")
 
     colnames(gt) <- short_variants
     colnames(msk) <- short_variants
     selected_variants <- short_variants
 
-    print("test_4")
-
     common_rows <- intersect(rownames(gt), rownames(msk))
     common_cols <- intersect(colnames(gt), colnames(msk))
-
-    print("test_5")
 
     if (length(common_rows) == 0L || length(common_cols) == 0L) {
         stop("Fatal: No overlap between gt matrix and mask.")
@@ -624,7 +615,6 @@ generate_dna_variant_heatmap <- function(
             tmp_heamtap_matrix_filtered_withMissing == 3
         ] <- NA
     }
-    print("test_6")
     results_clustering <- generate_clonal_labels(
         ngt_matrix = tmp_heamtap_matrix_filtered_noMissing,
         target_variants_df = selected_variants_df,
@@ -653,16 +643,18 @@ generate_dna_variant_heatmap <- function(
         "clone_%02d",
         1:length(levels(nonSmall_cluster))
     )
-    print("test_7")
     clustered_samples <- forcats::fct_c(nonSmall_cluster, small_cluster)
     names(clustered_samples) <- c(names(nonSmall_cluster), names(small_cluster))
 
     clustered_samples <- forcats::fct_infreq(clustered_samples)
 
     if (!is.null(obj$dna_clones_renamed)) {
-        clustered_samples <- obj$dna_clones_renamed
+        valid_cells <- intersect(
+            names(obj$dna_clones_renamed),
+            rownames(tmp_heamtap_matrix_filtered_noMissing)
+        )
+        clustered_samples <- obj$dna_clones_renamed[valid_cells]
     }
-
     ### Reorder
     tmp_heamtap_matrix_filtered_noMissing_ordered <- tmp_heamtap_matrix_filtered_noMissing[
         names(sort(clustered_samples)),
@@ -708,7 +700,6 @@ generate_dna_variant_heatmap <- function(
             levels = final_levels
         )
     }
-    print("test_8")
     # plot heatmap
     dna_variant_colorPalette <- setNames(
         c("#E9E8EC", "#BAB7D0", "#3C2692"),
@@ -730,7 +721,6 @@ generate_dna_variant_heatmap <- function(
             nm = c(heatmap_true_levels, "missing", "small")
         )
     )
-    print("test_9")
     dna_variant_annotation <- ComplexHeatmap::rowAnnotation(
         Cluster = heatmap_split_vector,
         col = annotationColor,
@@ -752,7 +742,6 @@ generate_dna_variant_heatmap <- function(
         "   \n",
         selected_variants_df$cdna[idx_colnames]
     )
-    print("test_10")
     ## Heatmap
     heatmap <- ComplexHeatmap::Heatmap(
         tmp_heamtap_matrix_filtered_complete_ordered,
@@ -777,7 +766,6 @@ generate_dna_variant_heatmap <- function(
             grid_height = grid::unit(4, "cm")
         )
     )
-    print("test_11")
     return(list(
         "heatmap" = heatmap,
         "clones" = clustered_samples

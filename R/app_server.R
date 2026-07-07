@@ -45,7 +45,8 @@ app_server <- function(input, output, session) {
         "compass_completed",
         "multiomics_annotated",
         "clusters_computed",
-        "gating_updated"
+        "gating_updated",
+        "protein_normalized"
     )
     # print(paste("App Server R6 ID:", data.table::address(ScIGMA_data)))
     # --------------------------------------------------------------- #

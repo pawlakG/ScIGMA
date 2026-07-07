@@ -459,13 +459,18 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 ScIGMA_data$seurat_object@reductions$umap <- NULL
             }
 
+            n_cells_current <- ncol(SummarizedExperiment::assay(
+                ScIGMA_data$mae[["proteins"]],
+                ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+            ))
+
             # Reset local state
-            r_state$subsets <- list()
-            r_state$subset_meta <- list()
+            r_state$subsets <- list(root = seq_len(n_cells_current))
+            r_state$subset_meta <- list(root = list(name = "All", parent = NA, depth = 0))
             r_state$current_view <- "root"
             r_state$temp_selection <- NULL
 
-            trigger("dataLoaded")
+            trigger("protein_normalized")
             trigger("umap_computed")
 
             w$hide()
@@ -680,14 +685,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     xaxis = c(
                         list(
                             title = paste("<b>", input$xvar, "</b>"),
-                            range = list(0, max(plot_df$x) + 1)
+                            range = list(min(plot_df$x), max(plot_df$x))
                         ),
                         prism_axis_style
                     ),
                     yaxis = c(
                         list(
                             title = paste("<b>", input$yvar, "</b>"),
-                            range = list(0, max(plot_df$y) + 1)
+                            range = list(min(plot_df$y), max(plot_df$y))
                         ),
                         prism_axis_style
                     ),
@@ -874,6 +879,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # Render ridge plot for all proteins
         output$protein_ridge <- renderPlotly({
             watch("dnaVariant_filtered")
+            watch("protein_normalized")
             render_protein_ridge_plot(obj = ScIGMA_data)
         })
 
@@ -1164,6 +1170,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         # Render Barplot for all proteins
         output$protein_bar <- renderPlotly({
             watch("dnaVariant_filtered")
+            watch("protein_normalized")
             # ScIGMA_data <- normalizeProtein(ScIGMA_data)
             plot_protein_barplot(obj = ScIGMA_data)
         })

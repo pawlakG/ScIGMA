@@ -1,5 +1,5 @@
 Package: ScIGMA
-Title: ScIGMA – Single-cell Integrated Genomic & Multi-omics Analyzer
+Title: ScIGMA – Single-Cell Integrated Genomic & Multi-omics Analyzer
 Version: 0.99.2
 Authors@R: 
     person("Geoffrey", "Pawlak", 

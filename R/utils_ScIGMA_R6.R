@@ -32,7 +32,7 @@ ScIGMA_object <- R6::R6Class(
             if (!is.null(self$mae) && "empty_drops_mtx" %in% names(S4Vectors::metadata(self$mae))) {
                 return(S4Vectors::metadata(self$mae)$empty_drops_mtx)
             }
-            warning("Aucune matrice de gouttes vides trouvée dans l'objet.")
+            warning("No empty drops matrix found in the object.")
             return(NULL)
         },
 

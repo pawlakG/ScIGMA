@@ -189,14 +189,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     h3("Controls"),
                                     selectInput(
                                         ns("xvar"),
-                                        "Axe X",
+                                        "X-axis",
                                         choices = rownames(ScIGMA_data$mae[[
                                             "proteins"
                                         ]])
                                     ),
                                     selectInput(
                                         ns("yvar"),
-                                        "Axe Y",
+                                        "Y-axis",
                                         choices = rownames(ScIGMA_data$mae[[
                                             "proteins"
                                         ]])

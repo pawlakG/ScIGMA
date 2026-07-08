@@ -1168,13 +1168,13 @@ generate_cnv_heatmap_filtered <- function(
     # --- 2. Standard R Validations ---
     if (ncol(filtered_ploidy) < 2 || nrow(filtered_ploidy) < 2) {
         stop(
-            "La sélection est trop restreinte. Nécessite au moins 2 cellules et 2 amplicons pour générer une heatmap."
+            "Selection is too restricted. Requires at least 2 cells and 2 amplicons to generate a heatmap."
         )
     }
 
     if (sd(as.vector(filtered_ploidy), na.rm = TRUE) == 0) {
         stop(
-            "Variance nulle détectée. Toutes les cellules ont le copy number exact dans cette région."
+            "Zero variance detected. All cells have the exact copy number in this region."
         )
     }
 
@@ -1206,7 +1206,7 @@ generate_cnv_lineplot_filtered <- function(
     clone = NULL
 ) {
     if (is.null(obj$ploidy.mtx)) {
-        stop("La matrice de ploïdie (obj$ploidy.mtx) est manquante. Exécutez d'abord process_cnv_to_clonal_profile.")
+        stop("The ploidy matrix (obj$ploidy.mtx) is missing. Run process_cnv_to_clonal_profile first.")
     }
 
     mat_data <- t(obj$ploidy.mtx)
@@ -1240,7 +1240,7 @@ generate_cnv_lineplot_filtered <- function(
     }
 
     if (nrow(tmp_var_table) < 2) {
-        stop("La région sélectionnée contient moins de 2 amplicons. Élargissez votre sélection.")
+        stop("The selected region contains less than 2 amplicons. Broaden your selection.")
     }
 
     mat_data <- mat_data[, tmp_var_table$dna_id, drop = FALSE]

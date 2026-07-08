@@ -240,7 +240,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
 
                 sel_indices <- input$variant_selection_rows_selected
                 if (length(sel_indices) > 0) {
-                    ScIGMA_profile("2. Filtrage et annotation des variants", {
+                    ScIGMA_profile("2. Variant filtering and annotation", {
                         sorted_annotation <- SummarizedExperiment::rowData(ScIGMA_data$mae[[
                             "dna_variants"
                         ]]) |>
@@ -659,7 +659,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                             paste0("compass_async_", as.integer(Sys.time()))
                         )
 
-                        ScIGMA_profile("3. Algorithme COMPASS", {
+                        ScIGMA_profile("3. COMPASS algorithm", {
                             run_compass_mcmc(
                                 variant_matrices = variant_matrices,
                                 locus_regions = vec_locus_regions,

@@ -148,7 +148,7 @@ ExpressionProfile <- R6Class(
 
     plot = function() {
       if (is.null(self$expression_)) {
-        stop("Exécuter `fit` en premier.")
+        stop("Execute `fit` first.")
       }
 
       fig <- plot_ly() |>

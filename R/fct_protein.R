@@ -521,7 +521,7 @@ generate_protein_biplot <- function(
     title = "Protein Biplot"
 ) {
     if (!"proteins" %in% names(obj$mae)) {
-        stop("La matrice 'proteins' est manquante dans l'objet MAE.")
+        stop("The 'proteins' matrix is missing from the MAE object.")
     }
 
     # Prism style copied from the Shiny module
@@ -548,8 +548,8 @@ generate_protein_biplot <- function(
 
     ptn_matrix <- SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)
 
-    if (!xvar %in% rownames(ptn_matrix)) stop(paste("Le marqueur", xvar, "n'est pas présent."))
-    if (!yvar %in% rownames(ptn_matrix)) stop(paste("Le marqueur", yvar, "n'est pas présent."))
+    if (!xvar %in% rownames(ptn_matrix)) stop(paste("The marker", xvar, "is not present."))
+    if (!yvar %in% rownames(ptn_matrix)) stop(paste("The marker", yvar, "is not present."))
 
     plot_df <- data.frame(
         x = ptn_matrix[xvar, ],
@@ -565,7 +565,7 @@ generate_protein_biplot <- function(
     marker_config <- list(size = 5, opacity = 0.8, color = "#2c3e50")
 
     if (!is.null(color_genotype) && !identical(color_genotype, "None")) {
-        if (is.null(obj$dna.clones)) stop("Assignation clonale manquante (obj$dna.clones).")
+        if (is.null(obj$dna.clones)) stop("Missing clonal assignment (obj$dna.clones).")
 
         # Extraction of clones associated with cells
         plot_df$Genotype <- as.character(obj$dna.clones[rownames(plot_df)])
@@ -590,7 +590,7 @@ generate_protein_biplot <- function(
         if (!is.null(obj$dna_clone_colors)) {
             color_palette <- c(obj$dna_clone_colors, "Other" = "#e0e0e033")
         } else {
-            warning("obj$dna_clone_colors non trouvé, utilisation de la palette par défaut.")
+            warning("obj$dna_clone_colors not found, using the default palette.")
             color_palette <- "Set1" 
         }
 

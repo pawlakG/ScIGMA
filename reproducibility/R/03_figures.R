@@ -57,7 +57,7 @@ plot_fig_cnv_heatmap <- function(ScIGMA_obj) {
     cnv_id_table <- as.data.frame(SummarizedExperiment::rowData(ScIGMA_obj$mae[[
         "amplicons"
     ]]))
-    features <- sort_genomic_chromosomes(
+    features <- ScIGMA:::sort_genomic_chromosomes(
         cnv_id_table$chrom
     )
 
@@ -74,7 +74,7 @@ plot_fig_cnv_heatmap <- function(ScIGMA_obj) {
 }
 
 #' CNV - Lineplot projection
-plot_fig_cnv_lineplot <- function(ScIGMA_obj) {
+plot_fig_cnv_lineplot <- function(ScIGMA_obj, params) {
     message("Generating CNV Lineplot...")
     fig_path <- setup_fig_path("Fig4_CNV_Lineplot.pdf")
     p <- ScIGMA:::generate_cnv_lineplot_filtered(
@@ -171,7 +171,7 @@ plot_fig_protein_umap_markers <- function(ScIGMA_obj) {
 plot_fig_protein_umap_gating <- function(ScIGMA_obj) {
     message("Generating Protein UMAP Gating Projection...")
     fig_path <- setup_fig_path("Fig10_Protein_UMAP_Gating.pdf")
-    p <- generate_protein_umap_gating(ScIGMA_obj)
+    p <- ScIGMA:::generate_protein_umap_gating(ScIGMA_obj)
     pdf(fig_path)
     print(p)
     dev.off()

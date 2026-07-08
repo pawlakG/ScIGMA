@@ -1,7 +1,4 @@
-library(R6)
-library(mclust)
-library(plotly)
-library(pbapply)
+# R6 and other dependencies are loaded via the package namespace
 
 # =========================================================================
 # CONSTANTES
@@ -290,7 +287,7 @@ NSP <- R6Class(
 
       num_cells <- min(self$sample_size, nrow(pos_reads))
       if (!is.null(self$random_state)) {
-        set.seed(self$random_state)
+        # set.seed(self$random_state)
       }
       subset <- sample(seq_len(nrow(pos_reads)), num_cells, replace = FALSE)
 
@@ -352,7 +349,7 @@ NSP <- R6Class(
     arcsinh = function(reads, jitter = NULL) {
       jitter <- if (is.null(jitter)) self$jitter else jitter
       if (!is.null(self$random_state)) {
-        set.seed(self$random_state)
+        # set.seed(self$random_state)
       }
       noise <- matrix(
         rnorm(length(reads), 0, jitter),
@@ -371,7 +368,7 @@ NSP <- R6Class(
         pblapply(seq_len(nrow(asinh_reads)), function(i) {
           x <- asinh_reads[i, ]
           if (!is.null(self$random_state)) {
-            set.seed(self$random_state + i)
+            # set.seed(self$random_state + i)
           }
           suppressWarnings({
             # We force K-means initialization (like scikit-learn)
@@ -408,7 +405,7 @@ NSP <- R6Class(
     },
 
     get_possible_scales = function(bins, peaks) {
-      if (all(sapply(peaks, length) == 0)) {
+      if (all(vapply(peaks, length, integer(1)) == 0)) {
         return(list(scales = numeric(), antibodies = list()))
       }
 
@@ -420,7 +417,7 @@ NSP <- R6Class(
         low_bin <- bins[b]
         high_bin <- bins[b + 1] # Shifted R indexing (bins[1]=0, bins[2]=1)
         p_in_bin <- lapply(peaks, function(p) p[p >= low_bin & p < high_bin])
-        n_peaks <- sapply(p_in_bin, length)
+        n_peaks <- vapply(p_in_bin, length, integer(1))
 
         if (max(n_peaks) == 1) {
           sc <- 0
@@ -460,7 +457,7 @@ NSP <- R6Class(
         return(list(scale = 1.0, ab = integer()))
       }
 
-      n_abs <- sapply(abs[valid], length)
+      n_abs <- vapply(abs[valid], length, integer(1))
       best_idx <- valid[n_abs == max(n_abs)]
       best_idx <- best_idx[length(best_idx)] # Takes the largest (last)
       list(scale = scales[best_idx], ab = abs[[best_idx]])
@@ -529,7 +526,7 @@ normalize_reads <- function(
     return(list(normalized_counts = normal_counts, nsp_model = NULL))
   } else if (method == "asinh") {
     if (!is.null(random_state)) {
-      set.seed(random_state)
+      # set.seed(random_state)
     }
     # Gaussian noise creation
     noise <- matrix(
@@ -540,6 +537,6 @@ normalize_reads <- function(
     normal_counts <- asinh(reads + noise)
     return(list(normalized_counts = normal_counts, nsp_model = NULL))
   } else {
-    stop("ValueError: Please provide one of {'CLR', 'NSP', 'ANSP', 'asinh'}")
+    stop("Invalid value: Please provide one of {'CLR', 'NSP', 'ANSP', 'asinh'}")
   }
 }

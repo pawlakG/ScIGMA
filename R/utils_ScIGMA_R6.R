@@ -25,6 +25,7 @@ ScIGMA_object <- R6::R6Class(
         protein.gating_tree = NULL,
         dna.clones_pre_compass = NULL,
         dna_clone_colors = NULL,
+        protein_gates = NULL,
 
         #' @description
         #' Retrieves the empty drops matrix (DelayedArray) if extracted
@@ -95,8 +96,9 @@ ScIGMA_object <- R6::R6Class(
             self$umaps <- list()
             self$cnv.active.clones <- NULL
             self$protein.gating_tree <- NULL
-            dna.clones_pre_compass <- NULL
+            self$dna.clones_pre_compass <- NULL
             self$dna_clone_colors <- NULL
+            self$protein_gates <- NULL
 
             if (!is.null(self$mae)) {
                 # Save critical metadata generated upon loading (e.g., empty_drops_mtx for DSB)

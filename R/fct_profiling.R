@@ -47,17 +47,17 @@ ScIGMA_profile <- function(step_name, expr, filepath = NULL) {
     cpu <- "Unknown"
     tot_ram <- "Unknown"
     if (os == "Darwin") {
-        cpu <- tryCatch(system("sysctl -n machdep.cpu.brand_string", intern = TRUE), error = function(e) "Unknown")
-        tot_ram_bytes <- tryCatch(as.numeric(system("sysctl -n hw.memsize", intern = TRUE)), error = function(e) NA)
+        cpu <- tryCatch(system2("sysctl", args = c("-n", "machdep.cpu.brand_string"), stdout = TRUE), error = function(e) "Unknown")
+        tot_ram_bytes <- tryCatch(as.numeric(system2("sysctl", args = c("-n", "hw.memsize"), stdout = TRUE)), error = function(e) NA)
         if (!is.na(tot_ram_bytes)) tot_ram <- sprintf("%.2f GB", tot_ram_bytes / (1024^3))
     } else if (os == "Linux") {
-        cpu <- tryCatch(system("lscpu | grep 'Model name' | sed -r 's/Model name:\\s+//g'", intern = TRUE), error = function(e) "Unknown")
-        tot_ram_kb <- tryCatch(as.numeric(system("awk '/MemTotal/ {print $2}' /proc/meminfo", intern = TRUE)), error = function(e) NA)
+        cpu <- tryCatch(system2("sh", args = c("-c", "lscpu | grep 'Model name' | sed -r 's/Model name:\\s+//g'"), stdout = TRUE), error = function(e) "Unknown")
+        tot_ram_kb <- tryCatch(as.numeric(system2("sh", args = c("-c", "awk '/MemTotal/ {print $2}' /proc/meminfo"), stdout = TRUE)), error = function(e) NA)
         if (!is.na(tot_ram_kb)) tot_ram <- sprintf("%.2f GB", tot_ram_kb / (1024^2))
     } else if (os == "Windows") {
-        cpu <- tryCatch(system("wmic cpu get name", intern = TRUE)[2], error = function(e) "Unknown")
+        cpu <- tryCatch(system2("wmic", args = c("cpu", "get", "name"), stdout = TRUE)[2], error = function(e) "Unknown")
         cpu <- trimws(cpu)
-        tot_ram_bytes <- tryCatch(as.numeric(system("wmic computersystem get TotalPhysicalMemory", intern = TRUE)[2]), error = function(e) NA)
+        tot_ram_bytes <- tryCatch(as.numeric(system2("wmic", args = c("computersystem", "get", "TotalPhysicalMemory"), stdout = TRUE)[2]), error = function(e) NA)
         if (!is.na(tot_ram_bytes)) tot_ram <- sprintf("%.2f GB", tot_ram_bytes / (1024^3))
     }
 

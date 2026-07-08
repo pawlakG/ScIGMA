@@ -76,7 +76,7 @@ To ensure strict computational reproducibility of the manuscript figures and eva
 **Test Dataset**: The standardized multi-omics dataset (57.7 MB) required for execution is hosted externally to comply with Bioconductor repository limits. It is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and can be downloaded from Zenodo:
 [Download Test Dataset (Zenodo)](https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1)
 
-**Execution Instructions**:
+**Execution Instructions (Programmatic Reproducibility)**:
 1. Clone this repository and navigate to the `reproducibility/` directory.
 2. The analytical pipeline is powered by `targets`. It will automatically download the test dataset via the URL above and execute the inference.
 3. Run the following R commands:
@@ -84,6 +84,15 @@ To ensure strict computational reproducibility of the manuscript figures and eva
    renv::restore()
    targets::tar_make()
    ```
+
+**Execution Instructions (Interactive GUI Analysis)**:
+If you prefer to manually explore the test dataset using the ScIGMA graphical user interface:
+1. Manually download the `.h5` file using the Zenodo link above and save it to your computer.
+2. Launch the application via `ScIGMA::run_app()`.
+3. In the "Load and process" panel, select the downloaded `.h5` file and choose "DNA & protein" as the data type.
+4. Click **Load file**. Once loaded, use the Preprocess controls to set your desired DNA filtering thresholds (e.g., Min DP=10, Min GQ=30).
+5. Click **Filter Cells and DNA variants** to begin the interactive analysis.
+6. Navigate through the *DNA* and *Protein* tabs to explore mutations, run the COMPASS algorithm, normalize protein data, and discover multi-omics interactions.
 
 ## Target Domains
 

@@ -71,7 +71,7 @@ list(
   ),
   tar_target(
     fig_cnv_lineplot,
-    plot_fig_cnv_lineplot(ScIGMA_obj),
+    plot_fig_cnv_lineplot(ScIGMA_obj, params),
     format = "file"
   ),
 

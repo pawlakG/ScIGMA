@@ -267,10 +267,10 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                 shinyWidgets::pickerInput(
                                     inputId = ns("selected_biplot_pop"),
                                     label = "Target Population (Variant Genotypes)",
-                                    choices = sapply(
+                                    choices = vapply(
                                         ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
-                                        \(x) x$name
-                                    ) |> as.character(),
+                                        \(x) as.character(x$name), character(1)
+                                    ),
                                     options = list(`live-search` = TRUE)
                                 ),
                                 shiny::div(compass_switch_ui_use_compass_biplot, align = "left")
@@ -287,14 +287,14 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                 shinyWidgets::pickerInput(
                                     inputId = ns("selected_gates_multiomics"),
                                     label = "Displayed Populations:",
-                                    choices = sapply(
+                                    choices = vapply(
                                         ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
-                                        \(x) x$name
-                                    ) |> as.character(),
-                                    selected = sapply(
+                                        \(x) as.character(x$name), character(1)
+                                    ),
+                                    selected = vapply(
                                         ScIGMA_data$protein_gating_tree$meta_list[names(ScIGMA_data$protein_gating_tree$gates_list)],
-                                        \(x) x$name
-                                    ) |> as.character(),
+                                        \(x) as.character(x$name), character(1)
+                                    ),
                                     multiple = TRUE,
                                     options = list(`actions-box` = TRUE)
                                 ),
@@ -478,9 +478,9 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             shiny::req(input$selected_biplot_pop, ScIGMA_data$variants.filtered)
 
             selected_biplot_gate_name <- input$selected_biplot_pop
-            selected_biplot_gate_ids_list <- sapply(ScIGMA_data$protein_gating_tree$meta_list, \(x){
-                x$name
-            })
+            selected_biplot_gate_ids_list <- vapply(ScIGMA_data$protein_gating_tree$meta_list, \(x){
+                as.character(x$name)
+            }, character(1))
             selected_biplot_gate_ids <- names(selected_biplot_gate_ids_list)[selected_biplot_gate_ids_list == selected_biplot_gate_name]
 
             assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
@@ -582,7 +582,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             df_all$Clone[is.na(df_all$Clone)] <- "Missing"
             
             # Reorder Gate based on original tree order
-            gate_levels <- sapply(ScIGMA_data$protein_gating_tree$meta_list, \(x) x$name)
+            gate_levels <- vapply(ScIGMA_data$protein_gating_tree$meta_list, \(x) as.character(x$name), character(1))
             df_all$Gate <- factor(df_all$Gate, levels = unique(gate_levels))
 
             if (!is.null(input$selected_gates_multiomics) && length(input$selected_gates_multiomics) > 0) {

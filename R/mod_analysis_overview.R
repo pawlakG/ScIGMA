@@ -126,7 +126,7 @@ mod_analysis_overview_server <- function(id, ScIGMA_data) {
                             filepath = filePath
                         ),
                         error = function(e) {
-                            message("Error during loadH5")
+                            message("Failed during loadH5")
                             stop(e$message)
                         }
                     )

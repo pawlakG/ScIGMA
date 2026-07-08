@@ -407,10 +407,10 @@ generate_clonal_labels <- function(
     # 2. Integrity check
     missing_variants <- setdiff(short_variant_ids, colnames(ngt_matrix))
     if (length(missing_variants) > 0) {
-        stop(paste(
-            "Critical error: Missing variants in the genotype matrix:",
+        stop(
+            "Critical error: Missing variants in the genotype matrix: ",
             paste(missing_variants, collapse = ", ")
-        ))
+        )
     }
 
     # 3. State decoding function
@@ -641,7 +641,7 @@ generate_dna_variant_heatmap <- function(
     nonSmall_cluster <- forcats::fct_infreq(nonSmall_cluster)
     levels(nonSmall_cluster) <- sprintf(
         "clone_%02d",
-        1:length(levels(nonSmall_cluster))
+        seq_along(levels(nonSmall_cluster))
     )
     clustered_samples <- forcats::fct_c(nonSmall_cluster, small_cluster)
     names(clustered_samples) <- c(names(nonSmall_cluster), names(small_cluster))

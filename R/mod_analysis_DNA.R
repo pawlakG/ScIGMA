@@ -156,7 +156,7 @@ mod_analysis_DNA_ui <- function(id) {
                             sliderTextInput(
                                 inputId = ns("run_compass_n_chains"),
                                 label = "Number of Markov Chains",
-                                choices = 1:8,
+                                choices = seq_len(8),
                                 grid = TRUE,
                                 selected = 4,
                                 width = "100%"
@@ -773,14 +773,15 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 vec_region_names <- unique(paste0(
                     cna_row_data$chrom,
                     "_",
-                    sapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3])
+                    vapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3], character(1))
                 ))
                 vec_region_chrom <- sub(
                     "^chr",
                     "",
-                    sapply(
+                    vapply(
                         vec_region_names,
                         \(x) strsplit(x, "_")[[1]][1],
+                        character(1),
                         USE.NAMES = FALSE
                     ),
                     ignore.case = TRUE

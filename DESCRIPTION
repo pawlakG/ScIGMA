@@ -1,5 +1,5 @@
 Package: ScIGMA
-Title: ScIGMA – Single-Cell Integrated Genomic & Multi-omics Analyzer
+Title: ScIGMA – Single-Cell Integrated Genomic & Multi-Omics Analyzer
 Version: 0.99.2
 Authors@R: 
     person("Geoffrey", "Pawlak", 
@@ -7,7 +7,7 @@ Authors@R:
     role = c("aut", "cre", "fnd"),
     comment = c("ORCID" = "0000-0001-8882-1441"))
 Description: Analyse targeted single-cell multi-omics data with an open-source, user-friendly R application that provides a code-free graphical user interface for the integrative analysis of paired single-cell DNA and surface protein datasets.
-License: GPL (>= 3) + file LICENSE.md
+License: GPL-3
 biocViews: SingleCell, Software
 URL: https://github.com/pawlakG/ScIGMA
 BugReports: https://github.com/pawlakG/ScIGMA/issues

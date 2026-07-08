@@ -382,14 +382,15 @@ run_compass_inference <- function(
     vec_region_names <- unique(paste0(
         cna_row_data$chrom,
         "_",
-        sapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3])
+        vapply(cna_row_data$dna_id, \(x) strsplit(x, "_")[[1]][3], character(1))
     ))
     vec_region_chrom <- sub(
         "^chr",
         "",
-        sapply(
+        vapply(
             vec_region_names,
             \(x) strsplit(x, "_")[[1]][1],
+            character(1),
             USE.NAMES = FALSE
         ),
         ignore.case = TRUE
@@ -490,6 +491,15 @@ run_compass_inference <- function(
     )
 
     obj$dna_clone_colors <- generate_clone_palette(obj$dna.clones)
+
+    tree_gv_path <- res$tree_dot
+    tree_dot_content <- if (file.exists(tree_gv_path)) {
+        paste(readLines(tree_gv_path, warn = FALSE), collapse = "\n")
+    } else NULL
+
+    S4Vectors::metadata(obj$mae)$compass <- list(
+        tree_dot = tree_dot_content
+    )
 
     return(obj)
 }

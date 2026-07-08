@@ -81,11 +81,11 @@ aggregate_matrix_by_mappingTable <- function(
             dplyr::pull(!!rlang::sym(feature_col))
     )
     if (length(missing_features) > 0) {
-        warning(paste(
+        warning(
             length(missing_features),
-            "features in the matrix were not found in the mapping table and will be dropped:",
+            " features in the matrix were not found in the mapping table and will be dropped: ",
             paste(head(missing_features, 5), collapse = ", ")
-        ))
+        )
         # Drop missing features from the matrix
         numeric_matrix <- numeric_matrix[,
             !matrix_columns %in% missing_features

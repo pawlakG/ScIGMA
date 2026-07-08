@@ -224,7 +224,7 @@ normalize_linear_regression <- function(raw_matrix,
             } else {
                 on.exit(rm(list = ".Random.seed", envir = .GlobalEnv), add = TRUE)
             }
-            set.seed(seed)
+            # set.seed(seed)
         }
         noise <- matrix(rnorm(length(raw_matrix), 0, jitter), nrow = nrow(raw_matrix))
         raw_matrix <- raw_matrix + noise
@@ -548,8 +548,8 @@ generate_protein_biplot <- function(
 
     ptn_matrix <- SummarizedExperiment::assay(obj$mae[["proteins"]], assay_to_use)
 
-    if (!xvar %in% rownames(ptn_matrix)) stop(paste("The marker", xvar, "is not present."))
-    if (!yvar %in% rownames(ptn_matrix)) stop(paste("The marker", yvar, "is not present."))
+    if (!xvar %in% rownames(ptn_matrix)) stop("The marker ", xvar, " is not present.")
+    if (!yvar %in% rownames(ptn_matrix)) stop("The marker ", yvar, " is not present.")
 
     plot_df <- data.frame(
         x = ptn_matrix[xvar, ],

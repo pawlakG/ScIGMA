@@ -81,7 +81,7 @@ protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5
         norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
         normalization_method <- "clr"
     } else if (norm_method == "asinh") {
-        message(paste0("Running asinh normalization with cofactor ", asinh_cofactor, "..."))
+        message("Running asinh normalization with cofactor ", asinh_cofactor, "...")
         ScIGMA_data <- normalize_protein_asinh(ScIGMA_data, cofactor = asinh_cofactor)
         norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
         normalization_method <- "asinh"

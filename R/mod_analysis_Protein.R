@@ -69,8 +69,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             watch("compass_completed")
             watch("umap_computed")
 
-            print("is_filtered_flag()")
-            print(is_filtered_flag())
+            # print removed
 
             if (!isTRUE(is_filtered_flag())) {
                 card(

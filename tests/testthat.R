@@ -1,3 +1,4 @@
 library(testthat)
+library(ScIGMA)
 
-test_dir("tests/testthat")
+test_check("ScIGMA")

@@ -84,7 +84,7 @@
 #'   without loading the full dataset into RAM.
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' # Access a dataset of variant allele frequencies
 #' vaf <- .h5_delayed("file.h5", "/assays/dna_variants/layers/AF")
 #' dim(vaf)
@@ -834,12 +834,7 @@ loadH5_HDF5_biocond <- function(
                 ])
             }
 
-            print("empty_barcodes")
-            print(length(empty_barcodes))
-            print("raw_protein_mtx")
-            print(dim(raw_protein_mtx))
-            print("empty_drops_mtx")
-            print(dim(empty_drops_mtx))
+            # print removed
         }
     } else {
         message("DNA only: skip protein matrix")
@@ -1051,8 +1046,6 @@ loadH5_HDF5_biocond <- function(
             empty_drops_mtx = empty_drops_mtx
         )
     )
-    print("mae_main ptn")
-    print(dim(mae_main@metadata$empty_drops_mtx))
     # ---- 6. R6 Instantiation ----
     ScIGMA_object$new(
         mae = mae_main,

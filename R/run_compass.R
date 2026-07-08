@@ -27,12 +27,12 @@ run_compass_mcmc <- function(variant_matrices,
                             locus_chromosomes,
                             region_names,
                             region_chromosomes,
-                            cell_names = NULL, # <-- NEW
+                            cell_names = NULL,
                             chains = 4L,
                             chain_length = 5000L,
                             patient_sex = "female",
                             use_cna = TRUE) {
-    # 1. Automatic barcode extraction if not provided
+    # Automatic barcode extraction if not provided
     if (is.null(cell_names)) {
         cell_names <- colnames(variant_matrices$REF)
         if (is.null(cell_names)) stop("Matrices do not contain any column names (cells).")
@@ -49,7 +49,7 @@ run_compass_mcmc <- function(variant_matrices,
         stop("ScIGMA requires a valid CNA region matrix to run COMPASS.")
     }
 
-    # Neutralisation des NAs
+    # Neutralize NAs
     variant_matrices$REF[is.na(variant_matrices$REF)] <- 0L
     variant_matrices$ALT[is.na(variant_matrices$ALT)] <- 0L
     variant_matrices$GT[is.na(variant_matrices$GT)] <- 0L

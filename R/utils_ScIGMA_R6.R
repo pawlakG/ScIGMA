@@ -8,7 +8,7 @@ ScIGMA_object <- R6::R6Class(
     classname = "ScIGMA_object",
     public = list(
         mae = NULL,
-        mae_raw = NULL, # Dataset d'origine (immuable)
+        mae_raw = NULL, # Original dataset (immutable)
         backing_files = list(),
         filetype = NULL,
         dna.clones = NULL,
@@ -27,7 +27,7 @@ ScIGMA_object <- R6::R6Class(
         dna_clone_colors = NULL,
 
         #' @description
-        #' Récupère la matrice des gouttes vides (DelayedArray) si elle a été extraite
+        #' Retrieves the empty drops matrix (DelayedArray) if extracted
         get_empty_drops = function() {
             if (!is.null(self$mae) && "empty_drops_mtx" %in% names(S4Vectors::metadata(self$mae))) {
                 return(S4Vectors::metadata(self$mae)$empty_drops_mtx)
@@ -37,7 +37,7 @@ ScIGMA_object <- R6::R6Class(
         },
 
         #' @description
-        #' Renomme un clone et synchronise sa couleur
+        #' Renames a clone and synchronizes its color
         update_dna_clone_names = function(old_name, new_name) {
             # Use forcats::fct_recode to safely rename levels and preserve order/integers exactly
             levels_map <- stats::setNames(old_name, new_name)
@@ -99,7 +99,7 @@ ScIGMA_object <- R6::R6Class(
             self$dna_clone_colors <- NULL
 
             if (!is.null(self$mae)) {
-                # Sauvegarder les métadonnées critiques générées au chargement (comme empty_drops_mtx pour DSB)
+                # Save critical metadata generated upon loading (e.g., empty_drops_mtx for DSB)
                 saved_metadata <- list()
                 if ("empty_drops_mtx" %in% names(S4Vectors::metadata(self$mae))) {
                     saved_metadata$empty_drops_mtx <- S4Vectors::metadata(self$mae)$empty_drops_mtx

@@ -368,15 +368,13 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                 }
 
                 ScIGMA_data$cnv.active.clones <- active_clones
-                # ------------------------------------------------------
 
                 # Store values
                 cnv_ampCompleteness <- input$cnv_ampCompleteness
                 cnv_ampReadDepth <- input$cnv_ampReadDepth
-                # cnv_meanCellReadDepth <- input$cnv_meanCellReadDepth
                 cnv_meanCellReadDepth <- 10
 
-                # Filters (Remplacement de ScIGMA_data$dna.clones par active_clones)
+                # Filters (Replacement of ScIGMA_data$dna.clones by active_clones)
                 filtered_data <- filter_cnv_profile(
                     ScIGMA_data,
                     active_clones,
@@ -507,7 +505,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                     show_genes <- (!is.null(cnv_heatmap_type) &&
                         cnv_heatmap_type != "Position")
 
-                    # --- Filtrage Heatmap ---
+                    # Filter Heatmap
                     filtered_ploidy <- ScIGMA_data$ploidy.mtx
                     if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
                         mat_data_tmp <- t(filtered_ploidy)
@@ -599,7 +597,7 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
                         ) |>
                         dplyr::mutate(chr_lit = paste0("chr", chrom))
 
-                    # --- Filtrage Lineplot ---
+                    # Filter Lineplot
                     if (!is.null(cnv_xAxis) && length(cnv_xAxis) > 0) {
                         is_chr <- any(grepl(
                             "^chr",
@@ -670,9 +668,3 @@ mod_analysis_CNV_server <- function(id, ScIGMA_data) {
         )
     })
 }
-
-## To be copied in the UI
-# mod_analysis_CNV_ui("analysis_CNV_1")
-
-## To be copied in the server
-# mod_analysis_CNV_server("analysis_CNV_1")

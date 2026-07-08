@@ -784,7 +784,7 @@ loadH5_HDF5_biocond <- function(
         protein.normalize.method <- "unnormalized"
         protein.cells <- setNames(pr_ra_names, nm = protein_barcodes)
 
-        # ====== AJOUT POUR DSB (Extraction des Gouttes Vides) ======
+        # ====== ADDED FOR DSB (Extraction of Empty Drops) ======
         empty_drops_mtx <- NULL
         raw_prot_path <- "/all_barcodes/protein_read_counts/layers/read_counts"
         raw_bc_path <- "/all_barcodes/protein_read_counts/ra/barcode"
@@ -794,7 +794,7 @@ loadH5_HDF5_biocond <- function(
                 .h5_has_path(filepath, raw_bc_path)
         ) {
             message(
-                "[ScIGMA] Extraction de la matrice des gouttes vides pour DSB..."
+                "[ScIGMA] Extraction of the empty drops matrix for DSB..."
             )
             raw_protein_mtx <- .h5_delayed(filepath, raw_prot_path)
             raw_protein_barcodes <- .h5read_char(filepath, raw_bc_path)
@@ -878,7 +878,7 @@ loadH5_HDF5_biocond <- function(
     dna_sample_ids <- .h5read_char(filepath, "/assays/dna_variants/ra/barcode")
     dna_id <- .h5read_char(filepath, "/assays/dna_variants/ca/id")
 
-    # Tapestri stocke souvent en Cellules x Variants. t() transpose en Variants x Cellules.
+    # Tapestri often stores in Cells x Variants. t() transposes to Variants x Cells.
 
     vaf_mtx <- .h5_delayed(filepath, "/assays/dna_variants/layers/AF")
     if (length(dna_id) > 0 && length(dna_sample_ids) > 0) {
@@ -965,7 +965,7 @@ loadH5_HDF5_biocond <- function(
             filepath,
             "/assays/dna_variants/ra/filtered"
         ),
-        dna_sample_name = dna_sample_name, # FIX : Utilise la variable extraite du H5, pas l'argument global
+        dna_sample_name = dna_sample_name, # FIX : Uses the variable extracted from H5, not the global argument
         row.names = dna_sample_ids
     )
 
@@ -1053,7 +1053,7 @@ loadH5_HDF5_biocond <- function(
     )
     print("mae_main ptn")
     print(dim(mae_main@metadata$empty_drops_mtx))
-    # ---- 6. Instanciation R6 ----
+    # ---- 6. R6 Instantiation ----
     ScIGMA_object$new(
         mae = mae_main,
         backing_files = list(original = filepath),
@@ -1079,10 +1079,10 @@ sanitize_mae_strings <- function(mae) {
             return(df)
         }
 
-        # Nettoyage du contenu des colonnes
+        # Cleaning column contents
         df[] <- lapply(df, clean_char_vector)
 
-        # Nettoyage des index
+        # Cleaning indices
         if (!is.null(rownames(df))) {
             rownames(df) <- clean_char_vector(rownames(df))
         }

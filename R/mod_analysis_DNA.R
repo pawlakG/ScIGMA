@@ -270,7 +270,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                         ))[short_vars, , drop = FALSE]) !=
                             0
 
-                        # Application du masque (3 = Missing/Dropout)
+                        # Apply mask (3 = Missing/Dropout)
                         gt_raw[cbind(
                             row(msk_raw)[msk_raw],
                             col(msk_raw)[msk_raw]
@@ -324,7 +324,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                     compass_tree_visible(FALSE)
                 }
 
-                # Atomise les graphiques
+                # Clear graphs
                 output$dna_variant_heatmap <- renderPlot({
                     NULL
                 })
@@ -545,24 +545,11 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 input$rename_cluster_ui_oldName,
                 input$rename_cluster_ui_newName
             )
-            # update dna.clones labels
-            # oldName <- input$rename_cluster_ui_oldName
-            # newName <- input$rename_cluster_ui_newName
-            # levels <- oldName
-            # names(levels) <- newName
-
-            # print("input$rename_cluster_ui_oldName")
-            # print(input$rename_cluster_ui_oldName)
-            # print("input$rename_cluster_ui_newName")
-            # print(input$rename_cluster_ui_newName)
 
             ScIGMA_data$update_dna_clone_names(
                 old_name = input$rename_cluster_ui_oldName,
                 new_name = input$rename_cluster_ui_newName
             )
-
-            # ScIGMA_data$dna.clones <- fct_recode(ScIGMA_data$dna.clones, !!!levels)
-            # ScIGMA_data$dna_clones_renamed <- ScIGMA_data$dna.clones
 
             output$rename_cluster_ui <- renderUI({
                 tagList(
@@ -606,10 +593,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
             trigger("dna_clones_renamed")
         })
 
-        # [ NODE_ACCESS : COMPASS ]
-        # ----------------------------------------------------- _
-
-        # Rendu dynamique de la carte UI
+        # Dynamic UI rendering
         output$compass_tree_ui <- shiny::renderUI({
             shiny::req(compass_tree_visible())
 
@@ -663,7 +647,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 use_cna,
                 target_vars
             ) {
-                # FIX CRITIQUE : future_promise() au lieu de future()
+                # CRITICAL FIX: future_promise() instead of future()
                 promises::future_promise(
                     {
                         if (!isNamespaceLoaded("ScIGMA")) {
@@ -686,7 +670,6 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                                 region_names = vec_region_names,
                                 region_chromosomes = vec_region_chrom,
                                 chains = as.integer(compass_n_chains),
-                                # chain_length       = 500L,
                                 chain_length = compass_length_chains,
                                 patient_sex = patient_sex,
                                 use_cna = use_cna
@@ -980,7 +963,7 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
                 )$compass$tree_dot
                 req(tree_content)
 
-                # Conversion native du DOT vers un format Vectoriel pur
+                # Native conversion of DOT to a pure Vector format
                 svg_code <- DiagrammeRsvg::export_svg(DiagrammeR::grViz(
                     tree_content
                 ))
@@ -990,9 +973,3 @@ mod_analysis_DNA_server <- function(id, ScIGMA_data) {
         )
     })
 }
-
-## To be copied in the UI
-# mod_analysis_DNA_ui("analysis_right_DNA_1")
-
-## To be copied in the server
-# mod_analysis_DNA_server("analysis_right_DNA_1", ScIGMA_data)

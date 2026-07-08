@@ -1,5 +1,4 @@
-# NEW
-# File: scripts/prepare_compass_inputs.R
+
 
 #'
 #' @param variants_file Path to the [sample]_variants.csv file
@@ -18,7 +17,7 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
     var_df <- data.table::fread(variants_file, data.table = FALSE)
     reg_df <- data.table::fread(regions_file, header = FALSE, data.table = FALSE)
 
-    # ---- 1. Variants matrix extraction ----
+    # 1. Variants matrix extraction
     message("Parsing REF:ALT:GT multiplexed strings...")
     cell_cols <- 8:ncol(var_df)
     var_mat_raw <- as.matrix(var_df[, cell_cols])
@@ -50,14 +49,14 @@ prepare_compass_from_csv <- function(variants_file, regions_file) {
     storage.mode(mat_alt) <- "integer"
     storage.mode(mat_gt) <- "integer"
 
-    # ---- 2. Region matrix extraction ----
+    # 2. Region matrix extraction
     message("Parsing CNA region read counts...")
     cna_mat <- as.matrix(reg_df[, -1, drop = FALSE])
     rownames(cna_mat) <- reg_df[[1]]
     colnames(cna_mat) <- colnames(var_mat_raw) # Strict cell alignment
     storage.mode(cna_mat) <- "integer"
 
-    # ---- 3. Topological Mapping (Base-0) ----
+    # 3. Topological Mapping (Base-0)
     message("Computing Locus to Region mapping...")
     # MissionBio CSV prepends chroms (e.g. "5_NPM1"). We extract the true gene name.
     cna_pure_names <- sub("^[^_]+_", "", rownames(cna_mat))
@@ -92,7 +91,7 @@ get_imputed_genotypes <- function(prefix_out) {
         stop(sprintf("Files not found for prefix: %s. Did the inference converge?", prefix_out))
     }
 
-    # 2. Chargement en RAM
+    # Load into RAM
     nodes_gt <- read.delim(nodes_gt_file, stringsAsFactors = FALSE)
     cell_assign <- read.delim(cell_assign_file, stringsAsFactors = FALSE)
 

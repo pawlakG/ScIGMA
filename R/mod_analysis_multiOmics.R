@@ -16,8 +16,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
-        # [ NODE_ACCESS : "Prism-like" Plotly Specification]
-        # ----------------------------------------------------- _
         prism_axis_style <- list(
             titlefont = list(size = 16, color = "black", family = "Arial"),
             tickfont = list(size = 14, color = "black", family = "Arial"),
@@ -33,8 +31,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             zeroline = FALSE
         )
 
-        # [ NODE_ACCESS : UI GENERATION ]
-        # ----------------------------------------------------- _
         output$multiomics_main_ui <- shiny::renderUI({
             watch("umap_computed")
             watch("dnaVariant_selected")
@@ -43,7 +39,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             watch("clusters_computed")
             watch("gating_updated")
 
-            # A. Les clones ADN existent-ils ?
+            # A. Do DNA clones exist?
             has_dna <- !is.null(ScIGMA_data$dna.clones_pre_compass) || !is.null(ScIGMA_data$dna.clones)
 
             has_umap <- !is.null(ScIGMA_data$seurat_object) && !is.null(ScIGMA_data$seurat_object@reductions$umap)
@@ -213,7 +209,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                             accordion(
                                 id = ns("UMAPclusters_DNA_acc"),
                                 open = FALSE,
-                                # --- SOUS-PANEL 1 : CLONES ---
+                                # --- SUB-PANEL 1 : CLONES ---
                                 bslib::accordion_panel(
                                     title = "DNA clones",
                                     bslib::card(
@@ -222,7 +218,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                                         plotly::plotlyOutput(ns("plot_clust_clones"), height = "500px")
                                     )
                                 ),
-                                # --- SOUS-PANEL 2 : VARIANTS ---
+                                # --- SUB-PANEL 2 : VARIANTS ---
                                 bslib::accordion_panel(
                                     title = "DNA Variants",
                                     bslib::card(
@@ -321,10 +317,8 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             }
         })
 
-        # [ NODE_ACCESS : COMPUTATIONS ]
-        # ----------------------------------------------------- _
-        # >> Protein UMAP x SNV _
-        # [!] Clones
+        # Protein UMAP x SNV
+        # Clones
         output$ptnUMAP_DNA_acc_dnaClones_plot <- plotly::renderPlotly({
             watch("umap_computed")
             watch("dna_clones_renamed")
@@ -358,7 +352,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 x = ~umap_1, y = ~umap_2,
                 type = "scattergl", mode = "markers",
                 color = ~dna_clones,
-                colors = ScIGMA_data$dna_clone_colors, # Utilisation de la palette R6
+                colors = ScIGMA_data$dna_clone_colors, # R6 palette utilization
                 marker = list(size = 5, opacity = 0.8),
                 text = ~ paste("<b>DNA clones</b>:", dna_clones),
                 hoverinfo = "text"
@@ -373,7 +367,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             w$hide()
             return(p)
         })
-        # [!] Variants _
+        # Variants
         observeEvent(
             {
                 watch("dataLoaded")
@@ -419,7 +413,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             )
             plot_df <- merge(umap_df, geno_df, by = "Barcode", all.x = TRUE)
 
-            # 5. Nomenclature clinique
+            # 5. Clinical nomenclature
             geno_map <- c(
                 "0" = "WT",
                 "1" = "HET",
@@ -444,22 +438,17 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 "Unknown" = "#000000" # Noir (Anomalie)
             )
 
-            # print("plot_df")
-            # print(head(plot_df))
-            # print(str(plot_df))
-            # print(table(plot_df$Variant_Genotype))
-
-            # 7. Rendu Plotly (Hardware Accelerated via scattergl)
+            # 7. Plotly Rendering (Hardware Accelerated via scattergl)
             p <- plotly::plot_ly(
                 data = plot_df,
                 x = ~umap_1,
                 y = ~umap_2,
-                type = "scattergl", # CRITIQUE : Performance Single-Cell
+                type = "scattergl", # CRITICAL: Single-Cell Performance
                 mode = "markers",
                 color = ~Variant_Genotype,
                 colors = variant_colors,
                 marker = list(size = 5, opacity = 0.8),
-                # Tooltip interactif propre
+                # Clean interactive tooltip
                 text = ~ paste("<b>Genotype</b>:", Variant_Genotype),
                 hoverinfo = "text"
             ) |>
@@ -480,7 +469,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             return(p)
         })
 
-        # >> Bi-plot Gates x SNV Distribution _
+        # Bi-plot Gates x SNV Distribution
         output$biplot_dna_distribution_plot <- plotly::renderPlotly({
             watch("dna_clones_renamed")
             watch("compass_completed")
@@ -633,10 +622,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
                 plotly::config(displaylogo = FALSE)
         })
 
-        # ---------------------------------------------------------
-        # [ NODE_ACCESS : UMAP Clusters x SNV ]
-        # ---------------------------------------------------------
-        # 1. Rendu du Barplot : Clusters x Clones
+        # 1. Barplot Rendering: Clusters x Clones
         output$plot_clust_clones <- plotly::renderPlotly({
             watch("dna_clones_renamed")
             watch("compass_completed")
@@ -660,7 +646,6 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
             cell_barcodes <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized") |>
                 colnames()
 
-            # >> Setup dataframe _
             dna_clones_clusters_df <- data.frame(
                 "Barcode" = cell_barcodes,
                 "Clone" = dna_clones_to_use[cell_barcodes],
@@ -710,7 +695,7 @@ mod_analysis_multiomics_server <- function(id, ScIGMA_data) {
         })
 
 
-        # 2. Rendu du Barplot : Clusters x Variants (Mutations)
+        # 2. Barplot Rendering: Clusters x Variants (Mutations)
         output$plot_clust_variants <- plotly::renderPlotly({
             watch("dna_clones_renamed")
             watch("compass_completed")

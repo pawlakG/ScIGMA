@@ -15,7 +15,7 @@ mod_help_panel_ui <- function(id) {
             id = ns("help_tabs"),
             # title = shiny::tagList(shiny::icon("life-ring"), "ScIGMA Tutorial & Guidelines"),
 
-            # --- TAB 1: PREPROCESSING ---
+            # TAB 1: PREPROCESSING
             bslib::nav_panel(
                 title = "1. Input & Preprocessing",
                 icon = shiny::icon("file-import"),
@@ -130,7 +130,7 @@ mod_help_panel_ui <- function(id) {
                 )
             ),
 
-            # --- TAB 2: DNA & COMPASS ---
+            # TAB 2: DNA & COMPASS
             bslib::nav_panel(
                 title = "2. DNA Selection & COMPASS",
                 icon = shiny::icon("dna"),
@@ -176,7 +176,7 @@ mod_help_panel_ui <- function(id) {
                 )
             ),
 
-            # --- TAB 3: CNV ---
+            # TAB 3: CNV
             bslib::nav_panel(
                 title = "3. CNV Analysis",
                 icon = shiny::icon("chart-line"),
@@ -219,7 +219,7 @@ mod_help_panel_ui <- function(id) {
                 )
             ),
 
-            # --- TAB 4: PROTEINS ---
+            # TAB 4: PROTEINS
             bslib::nav_panel(
                 title = "4. scADT-seq analysis",
                 icon = shiny::icon("id-card"),
@@ -304,7 +304,7 @@ mod_help_panel_ui <- function(id) {
                 )
             ),
 
-            # --- TAB 5: MULTI-OMICS ---
+            # TAB 5: MULTI-OMICS
             bslib::nav_panel(
                 title = "5. Multi-omics Integration",
                 icon = shiny::icon("network-wired"),
@@ -367,7 +367,7 @@ mod_help_panel_ui <- function(id) {
                 )
             ),
 
-            # --- TAB 6: DATA EXPORT ---
+            # TAB 6: DATA EXPORT
             bslib::nav_panel(
                 title = "6. Data Export",
                 icon = shiny::icon("download"),

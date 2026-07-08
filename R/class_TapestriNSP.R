@@ -71,7 +71,7 @@ COLORS <- c(
 )
 
 # =========================================================================
-# CLASSE : ExpressionProfile
+# CLASS : ExpressionProfile
 # =========================================================================
 #' @export
 ExpressionProfile <- R6Class(
@@ -94,7 +94,7 @@ ExpressionProfile <- R6Class(
       expr_max <- max(expression)
       expr_norm <- if (expr_max == 0) expression else expression / expr_max
 
-      # Strict équivalent de KDEUnivariate(cut=1)
+      # Strict equivalent of KDEUnivariate(cut=1)
       kde <- stats::density(
         expr_norm,
         bw = self$bandwidth,
@@ -224,7 +224,7 @@ ExpressionProfile <- R6Class(
 )
 
 # =========================================================================
-# CLASSE : NSP (Noise corrected and Scaled Protein counts)
+# CLASS : NSP (Noise corrected and Scaled Protein counts)
 # =========================================================================
 #' @export
 NSP <- R6Class(
@@ -303,7 +303,7 @@ NSP <- R6Class(
       signal <- gmm_res$signal
       background <- gmm_res$background
 
-      # Remplacement de np.polyfit par lm (modèle linéaire simple) avec data.frame pour éviter les problèmes d'environnement
+      # Replacing np.polyfit with lm (simple linear model) with data.frame to avoid environment issues
       df_sig <- data.frame(signal = signal, tr = total_reads[subset])
       fit_sig <- lm(signal ~ tr, data = df_sig)
 
@@ -317,7 +317,7 @@ NSP <- R6Class(
       true_signal <- f_sig(total_reads) - f_back(total_reads)
       ab_factor <- colSums(pos_reads > 0) / nrow(pos_reads)
 
-      # Broadcasting numpy -> Outer product en R
+      # numpy Broadcasting -> Outer product in R
       normal_counts <- normal_counts - outer(cell_factor, ab_factor, "*")
       normal_counts <- sweep(normal_counts, 1, pmax(true_signal, 1), `/`)
 
@@ -374,7 +374,7 @@ NSP <- R6Class(
             set.seed(self$random_state + i)
           }
           suppressWarnings({
-            # On force l'initialisation K-means (comme scikit-learn)
+            # We force K-means initialization (like scikit-learn)
             km <- kmeans(x, centers = 2)
             mc <- Mclust(
               x,
@@ -418,7 +418,7 @@ NSP <- R6Class(
 
       for (b in bin_ids) {
         low_bin <- bins[b]
-        high_bin <- bins[b + 1] # Indexation R décalée (bins[1]=0, bins[2]=1)
+        high_bin <- bins[b + 1] # Shifted R indexing (bins[1]=0, bins[2]=1)
         p_in_bin <- lapply(peaks, function(p) p[p >= low_bin & p < high_bin])
         n_peaks <- sapply(p_in_bin, length)
 
@@ -462,12 +462,12 @@ NSP <- R6Class(
 
       n_abs <- sapply(abs[valid], length)
       best_idx <- valid[n_abs == max(n_abs)]
-      best_idx <- best_idx[length(best_idx)] # Prend le plus grand (last)
+      best_idx <- best_idx[length(best_idx)] # Takes the largest (last)
       list(scale = scales[best_idx], ab = abs[[best_idx]])
     },
 
     get_bin_ids_with_most_peaks = function(bins, peaks) {
-      # findInterval est l'équivalent strict et vectorisé de np.digitize
+      # findInterval is the strict and vectorized equivalent of np.digitize
       ids <- unlist(lapply(peaks, function(p) unique(findInterval(p, bins))))
       if (length(ids) == 0) {
         return(integer())
@@ -492,14 +492,14 @@ NSP <- R6Class(
 #'
 #' Wrapper function to normalize Tapestri protein read counts.
 #'
-#' @param reads Une matrice numérique de reads bruts (lignes = cellules, colonnes = anticorps).
-#' @param method Chaîne de caractères: "CLR", "asinh", "NSP" ou "ANSP".
-#' @param jitter Écart-type du bruit gaussien à ajouter (défaut = 0.5). Utile pour "NSP" et "asinh".
-#' @param scale Facteur de mise à l'échelle (pour "NSP" / "ANSP").
-#' @param sample_size Nombre de cellules à utiliser pour estimer les paramètres du modèle ("ANSP").
-#' @param random_state Entier pour fixer la graine aléatoire (reproductibilité).
+#' @param reads A numeric matrix of raw reads (rows = cells, columns = antibodies).
+#' @param method Character string: "CLR", "asinh", "NSP" or "ANSP".
+#' @param jitter Standard deviation of the Gaussian noise to add (default = 0.5). Useful for "NSP" and "asinh".
+#' @param scale Scaling factor (for "NSP" / "ANSP").
+#' @param sample_size Number of cells to use to estimate model parameters ("ANSP").
+#' @param random_state Integer to set the random seed (reproducibility).
 #'
-#' @return Une liste contenant la matrice `normalized_counts` et l'objet `nsp_model` (le cas échéant).
+#' @return A list containing the `normalized_counts` matrix and the `nsp_model` object (if applicable).
 #' @export
 normalize_reads <- function(
   reads,
@@ -524,14 +524,14 @@ normalize_reads <- function(
   } else if (method == "CLR") {
     # log(x + 1)
     normal_counts <- log1p(reads)
-    # Soustraire la moyenne de chaque ligne (Traduction du broadcasting Numpy: normal_counts.mean(axis=1)[:, None])
+    # Subtract the mean of each row (Translation of Numpy broadcasting: normal_counts.mean(axis=1)[:, None])
     normal_counts <- sweep(normal_counts, 1, rowMeans(normal_counts), "-")
     return(list(normalized_counts = normal_counts, nsp_model = NULL))
   } else if (method == "asinh") {
     if (!is.null(random_state)) {
       set.seed(random_state)
     }
-    # Création du bruit gaussien
+    # Gaussian noise creation
     noise <- matrix(
       rnorm(length(reads), mean = 0, sd = jitter),
       nrow = nrow(reads),

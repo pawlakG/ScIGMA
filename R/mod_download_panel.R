@@ -23,9 +23,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
-        # ---------------------------------------------------------------------
         # 1. MAIN UI RENDERER (Empty State Logic)
-        # ---------------------------------------------------------------------
         output$download_main_ui <- shiny::renderUI({
             watch("dataLoaded")
             watch("dnaVariant_filtered")
@@ -57,7 +55,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             if (!is.null(ScIGMA_data$cnv_dp_filtered)) {
                 choices_list <- c(choices_list, "Amplicons (CNV)" = "cnv")
             }
-            # -----------------------------------------------
+
 
             shiny::tagList(
                 bslib::card(
@@ -87,7 +85,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                                     ),
                                     shiny::br(),
 
-                                    # 2. Options Clonales
+                                    # 2. Clonal Options
                                     shiny::h5("Clonal Metadata Architecture:"),
                                     shiny::uiOutput(ns("export_clones_options_ui")),
                                     shiny::br()
@@ -157,9 +155,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             )
         })
 
-        # ---------------------------------------------------------------------
         # 2. DYNAMIC UI SUB-CONTROLS
-        # ---------------------------------------------------------------------
 
         output$export_clones_options_ui <- shiny::renderUI({
             watch("dataLoaded")
@@ -202,27 +198,20 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             }
         })
 
-        # ---------------------------------------------------------------------
         # 3. METADATA AGGREGATOR HELPER
-        # ---------------------------------------------------------------------
         compile_global_metadata <- function() {
             req(ScIGMA_data$mae)
 
             cells <- colnames(ScIGMA_data$mae)[["dna_variants"]]
-            # print("cells")
-            # print(head(cells))
+
 
             meta_df <- data.frame(Cell_Barcode = cells, stringsAsFactors = FALSE)
 
-            # 2. Clones ADN
+            # 2. DNA Clones
             if (isTRUE(input$export_use_compass_clones) && !is.null(ScIGMA_data$dna.clones)) {
-                # print("compile_global_metadata test 0")
                 meta_df$DNA_Clone <- as.character(ScIGMA_data$dna.clones[cells])
-                # print("compile_global_metadata test 1")
             } else if (!is.null(ScIGMA_data$dna.clones_pre_compass)) {
-                # print("compile_global_metadata test 2")
                 meta_df$DNA_Clone <- as.character(ScIGMA_data$dna.clones_pre_compass[cells])
-                # print("compile_global_metadata test 3")
             } else {
                 meta_df$DNA_Clone <- "Unassigned"
             }
@@ -239,7 +228,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
                 meta_df$Protein_UMAP_Cluster <- "Unassigned"
             }
 
-            # 4. Gating Manuel (scADT-seq Gating)
+            # 4. Manual Gating (scADT-seq Gating)
             meta_df$scADT_seq_Gate <- "Background"
             if (!is.null(ScIGMA_data$protein_gating_tree) && length(ScIGMA_data$protein_gating_tree$gates_list) > 0) {
                 gates <- ScIGMA_data$protein_gating_tree$gates_list
@@ -270,9 +259,7 @@ mod_download_panel_server <- function(id, ScIGMA_data) {
             return(meta_df)
         }
 
-        # ---------------------------------------------------------------------
         # 4. DOWNLOAD HANDLERS
-        # ---------------------------------------------------------------------
 
         # --- A. Export SEURAT (.rds) ---
         output$btn_download_seurat <- shiny::downloadHandler(

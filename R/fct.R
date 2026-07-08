@@ -107,7 +107,7 @@ protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5
 
     seurat_obj <- Seurat::SetAssayData(seurat_obj, layer = "data", new.data = norm_mat)
 
-    # 5. Pipeline Dimensionnel
+    # 5. Dimensional Pipeline
     seurat_obj <- Seurat::FindVariableFeatures(
         seurat_obj,
         selection.method = "vst",
@@ -115,8 +115,8 @@ protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5
     )
 
     if (normalization_method == "dsb") {
-        # Les valeurs DSB sont déjà centrées et mises à l'échelle par rapport au bruit ambiant.
-        # Appliquer 'do.scale = TRUE' génère des NaNs sur les protéines à variance nulle et détruit le sens de la normalisation.
+        # DSB values are already centered and scaled relative to background noise.
+        # Applying 'do.scale = TRUE' generates NaNs on zero-variance proteins and destroys the meaning of the normalization.
         seurat_obj <- Seurat::ScaleData(seurat_obj, features = rownames(seurat_obj), do.scale = FALSE, do.center = FALSE)
     } else {
         seurat_obj <- Seurat::ScaleData(seurat_obj, features = rownames(seurat_obj))

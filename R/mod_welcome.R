@@ -13,7 +13,7 @@ mod_welcome_ui <- function(id) {
         card(
             full_screen = TRUE,
             card_header(HTML("Welcome to ScIGMA: Single-cell Integrated Genomic & Multi-omics Analyzer")),
-            # NEW: Insert graphical abstract with responsive constraints
+            # Insert graphical abstract with responsive constraints
             card_body(
                 div(
                     style = "padding: 4% 8% 0% 8%; width: 100%;",

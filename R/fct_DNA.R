@@ -199,7 +199,7 @@ filter_variant_ScIGMA_mae <- function(
         BiocParallel::MulticoreParam(workers = parallel::detectCores() - 1)
     }
 
-    # ---- 1. Extraction (Variants x Cellules) ----
+    # ---- 1. Extraction (Variants x Cells) ----
     vaf_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
     gt_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "gt")
     dp_mtx <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
@@ -593,7 +593,7 @@ generate_dna_variant_heatmap <- function(
         stop("Fatal: No overlap between gt matrix and mask.")
     }
 
-    # 5. Application du NGT_MASK
+    # 5. Application of NGT_MASK
     gt_filtered <- gt[common_rows, common_cols, drop = FALSE]
 
     # Set value 3 for filtered genotypes
@@ -626,7 +626,7 @@ generate_dna_variant_heatmap <- function(
         nm = results_clustering$cell_metadata$cell_barcode
     )
 
-    ### Reassign too small samples clusters
+    ### Reassign too small sample clusters
     res_table_clusters <- table(clustered_samples)
     too_small_clusters <- names(res_table_clusters)[
         res_table_clusters / nrow(gt) < min_prop_cluster
@@ -772,7 +772,6 @@ generate_dna_variant_heatmap <- function(
     ))
 }
 
-# NEW
 
 #'
 #' @description
@@ -794,7 +793,7 @@ generate_dna_variant_heatmap <- function(
 build_compass_matrices <- function(obj, selected_variants) {
     message("Building COMPASS topological and count matrices...")
 
-    # Extraction depuis le MAE (Variants x Cellules)
+    # Extraction from MAE (Variants x Cells)
     dp_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "dp")
     vaf_full <- SummarizedExperiment::assay(obj$mae[["dna_variants"]], "vaf")
 
@@ -839,7 +838,7 @@ build_compass_matrices <- function(obj, selected_variants) {
         group_column_name = compass_region # <-- CHANGED
     )
 
-    # ---- 3. Mapping Topologique (locus_regions) ----
+    # ---- 3. Topological Mapping (locus_regions) ----
     dna_id_table <- as.data.frame(SummarizedExperiment::rowData(obj$mae[[
         "dna_variants"
     ]]))
@@ -896,8 +895,7 @@ build_compass_matrices <- function(obj, selected_variants) {
     ))
 }
 
-# NEW
-# File: R/fct_compass_wrapper.R
+
 
 #' Run COMPASS MCMC phylogeny inference
 #'

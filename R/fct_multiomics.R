@@ -5,8 +5,6 @@
 #' @return data.frame with Barcode and Variant_Genotype columns
 extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     if (use_compass) {
-        # imputed_mtx_tmp <- S4Vectors::metadata(mae_data)
-        # imputed_mtx <- imputed_mtx_tmp$compass$imputed_gt
         imputed_mtx <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "compass_imputed")
 
         if (!is.null(imputed_mtx) && all(variant_id %in% rownames(imputed_mtx))) {
@@ -15,7 +13,7 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
             variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
         }
     } else {
-        # Extraction standard (Raw) depuis le SummarizedExperiment DNA
+        # Standard extraction (Raw) from the DNA SummarizedExperiment
         variant_vector <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")[variant_id, ]
     }
 
@@ -23,9 +21,6 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
         as.data.frame() |>
         rownames_to_column("cell_barcode")
     message("inside extract_variant before mutate variant_vector")
-    # print(head(extracted_df))
-    # print(str(extracted_df))
-    # print(table(extracted_df$variant_vector))
     message("\n")
 
     extracted_df <- extracted_df %>% dplyr::mutate(variant_vector = dplyr::recode(variant_vector,
@@ -37,9 +32,6 @@ extract_variant_genotypes <- function(mae_data, variant_id, use_compass) {
     colnames(extracted_df)[colnames(extracted_df) == "variant_vector"] <- "Variant_Genotype"
     colnames(extracted_df)[colnames(extracted_df) == "cell_barcode"] <- "Barcode"
     message("inside extract_variant after mutate variant_vector")
-    # print(head(extracted_df))
-    # print(str(extracted_df))
-    # print(table(extracted_df$Variant_Genotype))
     message("\n")
 
     return(extracted_df)
@@ -62,7 +54,7 @@ compute_population_genotype_distribution <- function(mae_data,
         mtx_source <- SummarizedExperiment::assay(mae_data[["dna_variants"]], "gt")
     }
 
-    # 2. Filtrage et Extraction (Garder uniquement les cellules de la gate)
+    # 2. Filtering and Extraction (Keep only gate cells)
     common_cells <- intersect(cell_barcodes, colnames(mtx_source))
     if (length(common_cells) == 0) {
         return(data.frame())

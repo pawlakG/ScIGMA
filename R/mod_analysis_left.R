@@ -49,12 +49,9 @@ mod_analysis_left_ui <- function(id) {
 mod_analysis_left_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
-        # --------------------------------------------------------------- #
         # Init watcher
         init("preprocessFile")
-        # print("ScIGMA_data_begin_left")
-        # print(ScIGMA_data)
-        # --------------------------------------------------------------- #
+
         # Uploaded file
         message(whereami::whereami())
 
@@ -102,9 +99,3 @@ mod_analysis_left_server <- function(id, ScIGMA_data) {
         })
     })
 }
-
-## To be copied in the UI
-# mod_analysis_left_ui("analysis_left_1")
-
-## To be copied in the server
-# mod_analysis_left_server("analysis_left_1", ScIGMA_data)

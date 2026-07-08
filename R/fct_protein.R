@@ -47,16 +47,16 @@ normalize_protein_nsp <- function(obj) {
     counts <- SummarizedExperiment::assay(obj$mae[["proteins"]], "counts")
     counts_ram <- as.matrix(counts)
     
-    # Transpose pour que les cellules soient en ligne pour NSP$transform
+    # Transpose so that cells are in rows for NSP$transform
     counts_ram_t <- t(counts_ram)
     
     nsp <- NSP$new()
     norm_prot_t <- nsp$transform(counts_ram_t)
     
-    # On retranspose pour avoir les protéines en ligne
+    # We retranspose to have proteins in rows
     norm_prot <- t(norm_prot_t)
     
-    # Restauration des noms
+    # Name restoration
     rownames(norm_prot) <- rownames(counts_ram)
     colnames(norm_prot) <- colnames(counts_ram)
     
@@ -94,7 +94,7 @@ normalize_protein_asinh <- function(obj, cofactor = 5) {
 #' Render ridge plot with ggplot2 and plotly
 #' @noRd
 render_protein_ridge_plot <- function(obj) {
-    # On extrait l'assay CLR s'il existe, sinon on fallback sur counts
+    # We extract the CLR assay if it exists, otherwise fallback to counts
     # assay_to_use <- ifelse("clr" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]), "clr", "counts")
     assay_to_use <- ifelse("normalized" %in% SummarizedExperiment::assayNames(obj$mae[["proteins"]]),
         "normalized", "counts"
@@ -171,9 +171,9 @@ normalize_protein_dsb <- function(obj, min_bg_counts = 10, max_bg_counts = 500) 
     empty_mtx_ram <- as.matrix(empty_mtx_delayed[, valid_empty_barcodes, drop = FALSE])
     cells_mtx_ram <- as.matrix(cells_mtx)
     
-    # Sécurité absolue : on force l'alignement des noms de lignes.
-    # Les deux matrices partagent le même layout (même panel), mais l'objet MAE principal
-    # a pu subir un nettoyage typographique (ex: sanitize_protein_markers) que les gouttes vides n'ont pas eu.
+    # Absolute security: we force alignment of row names.
+    # Both matrices share the same layout (same panel), but the main MAE object
+    # may have undergone typographical cleaning (e.g. sanitize_protein_markers) that the empty drops did not.
     rownames(empty_mtx_ram) <- rownames(cells_mtx_ram)
     
     norm_prot <- dsb::DSBNormalizeProtein(
@@ -473,10 +473,10 @@ run_protein_clustering <- function(obj, resolution = 0.8, seed = 42) {
 #' Generate Protein Abundance Ridge Plot
 #'
 #' @description
-#' Fonction API permettant de générer le ridge plot des protéines hors du contexte Shiny.
+#' API function to generate the protein ridge plot outside the Shiny context.
 #'
-#' @param obj Un objet ScIGMA_data.
-#' @return Un objet Plotly interactif.
+#' @param obj A ScIGMA_data object.
+#' @return An interactive Plotly object.
 #' @export
 generate_protein_ridgeplot <- function(obj) {
     render_protein_ridge_plot(obj)
@@ -485,11 +485,11 @@ generate_protein_ridgeplot <- function(obj) {
 #' Generate Protein Barplot
 #'
 #' @description
-#' Fonction API permettant de générer le barplot de distribution des protéines hors du contexte Shiny.
+#' API function to generate the protein distribution barplot outside the Shiny context.
 #'
-#' @param obj Un objet ScIGMA_data.
-#' @param title Le titre du graphique.
-#' @return Un objet Plotly interactif.
+#' @param obj A ScIGMA_data object.
+#' @param title The plot title.
+#' @return An interactive Plotly object.
 #' @export
 generate_protein_barplot <- function(obj, title = "Protein Percentage Distribution") {
     plot_protein_barplot(obj, title = title)
@@ -498,18 +498,18 @@ generate_protein_barplot <- function(obj, title = "Protein Percentage Distributi
 #' Generate Protein Biplot (e.g. CD19 vs CD33)
 #'
 #' @description
-#' Fonction API permettant de générer un biplot (scatter plot) interactif entre 
-#' deux marqueurs protéiques hors du contexte Shiny, avec possibilité de colorer 
-#' par un génotype/clone spécifique.
+#' API function to generate an interactive biplot (scatter plot) between 
+#' two protein markers outside the Shiny context, with the possibility to color 
+#' by a specific genotype/clone.
 #'
-#' @param obj Un objet ScIGMA_data.
-#' @param xvar Le nom du marqueur pour l'axe X (ex: "CD19").
-#' @param yvar Le nom du marqueur pour l'axe Y (ex: "CD33").
-#' @param logx Booléen. Appliquer log1p sur l'axe X. Défaut FALSE.
-#' @param logy Booléen. Appliquer log1p sur l'axe Y. Défaut FALSE.
-#' @param color_genotype Vecteur de caractères indiquant les clones à colorer (ex: "1", "2"). Si NULL ou "None", coloration uniforme.
-#' @param title Le titre du graphique.
-#' @return Un objet Plotly interactif.
+#' @param obj A ScIGMA_data object.
+#' @param xvar The marker name for the X axis (e.g., "CD19").
+#' @param yvar The marker name for the Y axis (e.g., "CD33").
+#' @param logx Boolean. Apply log1p on the X axis. Default FALSE.
+#' @param logy Boolean. Apply log1p on the Y axis. Default FALSE.
+#' @param color_genotype Character vector indicating the clones to color (e.g., "1", "2"). If NULL or "None", uniform coloring.
+#' @param title The plot title.
+#' @return An interactive Plotly object.
 #' @export
 generate_protein_biplot <- function(
     obj, 
@@ -524,7 +524,7 @@ generate_protein_biplot <- function(
         stop("La matrice 'proteins' est manquante dans l'objet MAE.")
     }
 
-    # Style Prism copié du module Shiny
+    # Prism style copied from the Shiny module
     prism_axis_style <- list(
         titlefont = list(size = 16, color = "black", family = "Arial"),
         tickfont = list(size = 14, color = "black", family = "Arial"),
@@ -567,17 +567,17 @@ generate_protein_biplot <- function(
     if (!is.null(color_genotype) && !identical(color_genotype, "None")) {
         if (is.null(obj$dna.clones)) stop("Assignation clonale manquante (obj$dna.clones).")
 
-        # Extraction des clones associés aux cellules
+        # Extraction of clones associated with cells
         plot_df$Genotype <- as.character(obj$dna.clones[rownames(plot_df)])
 
-        # Regroupement des non-cibles
+        # Grouping of non-targets
         plot_df$Genotype <- ifelse(
             plot_df$Genotype %in% color_genotype,
             plot_df$Genotype,
             "Other"
         )
 
-        # Verrouillage Z-Indexing ("Other" au fond)
+        # Locking Z-Indexing ("Other" at the bottom)
         plot_df$Genotype <- factor(
             plot_df$Genotype,
             levels = c("Other", color_genotype)
@@ -586,7 +586,7 @@ generate_protein_biplot <- function(
 
         color_formula <- ~Genotype
 
-        # Fusion des palettes
+        # Merging palettes
         if (!is.null(obj$dna_clone_colors)) {
             color_palette <- c(obj$dna_clone_colors, "Other" = "#e0e0e033")
         } else {

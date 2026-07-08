@@ -160,9 +160,3 @@ mod_about_panel_server <- function(id, ScIGMA_data) {
         ns <- session$ns
     })
 }
-
-## To be copied in the UI
-# mod_about_panel_ui("about_panel_1")
-
-## To be copied in the server
-# mod_about_panel_server("about_panel_1", ScIGMA_data)

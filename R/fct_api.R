@@ -8,7 +8,7 @@ fetch_clinical_vep_annotations <- function(
     custom_variant_vector,
     genome_build = "grch37"
 ) {
-    # DICTIONNAIRE TRANSLATION (3-lettres -> 1-lettre clinique)
+    # Dictionary translation (3-letter -> 1-letter clinical)
     aa_map <- c(
         "Ala" = "A",
         "Arg" = "R",
@@ -70,7 +70,7 @@ fetch_clinical_vep_annotations <- function(
         ))
     }
 
-    # 4. Flattening & Filtrage Initial
+    # 4. Flattening and initial filtering
     raw_data <- httr::content(response, "parsed", simplifyVector = TRUE)
 
     annotation_table <- raw_data %>%
@@ -82,8 +82,7 @@ fetch_clinical_vep_annotations <- function(
         ) %>%
         dplyr::filter(canonical == 1)
 
-    # ----------------------------------------------------------------------------
-    # ----------------------------------------------------------------------------
+
     expected_cols <- c("hgvsc", "hgvsp")
     for (col in expected_cols) {
         if (!col %in% names(annotation_table)) {
@@ -95,7 +94,7 @@ fetch_clinical_vep_annotations <- function(
         annotation_table$colocated_variants <- list(NULL)
     }
 
-    # 5. Data Engineering & Mapping 1-Lettre
+    # 5. Data engineering and 1-letter mapping
     annotation_table <- annotation_table %>%
         dplyr::mutate(
             consequence_terms = purrr::map_chr(
@@ -184,8 +183,7 @@ fetch_clinical_vep_annotations <- function(
             clinvar = CLINVAR
         )
 
-    # print("=== TABLE D'ANNOTATION ===")
-    # print(annotation_table)
+
 
     return(annotation_table)
 }

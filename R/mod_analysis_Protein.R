@@ -22,8 +22,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
     moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
-        # [ NODE_ACCESS : "Prism-like" Plotly Specification]
-        # ----------------------------------------------------- _
+        # Plotly "Prism-like" theme specification
         prism_axis_style <- list(
             titlefont = list(size = 16, color = "black", family = "Arial"),
             tickfont = list(size = 14, color = "black", family = "Arial"),
@@ -39,7 +38,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             zeroline = FALSE
         )
 
-        # ---------------------------------------------------------
+
         is_filtered_flag <- shiny::reactiveVal(FALSE)
 
         observeEvent(
@@ -118,7 +117,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     selected = curr_tab,
                     nav_panel(
                         title = "Preprocessing & exploration",
-                        value = "tab_description", # NEW : Identifiant interne du panneau
+                        value = "tab_description",
                         fluidRow(
                             column(
                                 3,
@@ -181,7 +180,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     ),
                     nav_panel(
                         title = "scADT-seq Gating",
-                        value = "tab_biplot", # NEW : Identifiant interne du panneau
+                        value = "tab_biplot",
                         fluidRow(
                             column(
                                 3,
@@ -215,7 +214,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     selectInput(
                                         ns("color_genotype"),
                                         "Color by Genotype",
-                                        # choices = c("None", ScIGMA_data$variants.filtered$label)),
+
                                         choices = c(
                                             "None",
                                             levels(ScIGMA_data$dna.clones)
@@ -236,12 +235,12 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                                     verbatimTextOutput(ns("selection_info"))
                                 )
                             ),
-                            # ---- 2. Visualisation (Bi-plot) ----
+                            # 2. Visualization (Bi-plot)
                             column(
                                 6,
                                 bslib::card(uiOutput(ns("biplot_container")))
                             ),
-                            # ---- 3. Arborescence (Tree) ----
+                            # 3. Tree navigation
                             column(
                                 3,
                                 bslib::card(
@@ -266,7 +265,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     ),
                     nav_panel(
                         title = "UMAP",
-                        value = "tab_umap", # NEW : Identifiant interne du panneau
+                        value = "tab_umap",
                         accordion(
                             id = ns("umap_accordion_main"),
                             accordion_panel(
@@ -487,7 +486,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             updateNumericInput(session, "n_neighbors", value = 15)
             updateNumericInput(session, "min_dist", value = 0.2)
         }, ignoreInit = TRUE)
-        # --- 1. Initialization & State (Bi-plot Logic) ---
+        # 1. Initialization & State (Bi-plot Logic)
 
         # State: Stores indices (pointers) only. Zero data duplication.
         r_state <- reactiveValues(
@@ -555,7 +554,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ignoreInit = FALSE
         )
 
-        # --- 2. Bi-plot Rendering (Optimized) ---
+        # 2. Bi-plot Rendering (Optimized)
 
         # Container output to ensure correct sizing
         output$biplot_container <- renderUI({
@@ -578,7 +577,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     c("Missing", "Missing/ADO", "small", "NA", "Unknown")
                 )
 
-                # 3. Tri propre
+                # 3. Clean sorting
                 current_clones <- sort(current_clones)
 
                 shiny::updateSelectInput(
@@ -642,8 +641,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     "Other"
                 )
 
-                # 3. Verrouillage factoriel (Z-Indexing)
-                # En mettant "Other" en premier, Plotly va dessiner le nuage gris au fond,
+                # 3. Factorial locking (Z-Indexing): By placing "Other" first, Plotly will draw the gray points in the background
                 plot_df$Genotype <- factor(
                     plot_df$Genotype,
                     levels = c("Other", input$color_genotype)
@@ -704,7 +702,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 plotly::event_register("plotly_selected")
         })
 
-        # --- 3. Selection & Gating Logic ---
+        # 3. Selection & Gating Logic
 
         # Listener
         observeEvent(
@@ -712,7 +710,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             {
                 sel <- suppressWarnings(event_data("plotly_selected", source = ns("gating_plot")))
 
-                # 1. Le Bouclier Absolu : Intercepte NULL, list(), et dataframes vides
+                # 1. Absolute shield: Intercept NULL, list(), and empty dataframes
                 if (
                     is.null(sel) ||
                         length(sel) == 0 ||
@@ -722,7 +720,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     return()
                 }
 
-                # 2. Cascade d'extraction
+                # 2. Extraction cascade
                 extracted_indices <- NULL
                 if ("customdata" %in% colnames(sel)) {
                     extracted_indices <- as.numeric(sel$customdata)
@@ -774,15 +772,13 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 safe_name <- paste0("Gate_", length(r_state$subsets))
             }
 
-            # name_val <- input$subset_name
-            # if (name_val == "") name_val <- paste("Gate", length(r_state$subsets))
+
 
             # Save Indices & Meta
             r_state$subsets[[new_id]] <- r_state$temp_selection
 
             parent_id <- r_state$current_view
             r_state$subset_meta[[new_id]] <- list(
-                # name = name_val,
                 name = safe_name,
                 parent = parent_id,
                 depth = r_state$subset_meta[[parent_id]]$depth + 1
@@ -794,7 +790,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             updateTextInput(session, "subset_name", value = "")
         })
 
-        # --- 4. Navigation Tree ---
+        # 4. Navigation Tree
 
         output$subsets_ui <- renderUI({
             req(length(r_state$subset_meta) > 0)
@@ -816,7 +812,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     }
                 )
 
-                # 1. Rendu du noeud parent
+                # 1. Render parent node
                 current_ui <- div(
                     actionLink(
                         ns(paste0("go_", node_id)),
@@ -857,7 +853,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             new_sids <- setdiff(sids, bound_listeners)
 
             lapply(new_sids, function(sid) {
-                # Suppression de once = TRUE. Le clic est permanent.
+                # Remove once = TRUE. Click is persistent.
                 observeEvent(
                     input[[paste0("go_", sid)]],
                     {
@@ -873,8 +869,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             }
         })
 
-        # --- 5. ORIGINAL PLOTS (UNCHANGED) ---
-        # These blocks are kept exactly as in the original file provided.
+
 
         # Render ridge plot for all proteins
         output$protein_ridge <- renderPlotly({
@@ -918,7 +913,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             trigger("gating_updated")
         })
 
-        # --- 5. UMAP Calculation ---
+        # 5. UMAP Calculation
 
         observeEvent(input$run_umap_btn, {
             gargoyle::trigger("launch_umap")
@@ -978,7 +973,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             )[umap_features, , drop = FALSE])
             umap_mat <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings
 
-            # Calcul du triptyque
+            # Compute metrics triplet
             metrics <- compute_umap_metrics(
                 high_dim_mat = true_ground_truth_mat,
                 low_dim_mat = umap_mat,
@@ -990,7 +985,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 continuity = round(metrics$continuity * 100, 1),
                 spearman = round(metrics$global_spearman, 3)
             )
-            # ----------------------------------------------------------------------
+
 
             w$hide()
             gargoyle::trigger("umap_computed")
@@ -998,7 +993,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         }) |>
             shiny::bindEvent(input$run_umap_btn)
 
-        # --- NEW : Rendu dynamique du panneau de score (Radar Plot) ---
+        # Render dynamic score panel (Radar Plot)
         output$umap_evaluation_panel <- renderUI({
             watch("umap_computed")
             req(ScIGMA_data$umaps$metrics)
@@ -1128,7 +1123,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     "<b>--- Top Expression ---</b><br>",
                     top_strings
                 )
-                # -------------------------------------------------------------
+
 
                 ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
                     ggplot(aes(x = umap_1, y = umap_2)) +
@@ -1137,7 +1132,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     ylab("UMAP 2") +
                     ggprism::theme_prism(base_size = 14, base_fontface = "bold")
 
-                # Version Interactive (Plotly)
+                # Interactive version (Plotly)
                 output$umap_plot_build <- renderPlotly({
                     p <- plot_ly(
                         data = umap_cluster,
@@ -1171,7 +1166,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         output$protein_bar <- renderPlotly({
             watch("dnaVariant_filtered")
             watch("protein_normalized")
-            # ScIGMA_data <- normalizeProtein(ScIGMA_data)
+
             plot_protein_barplot(obj = ScIGMA_data)
         })
 
@@ -1209,7 +1204,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     umap_cluster
                 )]
 
-                # 2. Rendering-
+                # 2. Rendering
                 output$umap_clustering_plot <- renderPlotly({
                     w <- Waiter$new(
                         id = ns("umap_clustering_plot"),
@@ -1263,8 +1258,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-        # [ NODE_ACCESS : Markers projection ]
-        # ----------------------------------------------------- _
+        # Markers projection
         observeEvent(
             watch("umap_computed"),
             {
@@ -1328,8 +1322,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-        # [ NODE_ACCESS : Biplot clones projection ]
-        # ----------------------------------------------------- _
+        # Biplot clones projection
         observeEvent(
             list(
                 watch("umap_computed"),
@@ -1419,14 +1412,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             meta_list <- ScIGMA_data$protein_gating_tree$meta_list
             all_cell_barcodes <- colnames(ScIGMA_data$mae[["proteins"]])
 
-            # Extraction UMAP
+            # Extract UMAP
             req("umap" %in% names(ScIGMA_data$seurat_object@reductions))
             umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                 as.data.frame()
             umap_df$barcode <- rownames(umap_df)
             umap_df$Clone <- "Background"
 
-            # 1. Tri par profondeur (Depth-First)
+            # 1. Sort by depth (Depth-First)
             depths <- vapply(
                 selected_ids,
                 function(id) meta_list[[id]]$depth,
@@ -1461,7 +1454,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             pal <- if (n_clones > 0) scales::hue_pal()(n_clones) else c()
             color_map <- setNames(c("#e0e0e0", pal), unique(clone_levels))
 
-            # 5. Rendu WebGL
+            # 5. WebGL rendering
             p <- plot_ly(
                 data = umap_df,
                 x = ~umap_1,
@@ -1499,15 +1492,14 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             })
         })
 
-        # [ NODE_ACCESS : PROTEIN MARKERS ]
-        # ----------------------------------------------------- _
+        # Protein markers
         observeEvent(
             input$protein_umap_markers_bttn,
             {
                 req(input$protein_umap_markers)
                 umap_marker_choice <- input$protein_umap_markers
 
-                # Extraction de la base UMAP
+                # Extract UMAP base
                 req("umap" %in% names(ScIGMA_data$seurat_object@reductions))
                 umap_df <- ScIGMA_data$seurat_object@reductions$umap@cell.embeddings |>
                     as.data.frame()
@@ -1567,8 +1559,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ignoreInit = TRUE
         )
 
-        # [ NODE_ACCESS : Download primary UMAP ]
-        # ----------------------------------------------------- _
+        # Download primary UMAP
         output$protein_umap_download_bttn <- downloadHandler(
             filename = function() {
                 "protein_umap.png"
@@ -1586,8 +1577,7 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             }
         )
 
-        # [ NODE_ACCESS : Download markers UMAPs ]
-        # ----------------------------------------------------- _
+        # Download markers UMAPs
         output$protein_umap_markers_download_bttn <- downloadHandler(
             filename = function() {
                 "protein_umap_markers.png"

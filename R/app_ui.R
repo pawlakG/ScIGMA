@@ -18,7 +18,7 @@ app_ui <- function(request) {
             selected = "welcome_tab",
             theme = bs_theme(
                 bootswatch = "lux",
-                font_scale = 1 # Augmente la taille globale de 10% (ajustez selon besoin)
+                font_scale = 1 # Increase overall size by 10% (adjust as needed)
             ),
             navbar_options = navbar_options(collapsible = TRUE),
             nav_panel(

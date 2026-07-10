@@ -22,7 +22,7 @@ backed by an HDF5 dataset) pointing to a specified dataset inside an HDF5 file.
 If the dataset does not exist, an explicit error is raised.
 }
 \examples{
-\donttest{
+\dontrun{
 # Access a dataset of variant allele frequencies
 vaf <- .h5_delayed("file.h5", "/assays/dna_variants/layers/AF")
 dim(vaf)

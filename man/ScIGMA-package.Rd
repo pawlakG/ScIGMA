@@ -4,7 +4,7 @@
 \name{ScIGMA-package}
 \alias{ScIGMA}
 \alias{ScIGMA-package}
-\title{ScIGMA: ScIGMA – Single-cell Integrated Genomic & Multi-omics Analyzer}
+\title{ScIGMA: ScIGMA – Single-Cell Integrated Genomic & Multi-Omics Analyzer}
 \description{
 Analyse targeted single-cell multi-omics data with an open-source, user-friendly R application that provides a code-free graphical user interface for the integrative analysis of paired single-cell DNA and surface protein datasets.
 }
@@ -18,6 +18,11 @@ Useful links:
 }
 \author{
 \strong{Maintainer}: Geoffrey Pawlak \email{pawlak.geoffrey@gmail.com} (\href{https://orcid.org/0000-0001-8882-1441}{ORCID}) [funder]
+
+Authors:
+\itemize{
+  \item Geoffrey Pawlak \email{pawlak.geoffrey@gmail.com} (\href{https://orcid.org/0000-0001-8882-1441}{ORCID}) [funder]
+}
 
 }
 \keyword{internal}

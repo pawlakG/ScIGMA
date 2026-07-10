@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     libxml2-dev \
     libssl-dev \
+    librsvg2-dev \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +23,7 @@ COPY ScIGMA_0.99.2.tar.gz ScIGMA_0.99.2.tar.gz
 # 4. Restauration bit-à-bit (avec patch dynamique pour Bioconductor Devel)
 
 RUN Rscript -e "install.packages(c('jsonlite', 'BiocManager', 'renv'), repos='https://cloud.r-project.org'); \
-    install.packages('targets'); \
+    install.packages(c('targets', 'DiagrammeRsvg', 'rsvg', 'htmlwidgets')); \
     lock <- jsonlite::read_json('renv.lock'); \
     bioc_pkgs <- names(Filter(function(x) identical(x[['Source']], 'Bioconductor'), lock[['Packages']])); \
     bioc_pkgs <- c(bioc_pkgs, 'Seqinfo'); \

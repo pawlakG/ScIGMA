@@ -41,8 +41,10 @@ Features (columns) are aligned beforehand via \code{\link{harmonize_cols}}
 }
 \examples{
 \donttest{
-obj <- loadH5_dir_HDF5("data/h5/", omic.type = "DNA+protein",
-                       feature_policy = "intersect")
+obj <- loadH5_dir_HDF5("data/h5/",
+    omic.type = "DNA+protein",
+    feature_policy = "intersect"
+)
 obj$print()
 }
 }

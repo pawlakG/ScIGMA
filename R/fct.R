@@ -28,6 +28,8 @@ sanitize_filename <- function(filename, replacement = "_") {
 }
 
 
+#' Update cluster labels
+#'
 #' @description
 #' Update cluster labels safely.
 #' @param new_labels A named vector where names are old levels and values are new labels.
@@ -44,7 +46,9 @@ update_cluster_labels <- function(new_labels) {
 
     valid_updates <- !is.na(indices)
     if (any(valid_updates)) {
-        levels(current_clusters)[indices[valid_updates]] <- new_labels[valid_updates]
+        levels(current_clusters)[indices[valid_updates]] <- new_labels[
+            valid_updates
+        ]
 
         self$dna.clones <- current_clusters
 
@@ -54,36 +58,69 @@ update_cluster_labels <- function(new_labels) {
 }
 
 
-protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5) {
+protein_run_pca <- function(
+    ScIGMA_data,
+    norm_method = "DSB",
+    asinh_cofactor = 5
+) {
     message("Running Protein PCA Pipeline...")
+    message(norm_method)
 
     if (norm_method == "DSB") {
         has_empty_drops <- !is.null(suppressWarnings(ScIGMA_data$get_empty_drops()))
         if (has_empty_drops) {
             message("Empty drops detected. Running DSB normalization...")
-            ScIGMA_data <- normalize_protein_dsb(ScIGMA_data, min_bg_counts = 10, max_bg_counts = 500)
-            norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
+            ScIGMA_data <- normalize_protein_dsb(
+                ScIGMA_data,
+                min_bg_counts = 10,
+                max_bg_counts = 500
+            )
+            norm_mat <- SummarizedExperiment::assay(
+                ScIGMA_data$mae[["proteins"]],
+                "normalized"
+            )
             normalization_method <- "dsb"
         } else {
-            message("No empty drops detected for DSB. Falling back to CLR normalization...")
+            message(
+                "No empty drops detected for DSB. Falling back to CLR normalization..."
+            )
             ScIGMA_data <- normalize_protein_clr(ScIGMA_data)
-            norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
+            norm_mat <- SummarizedExperiment::assay(
+                ScIGMA_data$mae[["proteins"]],
+                "normalized"
+            )
             normalization_method <- "clr"
         }
     } else if (norm_method == "NSP") {
         message("Running NSP normalization...")
         ScIGMA_data <- normalize_protein_nsp(ScIGMA_data)
-        norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
+        norm_mat <- SummarizedExperiment::assay(
+            ScIGMA_data$mae[["proteins"]],
+            "normalized"
+        )
         normalization_method <- "nsp"
     } else if (norm_method == "CLR") {
         message("Running CLR normalization...")
         ScIGMA_data <- normalize_protein_clr(ScIGMA_data)
-        norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
+        norm_mat <- SummarizedExperiment::assay(
+            ScIGMA_data$mae[["proteins"]],
+            "normalized"
+        )
         normalization_method <- "clr"
     } else if (norm_method == "asinh") {
-        message("Running asinh normalization with cofactor ", asinh_cofactor, "...")
-        ScIGMA_data <- normalize_protein_asinh(ScIGMA_data, cofactor = asinh_cofactor)
-        norm_mat <- SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "normalized")
+        message(
+            "Running asinh normalization with cofactor ",
+            asinh_cofactor,
+            "..."
+        )
+        ScIGMA_data <- normalize_protein_asinh(
+            ScIGMA_data,
+            cofactor = asinh_cofactor
+        )
+        norm_mat <- SummarizedExperiment::assay(
+            ScIGMA_data$mae[["proteins"]],
+            "normalized"
+        )
         normalization_method <- "asinh"
     } else {
         stop("Unknown normalization method selected.")
@@ -103,9 +140,16 @@ protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5
     seurat_cells <- gsub("_", "-", original_cells)
     cell_mapping <- setNames(original_cells, seurat_cells)
     current_seurat_cells <- colnames(seurat_obj)
-    seurat_obj <- Seurat::RenameCells(seurat_obj, new.names = unname(cell_mapping[current_seurat_cells]))
+    seurat_obj <- Seurat::RenameCells(
+        seurat_obj,
+        new.names = unname(cell_mapping[current_seurat_cells])
+    )
 
-    seurat_obj <- Seurat::SetAssayData(seurat_obj, layer = "data", new.data = norm_mat)
+    seurat_obj <- Seurat::SetAssayData(
+        seurat_obj,
+        layer = "data",
+        new.data = norm_mat
+    )
 
     # 5. Dimensional Pipeline
     seurat_obj <- Seurat::FindVariableFeatures(
@@ -117,9 +161,17 @@ protein_run_pca <- function(ScIGMA_data, norm_method = "DSB", asinh_cofactor = 5
     if (normalization_method == "dsb") {
         # DSB values are already centered and scaled relative to background noise.
         # Applying 'do.scale = TRUE' generates NaNs on zero-variance proteins and destroys the meaning of the normalization.
-        seurat_obj <- Seurat::ScaleData(seurat_obj, features = rownames(seurat_obj), do.scale = FALSE, do.center = FALSE)
+        seurat_obj <- Seurat::ScaleData(
+            seurat_obj,
+            features = rownames(seurat_obj),
+            do.scale = FALSE,
+            do.center = FALSE
+        )
     } else {
-        seurat_obj <- Seurat::ScaleData(seurat_obj, features = rownames(seurat_obj))
+        seurat_obj <- Seurat::ScaleData(
+            seurat_obj,
+            features = rownames(seurat_obj)
+        )
     }
 
     max_npcs <- min(nrow(seurat_obj) - 1, ncol(seurat_obj) - 1, 50)

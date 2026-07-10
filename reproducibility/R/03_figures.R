@@ -38,10 +38,8 @@ plot_fig_snv_phylogeny <- function(ScIGMA_obj) {
     tree_content <- S4Vectors::metadata(
         ScIGMA_obj$mae
     )$compass$tree_dot
-    pdf(fig_path)
-    DiagrammeR::grViz(tree_content)
-
-    dev.off()
+    svg_code <- DiagrammeRsvg::export_svg(DiagrammeR::grViz(tree_content))
+    rsvg::rsvg_pdf(charToRaw(svg_code), file = fig_path)
     return(fig_path)
 }
 
@@ -62,13 +60,13 @@ plot_fig_cnv_heatmap <- function(ScIGMA_obj) {
     )
 
     fig_path <- setup_fig_path("Fig3_CNV_Heatmap.pdf")
-    pdf(fig_path)
-    ScIGMA:::generate_cnv_heatmap_filtered(
+    p <- ScIGMA:::generate_cnv_heatmap_filtered(
         obj = ScIGMA_obj,
         features = features,
         projection_type = "Position"
     )
-
+    pdf(fig_path)
+    ComplexHeatmap::draw(p)
     dev.off()
     return(fig_path)
 }
@@ -76,16 +74,13 @@ plot_fig_cnv_heatmap <- function(ScIGMA_obj) {
 #' CNV - Lineplot projection
 plot_fig_cnv_lineplot <- function(ScIGMA_obj, params) {
     message("Generating CNV Lineplot...")
-    fig_path <- setup_fig_path("Fig4_CNV_Lineplot.pdf")
+    fig_path <- setup_fig_path("Fig4_CNV_Lineplot.html")
     p <- ScIGMA:::generate_cnv_lineplot_filtered(
         obj = ScIGMA_obj,
         projection_type = "Position",
         clone = params$cnv_clonal_inference$ref_clone
     )
-    pdf(fig_path)
-    print(p)
-
-    dev.off()
+    htmlwidgets::saveWidget(p, file = fig_path)
     return(fig_path)
 }
 
@@ -96,34 +91,28 @@ plot_fig_cnv_lineplot <- function(ScIGMA_obj, params) {
 #' Protein - Description: Ridgeplot
 plot_fig_protein_ridgeplot <- function(ScIGMA_obj) {
     message("Generating Protein Ridgeplot...")
-    fig_path <- setup_fig_path("Fig5_Protein_Ridgeplot.pdf")
+    fig_path <- setup_fig_path("Fig5_Protein_Ridgeplot.html")
     p_ridge <- ScIGMA:::generate_protein_ridgeplot(ScIGMA_obj)
-    pdf(fig_path)
-    print(p_ridge)
-
-    dev.off()
+    htmlwidgets::saveWidget(p_ridge, file = fig_path)
     return(fig_path)
 }
 
 #' Protein - Description: Barplot
 plot_fig_protein_barplot <- function(ScIGMA_obj) {
     message("Generating Protein Barplot...")
-    fig_path <- setup_fig_path("Fig6_Protein_Abundance_Barplot.pdf")
+    fig_path <- setup_fig_path("Fig6_Protein_Abundance_Barplot.html")
     p_bar <- ScIGMA:::generate_protein_barplot(
         ScIGMA_obj,
         title = "Protein Percentage Distribution"
     )
-    pdf(fig_path)
-    print(p_bar)
-
-    dev.off()
+    htmlwidgets::saveWidget(p_bar, file = fig_path)
     return(fig_path)
 }
 
 #' Protein - scADT-seq gating: Biplot CD19 vs CD33 + DNA clone projection
 plot_fig_protein_biplot_gating <- function(ScIGMA_obj) {
     message("Generating Protein Biplot Gating (CD19 vs CD33)...")
-    fig_path <- setup_fig_path("Fig7_Protein_Biplot_DNA_Clones.pdf")
+    fig_path <- setup_fig_path("Fig7_Protein_Biplot_DNA_Clones.html")
     p_biplot <- ScIGMA:::generate_protein_biplot(
         obj = ScIGMA_obj,
         xvar = "CD19",
@@ -133,10 +122,7 @@ plot_fig_protein_biplot_gating <- function(ScIGMA_obj) {
         color_genotype = c("1"), # Met en évidence le clone 1 (les autres sont en gris transparent au fond)
         title = "Biplot Immunophénotypique CD19 vs CD33"
     )
-    pdf(fig_path)
-    print(p_biplot)
-
-    dev.off()
+    htmlwidgets::saveWidget(p_biplot, file = fig_path)
     return(fig_path)
 }
 

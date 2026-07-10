@@ -383,7 +383,7 @@ normalize_amplicon_counts <- function(
 #'   `genotype_signature`}
 #'
 #' @importFrom dplyr select mutate across all_of case_when filter distinct
-#'   arrange left_join row_number
+#' @importFrom dplyr arrange left_join row_number
 #' @importFrom tidyr unite
 #' @importFrom stringr str_detect
 #' @importFrom tibble as_tibble

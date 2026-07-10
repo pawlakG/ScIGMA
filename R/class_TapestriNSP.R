@@ -362,10 +362,10 @@ NSP <- R6Class(
 
   private = list(
     cell_signal_and_background = function(asinh_reads) {
-      pboptions(type = "txt")
+      pbapply::pboptions(type = "txt")
       means_mat <- do.call(
         rbind,
-        pblapply(seq_len(nrow(asinh_reads)), function(i) {
+        pbapply::pblapply(seq_len(nrow(asinh_reads)), function(i) {
           x <- asinh_reads[i, ]
           if (!is.null(self$random_state)) {
             # set.seed(self$random_state + i)
@@ -373,11 +373,11 @@ NSP <- R6Class(
           suppressWarnings({
             # We force K-means initialization (like scikit-learn)
             km <- kmeans(x, centers = 2)
-            mc <- Mclust(
+            mc <- mclust::Mclust(
               x,
               G = 2,
               modelNames = "V",
-              initialization = list(z = unmap(km$cluster)),
+              initialization = list(z = mclust::unmap(km$cluster)),
               verbose = FALSE
             )
             if (is.null(mc)) c(km$centers) else mc$parameters$mean

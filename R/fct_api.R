@@ -82,7 +82,6 @@ fetch_clinical_vep_annotations <- function(
         ) %>%
         dplyr::filter(canonical == 1)
 
-
     expected_cols <- c("hgvsc", "hgvsp")
     for (col in expected_cols) {
         if (!col %in% names(annotation_table)) {
@@ -182,8 +181,6 @@ fetch_clinical_vep_annotations <- function(
             gene_function = consequence_terms,
             clinvar = CLINVAR
         )
-
-
 
     return(annotation_table)
 }
@@ -422,11 +419,6 @@ run_compass_inference <- function(
 
     message("3/3 - Updating object with imputed genotypes and clonal labels...")
 
-    # mat_imputed <- get_imputed_genotypes(prefix_out = res$prefix)
-    # message("res")
-    # message(res)
-    # message("prefix_out")
-    # message(prefix_out)
     mat_imputed <- get_imputed_genotypes(prefix_out = prefix_out)
     cells_to_keep <- rownames(mat_imputed)
 
@@ -473,7 +465,9 @@ run_compass_inference <- function(
 
     if (is.null(obj$variants.filtered)) {
         target_variants_df <- as.data.frame(
-            SummarizedExperiment::rowData(obj$mae[["dna_variants"]])[target_vars, ]
+            SummarizedExperiment::rowData(obj$mae[["dna_variants"]])[
+                target_vars,
+            ]
         )
     } else {
         target_variants_df <- obj$variants.filtered
@@ -495,7 +489,9 @@ run_compass_inference <- function(
     tree_gv_path <- res$tree_dot
     tree_dot_content <- if (file.exists(tree_gv_path)) {
         paste(readLines(tree_gv_path, warn = FALSE), collapse = "\n")
-    } else NULL
+    } else {
+        NULL
+    }
 
     S4Vectors::metadata(obj$mae)$compass <- list(
         tree_dot = tree_dot_content

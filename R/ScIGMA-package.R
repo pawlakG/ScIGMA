@@ -1,4 +1,6 @@
 #' @keywords internal
+#' @importFrom mclust Mclust mclustBIC unmap
+#' @importFrom pbapply pboptions pblapply
 #' @importFrom stats end lm median na.omit residuals rnorm sd start
 #' @importFrom utils head read.delim read.table str
 #' @importFrom dplyr group_by summarise n desc if_else rename ungroup where

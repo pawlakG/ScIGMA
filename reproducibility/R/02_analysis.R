@@ -30,7 +30,7 @@ run_scigma_pipeline <- function(h5_path, params, manual_gates) {
         "dna_variants"
     ]]) |>
         as.data.frame() |>
-        dplyr::filter(cdna %in% c("c.700T>C", "c.672+1G>A", "c.638G>A"))
+        dplyr::filter(cdna %in% params$indels_selected)
     ScIGMA_data$variants.filtered <- selected_variants
 
     # 4. Run COMPASS
@@ -62,7 +62,10 @@ run_scigma_pipeline <- function(h5_path, params, manual_gates) {
         "proteins"
     ]]))
     rownames(ScIGMA_data$mae[["proteins"]]) <- safe_rownames
-    ScIGMA_data$seurat_object <- ScIGMA:::protein_run_pca(ScIGMA_data)
+    ScIGMA_data$seurat_object <- ScIGMA:::protein_run_pca(
+        ScIGMA_data,
+        norm_method = params$protein_normalization$normalization_method
+    )
 
     # 7. Filter CNV
     message("Filtering CNV...")
@@ -91,15 +94,20 @@ run_scigma_pipeline <- function(h5_path, params, manual_gates) {
     if (!is.null(manual_gates)) {
         message("Injecting manual scADT-seq gates...")
         ScIGMA_data$protein_gating_tree <- manual_gates
-        
+
         # Translate to protein_gates for plotting functions
         gates_list <- manual_gates$gates_list
         meta_list <- manual_gates$meta_list
-        assay_colnames <- colnames(SummarizedExperiment::assay(ScIGMA_data$mae[["proteins"]], "counts"))
-        
+        assay_colnames <- colnames(SummarizedExperiment::assay(
+            ScIGMA_data$mae[["proteins"]],
+            "counts"
+        ))
+
         protein_gates <- list()
         for (gate_id in names(gates_list)) {
-            if (gate_id == "root") next
+            if (gate_id == "root") {
+                next
+            }
             gate_name <- meta_list[[gate_id]]$name
             cell_indices <- gates_list[[gate_id]]
             protein_gates[[gate_name]] <- assay_colnames[cell_indices]

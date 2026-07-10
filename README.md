@@ -69,25 +69,31 @@ ScIGMA::run_app()
 4. **Annotation**: Trigger the API module to functionally annotate selected variants against Ensembl and ClinVar.
 5. **Integration**: Reduce protein dimensions, define phenotypic subpopulations, and compute the mathematical intersection between genomic clones and protein profiles.
 
-## Reproducibility & Test Dataset
+## Reproducibility & Tutorial
 
-To ensure strict computational reproducibility of the manuscript figures and evaluate the method's performance, an independent `reproducibility` module is available.
+To ensure strict computational reproducibility of the manuscript figures and evaluate the method's performance, an independent `reproducibility/` module is provided within this repository.
 
-**Test Dataset**: The standardized multi-omics dataset (57.7 MB) required for execution is hosted externally to comply with Bioconductor repository limits. It is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and can be downloaded from Zenodo:
-[Download Test Dataset (Zenodo)](https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1)
+### 1. Download the Test Dataset
+The standardized multi-omics dataset (57.7 MB) required for execution is hosted externally on Zenodo. It is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). 
 
-**Execution Instructions (Programmatic Reproducibility)**:
+You can download it directly via your terminal using `curl`:
+```bash
+curl -OJL "https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1"
+```
+Or download it manually from your browser: [Download Test Dataset (Zenodo)](https://zenodo.org/records/20818440/files/4-cell-lines-AML-multiomics.dna+protein.h5?download=1)
+
+### 2. Execution Instructions (Programmatic Reproducibility)
 1. Clone this repository and navigate to the `reproducibility/` directory.
-2. The analytical pipeline is powered by `targets`. It will automatically download the test dataset via the URL above and execute the inference.
-3. Run the following R commands:
+2. The analytical pipeline is powered by `targets`. It is configured to run the full analysis and generate all figures.
+3. Run the following R commands in your console:
    ```r
    renv::restore()
    targets::tar_make()
    ```
 
-**Execution Instructions (Interactive GUI Analysis)**:
+### 3. Execution Instructions (Interactive GUI Analysis)
 If you prefer to manually explore the test dataset using the ScIGMA graphical user interface:
-1. Manually download the `.h5` file using the Zenodo link above and save it to your computer.
+1. Ensure the `.h5` file has been downloaded using the tutorial above.
 2. Launch the application via `ScIGMA::run_app()`.
 3. In the "Load and process" panel, select the downloaded `.h5` file and choose "DNA & protein" as the data type.
 4. Click **Load file**. Once loaded, use the Preprocess controls to set your desired DNA filtering thresholds (e.g., Min DP=10, Min GQ=30).
@@ -118,4 +124,4 @@ For academic inquiries, methodological questions, or system bug reports:
 
 **Geoffrey Pawlak**
 PharmD, PhD in Bioinformatics & Systems Oncology
-pawlak.geo [at] pm.me
+<pawlak.geoffrey@gmail.com>

@@ -4,7 +4,12 @@
 \alias{generate_multi_barplot_gating_genotype}
 \title{Generate Multiomics Barplot of Gating Subpopulation Genotype vs Variants}
 \usage{
-generate_multi_barplot_gating_genotype(obj, variant_ids, use_compass = TRUE)
+generate_multi_barplot_gating_genotype(
+  obj,
+  variant_ids,
+  use_compass = TRUE,
+  target_gate = "All"
+)
 }
 \description{
 Generate Multiomics Barplot of Gating Subpopulation Genotype vs Variants

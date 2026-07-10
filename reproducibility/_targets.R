@@ -141,5 +141,10 @@ list(
     fig_multi_barplot_gating_genotype,
     plot_fig_multi_barplot_gating_genotype(ScIGMA_obj),
     format = "file"
+  ),
+  tar_target(
+    fig_multi_barplot_clones_per_gate,
+    plot_fig_multi_barplot_clones_per_gate(ScIGMA_obj),
+    format = "file"
   )
 )

@@ -143,7 +143,17 @@ plot_fig_protein_umap_markers <- function(ScIGMA_obj) {
     fig_path <- setup_fig_path("Fig9_Protein_UMAP_Markers_Facetted.pdf")
     # We use a default set of markers (e.g. CD19, CD33) if available
     markers_to_plot <- intersect(
-        c("CD19", "CD33", "CD34", "CD38"),
+        c(
+            "CD11b",
+            "CD19",
+            "CD3",
+            "CD33",
+            "CD34",
+            "CD38",
+            "CD45",
+            "CD90",
+            "HLA-DR"
+        ),
         rownames(ScIGMA_obj$mae[["proteins"]])
     )
     p <- ScIGMA:::generate_protein_umap_markers(ScIGMA_obj, markers_to_plot)
@@ -194,7 +204,7 @@ plot_fig_multi_umap_dna_clones <- function(ScIGMA_obj) {
 plot_fig_multi_umap_dna_genotype <- function(ScIGMA_obj) {
     message("Generating Multiomics UMAP (Clone Genotype)...")
     fig_path <- setup_fig_path("Fig13_Multiomics_UMAP_Clone_Genotype.pdf")
-    variant_to_plot <- rownames(ScIGMA_obj$mae[["dna_variants"]])[1]
+    variant_to_plot <- rownames(ScIGMA_obj$variants.filtered)[1]
     p <- ScIGMA:::generate_multi_umap_dna_genotype(ScIGMA_obj, variant_to_plot)
     pdf(fig_path)
     print(p)
@@ -202,14 +212,10 @@ plot_fig_multi_umap_dna_genotype <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Multiomics - Barplot of DNA clones across UMAP unsupervised clusters
+#' Multiomics - Barplot of DNA Clones per Unsupervised Cluster
 plot_fig_multi_barplot_clones_per_cluster <- function(ScIGMA_obj) {
-    message(
-        "Generating Multiomics Barplot: DNA Clones vs Unsupervised Clusters..."
-    )
-    fig_path <- setup_fig_path(
-        "Fig14_Multiomics_Barplot_Clones_vs_Clusters.pdf"
-    )
+    message("Generating Multiomics Barplot: DNA Clones vs Unsupervised Clusters...")
+    fig_path <- setup_fig_path("Fig14_Multiomics_Barplot_Clones_vs_Clusters.pdf")
     p <- ScIGMA:::generate_multi_barplot_clones_per_cluster(ScIGMA_obj)
     pdf(fig_path)
     print(p)
@@ -217,20 +223,28 @@ plot_fig_multi_barplot_clones_per_cluster <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Multiomics - Barplot of DNA variants according to clusters and genes
+#' Multiomics - Barplot of DNA Variants per Unsupervised Cluster
 plot_fig_multi_barplot_variant_genotype <- function(ScIGMA_obj) {
-    message(
-        "Generating Multiomics Barplot: DNA Variants vs Clusters & Genes..."
-    )
-    fig_path <- setup_fig_path(
-        "Fig15_Multiomics_Barplot_Variants_vs_Clusters.pdf"
-    )
-    variants_to_plot <- rownames(ScIGMA_obj$mae[["dna_variants"]])[
-        1:min(3, nrow(ScIGMA_obj$mae[["dna_variants"]]))
-    ]
+    message("Generating Multiomics Barplot: DNA Variants vs Clusters & Genes...")
+    fig_path <- setup_fig_path("Fig15_Multiomics_Barplot_Variants_vs_Clusters.html")
+    # Using the variants passed the filters
+    variant_ids <- rownames(ScIGMA_obj$variants.filtered)
     p <- ScIGMA:::generate_multi_barplot_variant_genotype(
         ScIGMA_obj,
-        variants_to_plot
+        variant_ids
+    )
+    htmlwidgets::saveWidget(p, file = fig_path)
+    return(fig_path)
+}
+
+#' Multiomics - Barplot of Gating Subpopulation Genotype vs Variants
+plot_fig_multi_barplot_gating_genotype <- function(ScIGMA_obj) {
+    message("Generating Multiomics Barplot: Gating Subpop Genotype vs Variants...")
+    fig_path <- setup_fig_path("Fig16_Multiomics_Barplot_Variants_vs_Gating.pdf")
+    variant_ids <- rownames(ScIGMA_obj$variants.filtered)
+    p <- ScIGMA:::generate_multi_barplot_gating_genotype(
+        ScIGMA_obj,
+        variant_ids
     )
     pdf(fig_path)
     print(p)
@@ -238,21 +252,11 @@ plot_fig_multi_barplot_variant_genotype <- function(ScIGMA_obj) {
     return(fig_path)
 }
 
-#' Multiomics - scADT-seq Gating: Barplot of gating subpopulation genotype vs DNA variants
-plot_fig_multi_barplot_gating_genotype <- function(ScIGMA_obj) {
-    message(
-        "Generating Multiomics Barplot: Gating Subpop Genotype vs Variants..."
-    )
-    fig_path <- setup_fig_path(
-        "Fig16_Multiomics_Barplot_Gating_vs_Variants.pdf"
-    )
-    variants_to_plot <- rownames(ScIGMA_obj$mae[["dna_variants"]])[
-        1:min(3, nrow(ScIGMA_obj$mae[["dna_variants"]]))
-    ]
-    p <- ScIGMA:::generate_multi_barplot_gating_genotype(
-        ScIGMA_obj,
-        variants_to_plot
-    )
+#' Multiomics - Barplot of DNA Clones per Gating Subpopulation
+plot_fig_multi_barplot_clones_per_gate <- function(ScIGMA_obj) {
+    message("Generating Multiomics Barplot: DNA Clones vs Gating Subpopulations...")
+    fig_path <- setup_fig_path("Fig17_Multiomics_Barplot_Clones_vs_Gating.pdf")
+    p <- ScIGMA:::generate_multi_barplot_clones_per_gate(ScIGMA_obj)
     pdf(fig_path)
     print(p)
     dev.off()

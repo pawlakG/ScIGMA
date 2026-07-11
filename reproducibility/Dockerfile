@@ -19,7 +19,7 @@ COPY renv.lock .
 # COPY .Rprofile . # Uncomment if local .Rprofile is used
 COPY _targets.R .
 COPY config.yml .
-COPY ScIGMA_0.99.2.tar.gz ScIGMA_0.99.2.tar.gz
+COPY ScIGMA_0.99.3.tar.gz ScIGMA_0.99.3.tar.gz
 # 4. Restauration bit-à-bit (avec patch dynamique pour Bioconductor Devel)
 
 RUN Rscript -e "install.packages(c('jsonlite', 'BiocManager', 'renv'), repos='https://cloud.r-project.org'); \
@@ -32,7 +32,7 @@ RUN Rscript -e "install.packages(c('jsonlite', 'BiocManager', 'renv'), repos='ht
     renv::record(paste0('bioc::', bioc_pkgs)); \
     renv::restore(prompt = FALSE); \
     if (!requireNamespace('remotes', quietly = TRUE)) install.packages('remotes'); \
-    remotes::install_local('ScIGMA_0.99.2.tar.gz', dependencies = TRUE)"
+    remotes::install_local('ScIGMA_0.99.3.tar.gz', dependencies = TRUE)"
 
 COPY R/ R/
 

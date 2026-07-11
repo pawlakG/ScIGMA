@@ -38,7 +38,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             zeroline = FALSE
         )
 
-
         is_filtered_flag <- shiny::reactiveVal(FALSE)
 
         observeEvent(
@@ -85,7 +84,9 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             } else {
                 umap_ready <- FALSE
                 if (!is.null(ScIGMA_data$seurat_object)) {
-                    umap_ready <- !is.null(ScIGMA_data$seurat_object@reductions$umap)
+                    umap_ready <- !is.null(
+                        ScIGMA_data$seurat_object@reductions$umap
+                    )
                 }
 
                 curr_features <- shiny::isolate(input$umap_features)
@@ -452,19 +453,27 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 )
             )
 
-
             if (!is.null(ScIGMA_data$seurat_object@reductions$umap)) {
                 ScIGMA_data$seurat_object@reductions$umap <- NULL
             }
 
             n_cells_current <- ncol(SummarizedExperiment::assay(
                 ScIGMA_data$mae[["proteins"]],
-                ifelse("normalized" %in% SummarizedExperiment::assayNames(ScIGMA_data$mae[["proteins"]]), "normalized", "counts")
+                ifelse(
+                    "normalized" %in%
+                        SummarizedExperiment::assayNames(ScIGMA_data$mae[[
+                            "proteins"
+                        ]]),
+                    "normalized",
+                    "counts"
+                )
             ))
 
             # Reset local state
             r_state$subsets <- list(root = seq_len(n_cells_current))
-            r_state$subset_meta <- list(root = list(name = "All", parent = NA, depth = 0))
+            r_state$subset_meta <- list(
+                root = list(name = "All", parent = NA, depth = 0)
+            )
             r_state$current_view <- "root"
             r_state$temp_selection <- NULL
 
@@ -475,16 +484,20 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
         })
 
         # Reset UMAP UI when normalization method changes
-        observeEvent(input$protein_preprocess_normMethod, {
-            req(ScIGMA_data$mae[["proteins"]])
-            shinyWidgets::updatePickerInput(
-                session = session,
-                inputId = "umap_features",
-                selected = rownames(ScIGMA_data$mae[["proteins"]])
-            )
-            updateNumericInput(session, "n_neighbors", value = 15)
-            updateNumericInput(session, "min_dist", value = 0.2)
-        }, ignoreInit = TRUE)
+        observeEvent(
+            input$protein_preprocess_normMethod,
+            {
+                req(ScIGMA_data$mae[["proteins"]])
+                shinyWidgets::updatePickerInput(
+                    session = session,
+                    inputId = "umap_features",
+                    selected = rownames(ScIGMA_data$mae[["proteins"]])
+                )
+                updateNumericInput(session, "n_neighbors", value = 15)
+                updateNumericInput(session, "min_dist", value = 0.2)
+            },
+            ignoreInit = TRUE
+        )
         # 1. Initialization & State (Bi-plot Logic)
 
         # State: Stores indices (pointers) only. Zero data duplication.
@@ -705,9 +718,15 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
 
         # Listener
         observeEvent(
-            suppressWarnings(event_data("plotly_selected", source = ns("gating_plot"))),
+            suppressWarnings(event_data(
+                "plotly_selected",
+                source = ns("gating_plot")
+            )),
             {
-                sel <- suppressWarnings(event_data("plotly_selected", source = ns("gating_plot")))
+                sel <- suppressWarnings(event_data(
+                    "plotly_selected",
+                    source = ns("gating_plot")
+                ))
 
                 # 1. Absolute shield: Intercept NULL, list(), and empty dataframes
                 if (
@@ -770,8 +789,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             if (safe_name == "") {
                 safe_name <- paste0("Gate_", length(r_state$subsets))
             }
-
-
 
             # Save Indices & Meta
             r_state$subsets[[new_id]] <- r_state$temp_selection
@@ -868,8 +885,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             }
         })
 
-
-
         # Render ridge plot for all proteins
         output$protein_ridge <- renderPlotly({
             watch("dnaVariant_filtered")
@@ -893,11 +908,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
             ScIGMA_data$protein_gating_tree <- list(
                 "gates_list" = r_state$subsets,
                 "meta_list" = r_state$subset_meta
-            )
-
-            saveRDS(
-                ScIGMA_data$protein_gating_tree,
-                "/Users/geoffrey/Documents/Pro/projects/dnaPtnApp/ScIGMA/reproducibility/data/manual_gates.rds"
             )
 
             showNotification(
@@ -984,7 +994,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                 continuity = round(metrics$continuity * 100, 1),
                 spearman = round(metrics$global_spearman, 3)
             )
-
 
             w$hide()
             gargoyle::trigger("umap_computed")
@@ -1122,7 +1131,6 @@ mod_analysis_Protein_server <- function(id, ScIGMA_data) {
                     "<b>--- Top Expression ---</b><br>",
                     top_strings
                 )
-
 
                 ScIGMA_data$umaps$umap_protein_general <- umap_cluster |>
                     ggplot(aes(x = umap_1, y = umap_2)) +
